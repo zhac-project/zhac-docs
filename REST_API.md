@@ -27,9 +27,9 @@ The token persists in NVS across reboots. Endpoints marked **Auth required** ret
 
 Every endpoint below is a thin wrapper over a shared
 transport-agnostic handler in
-`firmware/s3_core/main/api_handlers.cpp` (the `api_*` family). The
+`zhac-net-core/main/api_handlers.cpp` (the `api_*` family). The
 same handler is called from the WebSocket envelope dispatcher
-(`firmware/s3_core/main/ws_bridge.cpp`, 35-entry table), so request
+(`zhac-net-core/main/ws_bridge.cpp`, 35-entry table), so request
 and response bodies are byte-identical on the two transports.
 
 The first-party web UI (`www-spa/`, Preact SPA) speaks **WebSocket
