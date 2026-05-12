@@ -1,0 +1,33 @@
+zhac-docs — ZHAC platform documentation
+Copyright © 2025–2026 Evgenij Cjura and project contributors.
+
+Licensed under the GNU Affero General Public License v3 or later.
+See `LICENSE` and `LICENSES/AGPL-3.0-or-later.txt`.
+
+================================================================================
+Trademarks
+================================================================================
+
+"ZHAC" and any associated logos, product names, and marks are the
+exclusive property of the project maintainer. The AGPL license
+governing this documentation DOES NOT grant any right to use these
+names or marks. Forks must choose different branding.
+
+================================================================================
+Material derived from external sources
+================================================================================
+
+Portions of the device-port documentation describe devices and
+protocol behaviour originally documented by the
+zigbee-herdsman-converters project (MIT, Koen Kanters and
+contributors, https://github.com/Koenkk/zigbee-herdsman-converters).
+Where this documentation describes z2m behaviour verbatim, the MIT
+attribution applies to that paragraph.
+
+================================================================================
+Link targets
+================================================================================
+
+External documentation linked from this repo (ESP-IDF docs,
+FreeRTOS docs, Zigbee spec PDFs, upstream z2m, etc.) retains its
+own licensing and is NOT redistributed here — we link, we don't copy.
