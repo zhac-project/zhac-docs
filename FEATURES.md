@@ -299,8 +299,8 @@ do kv.set <key> <value>
 | `components/simple_rules/simple_rules.cpp` | Add `"kv.set"` in `dsl_parse`, `KV_SET` case in `execute_rule`, `$kv.` in `expand_value` |
 | New `components/kv_store/` | Small NVS namespace (`kv_store`) plus `kv_store_set_int/str/get_int/str` API |
 | `components/lua_engine/src/zhac_lua_module.cpp` | Expose `zhac.kv_set_int/str`, `zhac.kv_get_int/str` entries in `kZhacLib` |
-| `firmware/s3_core/main/rest_ops.cpp` | Add `GET /api/kv` and `DELETE /api/kv/{key}` endpoints |
-| `firmware/s3_core/main/main.cpp` | Register new URI handlers |
+| `firmware/zhac-net-core/main/rest_ops.cpp` | Add `GET /api/kv` and `DELETE /api/kv/{key}` endpoints |
+| `firmware/zhac-net-core/main/main.cpp` | Register new URI handlers |
 
 **Effort:** ~3h | **Impact:** High — eliminates scripting boilerplate for state-tracking patterns
 

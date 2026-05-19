@@ -57,7 +57,7 @@ The following endpoints intentionally require no authentication:
 
 ## NVS encryption
 
-**Current state:** NVS is unencrypted. A `TODO` comment exists in `s3_core/main/main.cpp:417`.
+**Current state:** NVS is unencrypted. A `TODO` comment exists in `zhac-net-core/main/main.cpp:417`.
 
 **Planned:** `nvs_flash_secure_init` with an eFuse-burned key. This protects credentials (WiFi password, API token, MQTT broker URL) against physical flash extraction.
 

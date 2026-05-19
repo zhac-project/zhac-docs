@@ -482,7 +482,7 @@ Trigger S3 OTA update. **Auth required.**
 
 **Request:**
 ```json
-{ "url": "http://192.168.1.5:8080/s3_core.bin" }
+{ "url": "http://192.168.1.5:8080/zhac-net-core.bin" }
 ```
 
 **Response:** `202 Accepted` + `{"status": "queued"}` — download runs in background task.
