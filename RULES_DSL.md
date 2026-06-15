@@ -103,10 +103,10 @@ ON Event#motion_detected DO zigbee.set "hallway light" state 1 ENDON
 ON Rules#Timer=<n> DO ... ENDON
 ```
 
-Fires when timer `n` expires (set via the `timer` action). `n` is a timer index (0–7).
+Fires when timer `n` expires (set via the `timer` action). `n` is a timer index (1–8).
 
 ```
-ON Rules#Timer=0 DO zigbee.set "hallway light" state 0 ENDON
+ON Rules#Timer=1 DO zigbee.set "hallway light" state 0 ENDON
 ```
 
 ### MQTT topic
@@ -178,10 +178,10 @@ event lights_off
 Set a countdown timer. When it expires, fires `ON Rules#Timer=<index>`.
 
 ```
-timer 0 30000
+timer 1 30000
 ```
 
-Fires `ON Rules#Timer=0` after 30 seconds.
+Fires `ON Rules#Timer=1` after 30 seconds.
 
 ### `log <message>`
 
@@ -210,8 +210,8 @@ Fire-and-forget: the rule action returns as soon as the run request is queued on
 ### Motion sensor → lights on for 5 minutes
 
 ```
-ON motion sensor#occupancy=1 DO zigbee.set "hallway light" state 1 ; timer 0 300000 ENDON
-ON Rules#Timer=0 DO zigbee.set "hallway light" state 0 ENDON
+ON motion sensor#occupancy=1 DO zigbee.set "hallway light" state 1 ; timer 1 300000 ENDON
+ON Rules#Timer=1 DO zigbee.set "hallway light" state 0 ENDON
 ```
 
 ### Door contact → MQTT alert
@@ -244,7 +244,7 @@ ON Event#all_lights_off DO zigbee.set "kitchen" state 0 ; zigbee.set "living roo
 | Attribute key length | 31 characters |
 | Cron expression length | 63 characters |
 | Event name length | 31 characters |
-| Timer indices | 0–7 |
+| Timer indices | 1–8 |
 | Rule DSL source length | 499 bytes |
 
 ---
