@@ -37,8 +37,9 @@ Three tiers, each on its own silicon:
   Monitor-Test (MT)** protocol.
 - **ESP32-S3 (`zhac-net-core`)** — WiFi station, REST + WebSocket + MQTT gateway, and it
   embeds the Preact single-page web UI in flash (SPIFFS).
-- **P4 ⇄ S3 link** — a custom binary protocol (**HAP**) over SPI. The S3 is SPI master,
-  the P4 is SPI slave, with a data-ready (DRDY) interrupt line for P4→S3 flow control.
+- **P4 ⇄ S3 link** — a custom binary protocol (**[HAP](HAP_PROTOCOL.md)**) over SPI. The S3
+  is SPI master, the P4 is SPI slave, with a data-ready (DRDY) interrupt line for P4→S3 flow
+  control.
 
 ---
 
@@ -253,6 +254,7 @@ just deep-clean    # also remove node_modules
 | [REST_API.md](REST_API.md) · [WS_API.md](WS_API.md) · [openapi.yaml](openapi.yaml) | HTTP REST + WebSocket (`/ws`) APIs |
 | [RULES_DSL.md](RULES_DSL.md) | Automation rule DSL (`ON … DO … ENDON`) |
 | [LUA_API.md](LUA_API.md) | Lua scripting API |
+| [HAP_PROTOCOL.md](HAP_PROTOCOL.md) | P4 ↔ S3 SPI binary protocol — framing, message catalog, reliability |
 | [ZNP_API_CONTRACT.md](ZNP_API_CONTRACT.md) | P4 ↔ radio ZNP/MT contract |
 | [VENDOR_PORTING_STATUS.md](VENDOR_PORTING_STATUS.md) | Supported devices / porting status |
 | [SECURITY.md](SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CLA.md](CLA.md) | Security policy, contributing, CLA |
