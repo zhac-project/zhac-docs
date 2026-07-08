@@ -75,9 +75,10 @@ Static-memory C++20 library replacing the retired `zcl_converter` /
 | R14 | Device name resolution (friendly name → IEEE at eval) | ✅ | `simple_rules_resolve_names` |
 | R15 | Rule store (NVS, survives reboot) | ✅ | `rule_store.cpp` |
 | R16 | Up to 4 chained actions per rule | ✅ | `ParsedRule.actions[4]` |
-| R17 | `$val` expansion (inject trigger value into action arg) | ✅ | `expand_value` |
+| R17 | `%value%` expansion (inject trigger value into action arg) | ✅ | `expand_value` |
 | R18 | **Action — `script.run <name>`** (invoke a named Lua script) | ✅ | `ActionType::SCRIPT`; wired via `simple_rules_set_script_hook` → `lua_scheduler_push_run_named` |
 | **R19** | **Action — kv.set / kv.get** (persistent KV from rules) | 💡 | **New — see §7.2** |
+| R20 | **Value expressions** — integer arithmetic over `%value%` in `zigbee.set` / `publish` (`!%value%`, `%value%/100`, `(%value%*10)/3+5`) | ✅ | `expr_eval.cpp` — compiled at rule save, RPN eval per fire; RULES_DSL.md §Value substitution & expressions |
 
 ---
 

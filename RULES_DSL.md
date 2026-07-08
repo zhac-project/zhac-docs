@@ -38,7 +38,7 @@ Fires when a Zigbee device reports an attribute value. `device_ref` is either a 
 | *(none)* | any value change |
 
 ```
-ON kitchen switch#action=single DO zigbee.set "kitchen light" state 1 ENDON
+ON kitchen switch#action=single DO zigbee.set kitchen_light state 1 ENDON
 ON 0x001234567890ABCD#temperature>2500 DO publish home/alert hot ENDON
 ON door sensor#contact DO event motion ENDON
 ```
@@ -67,7 +67,7 @@ ON System#Boot DO ... ENDON
 Fires once when P4 starts up.
 
 ```
-ON System#Boot DO zigbee.set "all lights" state 0 ENDON
+ON System#Boot DO zigbee.set all_lights state 0 ENDON
 ```
 
 ### Cron timer
@@ -81,8 +81,8 @@ ON Time#Cron=<expr> DO ... ENDON
 Fields support: single values, `*` (any), and comma-separated lists.
 
 ```
-ON Time#Cron=0 0 7 * * 1-5 DO zigbee.set "bedroom blinds" position 100 ENDON
-ON Time#Cron=0 30 22 * * * DO zigbee.set "all lights" state 0 ENDON
+ON Time#Cron=0 0 7 * * 1-5 DO zigbee.set bedroom_blinds position 100 ENDON
+ON Time#Cron=0 30 22 * * * DO zigbee.set all_lights state 0 ENDON
 ```
 
 ### Named event
@@ -94,7 +94,7 @@ ON Event#<name> DO ... ENDON
 Reacts to an event fired by `zhac.event(name)` from a Lua script or another rule's `event` action.
 
 ```
-ON Event#motion_detected DO zigbee.set "hallway light" state 1 ENDON
+ON Event#motion_detected DO zigbee.set hallway_light state 1 ENDON
 ```
 
 ### Timer
@@ -106,7 +106,7 @@ ON Rules#Timer=<n> DO ... ENDON
 Fires when timer `n` expires (set via the `timer` action). `n` is a timer index (1–8).
 
 ```
-ON Rules#Timer=1 DO zigbee.set "hallway light" state 0 ENDON
+ON Rules#Timer=1 DO zigbee.set hallway_light state 0 ENDON
 ```
 
 ### MQTT topic
@@ -118,7 +118,7 @@ ON Mqtt#<topic> DO ... ENDON
 Fires when a message is received on the given MQTT topic.
 
 ```
-ON Mqtt#home/alarm DO zigbee.set "siren" state 1 ENDON
+ON Mqtt#home/alarm DO zigbee.set siren state 1 ENDON
 ```
 
 ---
@@ -131,13 +131,16 @@ Multiple actions are separated by `;`. Maximum 4 per rule.
 
 Set a device attribute by semantic key name.
 
-- `device_ref`: friendly name or IEEE address string
+- `device_ref`: friendly name or IEEE address string. **Single token, no quotes** — action
+  arguments split on spaces and quotes are not stripped, so a name containing spaces cannot
+  be used here; rename the device (e.g. `kitchen_light`) or use its IEEE address. (Trigger
+  device names before `#` *may* contain spaces.)
 - `key`: `state`, `brightness`, `color_temp`, `hue`, `saturation`, or any registered attribute name
 - `value`: integer literal, `%value%` (the trigger value), or a `%value%` expression — see
   [Value substitution & expressions](#value-substitution--expressions)
 
 ```
-zigbee.set "kitchen light" state 1
+zigbee.set kitchen_light state 1
 zigbee.set 0x001234567890ABCD brightness 128
 ```
 
@@ -145,16 +148,17 @@ zigbee.set 0x001234567890ABCD brightness 128
 
 Read the current shadow value for `key` on the named device and send the inverted binary value. Only meaningful for binary attributes (e.g. `state`, `on_off`): if the shadow value is `0` it sends `1`, and vice versa. If the attribute is absent from the shadow cache, or its value is not `0` or `1`, the action logs a warning and no-ops rather than guessing.
 
-- `device_ref`: friendly name or IEEE address string
+- `device_ref`: friendly name or IEEE address string — same rule as `zigbee.set`:
+  single token, no quotes
 - `key`: binary attribute name (e.g. `state`)
 
 ```
-zigbee.toggle "kitchen light" state
+zigbee.toggle kitchen_light state
 zigbee.toggle 0x001234567890ABCD on_off
 ```
 
 ```
-ON kitchen switch#action=single DO zigbee.toggle "kitchen light" state ENDON
+ON kitchen switch#action=single DO zigbee.toggle kitchen_light state ENDON
 ```
 
 ### `publish <topic> <payload>`
@@ -243,8 +247,8 @@ Fire-and-forget: the rule action returns as soon as the run request is queued on
 ### Motion sensor → lights on for 5 minutes
 
 ```
-ON motion sensor#occupancy=1 DO zigbee.set "hallway light" state 1 ; timer 1 300000 ENDON
-ON Rules#Timer=1 DO zigbee.set "hallway light" state 0 ENDON
+ON motion sensor#occupancy=1 DO zigbee.set hallway_light state 1 ; timer 1 300000 ENDON
+ON Rules#Timer=1 DO zigbee.set hallway_light state 0 ENDON
 ```
 
 ### Door contact → MQTT alert
@@ -256,14 +260,14 @@ ON front door#contact=0 DO publish home/door opened ; log door opened ENDON
 ### Night mode at 22:00
 
 ```
-ON Time#Cron=0 0 22 * * * DO zigbee.set "living room" state 0 ; zigbee.set "bedroom" brightness 30 ENDON
+ON Time#Cron=0 0 22 * * * DO zigbee.set living_room state 0 ; zigbee.set bedroom brightness 30 ENDON
 ```
 
 ### Chained events
 
 ```
 ON kitchen switch#action=double DO event all_lights_off ENDON
-ON Event#all_lights_off DO zigbee.set "kitchen" state 0 ; zigbee.set "living room" state 0 ENDON
+ON Event#all_lights_off DO zigbee.set kitchen state 0 ; zigbee.set living_room state 0 ENDON
 ```
 
 ---
