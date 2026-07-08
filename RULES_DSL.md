@@ -133,7 +133,8 @@ Set a device attribute by semantic key name.
 
 - `device_ref`: friendly name or IEEE address string
 - `key`: `state`, `brightness`, `color_temp`, `hue`, `saturation`, or any registered attribute name
-- `value`: integer value
+- `value`: integer literal, `%value%` (the trigger value), or a `%value%` expression — see
+  [Value substitution & expressions](#value-substitution--expressions)
 
 ```
 zigbee.set "kitchen light" state 1
@@ -158,12 +159,44 @@ ON kitchen switch#action=single DO zigbee.toggle "kitchen light" state ENDON
 
 ### `publish <topic> <payload>`
 
-Publish to MQTT. `topic` and `payload` are space-delimited tokens (no spaces within each).
+Publish to MQTT. `topic` and `payload` are space-delimited tokens (no spaces within each);
+the payload may also be a `%value%` expression (spaces allowed inside the expression) — see
+[Value substitution & expressions](#value-substitution--expressions).
 
 ```
 publish home/status online
 publish home/temp 22
+publish home/temp/c %value%/100
 ```
+
+### Value substitution & expressions
+
+The `<value>` of `zigbee.set` and the `<payload>` of `publish` accept, besides a literal:
+
+- **`%value%`** — the raw trigger value, passed through. For a `Mqtt#` trigger this is the
+  message payload; for a device trigger it is the reported value as an integer.
+- **An integer expression over `%value%`** — evaluated when the rule fires:
+
+```
+ON motion#occupancy   DO zigbee.set lamp state %value%            ENDON   # passthrough
+ON door#contact       DO zigbee.set lamp state !%value%           ENDON   # invert: open=1 → off
+ON sensor#illuminance DO zigbee.set lamp brightness %value%/4     ENDON   # scale
+ON sensor#lux         DO zigbee.set lamp brightness (%value%*10)/3+5 ENDON
+ON room#temperature   DO publish home/temp/c %value%/100          ENDON   # ×100 float → whole units
+```
+
+Expression rules:
+
+- Operators `+ - * / %` (integer, C precedence), parentheses, unary `-` and `!`
+  (`!` maps `0 → 1`, anything else `→ 0`). One variable: `%value%`. Spaces are allowed.
+- All arithmetic is 32-bit integer; overflow clamps, division truncates. Float attributes
+  (e.g. `temperature`) reach rules as the value ×100, so `%value%/100` yields whole units.
+- Limits (rule is rejected on save if exceeded): expression ≤ 48 characters,
+  ≤ 12 operations, parentheses ≤ 6 deep. Division by a literal `0` is rejected on save.
+- If the divisor evaluates to `0` at fire time, or the trigger value is not numeric
+  (a string attribute), the action is **skipped** with a warning — nothing is sent.
+- Expressions are compiled once when the rule is saved; evaluation per fire is a few
+  integer operations.
 
 ### `event <name>`
 
