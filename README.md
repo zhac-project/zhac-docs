@@ -254,6 +254,7 @@ just deep-clean    # also remove node_modules
 | [REST_API.md](REST_API.md) · [WS_API.md](WS_API.md) · [openapi.yaml](openapi.yaml) | HTTP REST + WebSocket (`/ws`) APIs |
 | [RULES_DSL.md](RULES_DSL.md) | Automation rule DSL (`ON … DO … ENDON`) |
 | [LUA_API.md](LUA_API.md) | Lua scripting API |
+| [AUTOMATION_EXAMPLES.md](AUTOMATION_EXAMPLES.md) | Automation cookbook — worked rule + Lua examples, beginner → advanced |
 | [HAP_PROTOCOL.md](HAP_PROTOCOL.md) | P4 ↔ S3 SPI binary protocol — framing, message catalog, reliability |
 | [ZNP_API_CONTRACT.md](ZNP_API_CONTRACT.md) | P4 ↔ radio ZNP/MT contract |
 | [VENDOR_PORTING_STATUS.md](VENDOR_PORTING_STATUS.md) | Supported devices / porting status |
