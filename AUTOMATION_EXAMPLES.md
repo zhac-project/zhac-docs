@@ -749,6 +749,64 @@ end)
 > hub directly. Use the discovery above when you specifically want the buttons to
 > drive **Home Assistant** automations.
 
+**Cover position as a read-only sensor.** The `cover` entity above gives
+controls; sometimes you also (or only) want the position as a plain **number**
+for dashboards, templates, or a blind that only reports. `position` is a whole
+percent, so a plain rule feeds a `sensor`:
+
+```lua
+ha_discover("sensor", "blind_position", [[{
+  "name":"Blind Position","unique_id":"zhac_blind_position",
+  "state_topic":"zhac/venetian/position","unit_of_measurement":"%",
+  "icon":"mdi:blinds","state_class":"measurement",
+  "availability_topic":"zhac/availability",
+  "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+}]])
+```
+
+```
+ON living_venetian#position DO publish zhac/venetian/position %value% ENDON
+```
+
+**Energy monitoring** (`power`, `energy`, `voltage`, `current`). The important
+bit is the HA metadata: `device_class:"energy"` + `state_class:"total_increasing"`
++ `kWh` makes the cumulative meter show up in HA's **Energy Dashboard**; the rest
+are `measurement`. All four go under one HA device:
+
+```lua
+local METER = "0x00158D000B0B0B0B"
+
+-- W / kWh / A are usually floats → ×100 in the shadow, so publish v/100 with
+-- decimals. VERIFY against the device's expose (Web UI): if a reading is 100× off
+-- the device reported a plain integer (publish %value% via a rule instead), and
+-- some devices report voltage in mV — then set the HA unit to "mV" or convert.
+local function meter(key, topic)
+    zhac.on_attr_change(METER, key, function(_, _, v)
+        zhac.publish(topic, string.format("%.2f", v / 100), 0, true)
+    end)
+end
+meter("power",   "zhac/meter/power")
+meter("energy",  "zhac/meter/energy")
+meter("voltage", "zhac/meter/voltage")
+meter("current", "zhac/meter/current")
+
+zhac.on_boot(function()
+    -- sensor(config-slug, HA name, topic-key, unit, device_class, state_class)
+    local function sensor(slug, name, key, unit, dclass, sclass)
+        zhac.publish("homeassistant/sensor/zhac/" .. slug .. "/config", string.format([[{
+          "name":"%s","unique_id":"zhac_%s","state_topic":"zhac/meter/%s",
+          "unit_of_measurement":"%s","device_class":"%s","state_class":"%s",
+          "availability_topic":"zhac/availability",
+          "device":{"identifiers":["zhac_meter"],"name":"ZHAC Meter"}
+        }]], name, slug, key, unit, dclass, sclass), 0, true)
+    end
+    sensor("meter_power",   "Power",   "power",   "W",   "power",   "measurement")
+    sensor("meter_energy",  "Energy",  "energy",  "kWh", "energy",  "total_increasing")  -- → Energy Dashboard
+    sensor("meter_voltage", "Voltage", "voltage", "V",   "voltage", "measurement")
+    sensor("meter_current", "Current", "current", "A",   "current", "measurement")
+end)
+```
+
 **Removing an entity:** publish an empty retained payload to its config topic —
 `zhac.publish("homeassistant/sensor/zhac/living_temp/config", "", 0, true)`.
 
