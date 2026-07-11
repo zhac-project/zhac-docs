@@ -684,6 +684,71 @@ ON Mqtt#zhac/lock/set    DO zigbee.set front_lock lock_state %value% ENDON
 > `lock_state` — check the expose and adjust the mapped values (or keep HA's
 > defaults and map the strings in Lua).
 
+**Scene controller / multi-button remote.** A remote exposes a single `action`
+attribute whose value is a string per button + press-type (e.g. `on`, `off`,
+`up_hold`, `button_1_single` — device-specific, check the expose). Two ways to
+surface it in HA; pick one.
+
+*Approach A — an HA `event` entity (recommended for multi-button).* One entity,
+all button actions as `event_types`. Publish `{"event_type": …}` per press
+(transient, so **not** retained):
+
+```lua
+local REMOTE = "0x00158D00E1E1E1E1"
+
+zhac.on_attr_change(REMOTE, "action", function(_, _, a)
+    zhac.publish("zhac/remote/event", string.format('{"event_type":"%s"}', a), 0, false)
+end)
+
+zhac.on_boot(function()
+    zhac.publish("homeassistant/event/zhac/remote/config", [[{
+      "name":"Living Remote","unique_id":"zhac_living_remote",
+      "state_topic":"zhac/remote/event",
+      "event_types":["on","off","up","down","up_hold","down_hold"],
+      "device_class":"button",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]], 0, true)
+end)
+```
+
+In HA the entity fires with `event_type` = the button action — trigger
+automations on it (`platform: mqtt`/state → `event_type`).
+
+*Approach B — HA device-automation triggers (classic, shows in the device
+picker).* Publish the raw action string, then one **retained** trigger config per
+button/press; HA renders them as "Button 1 – Short Press" etc. in the automation
+UI. `type`/`subtype` are the labels HA shows (use its conventional
+`button_short_press` / `button_long_press` / `button_double_press`):
+
+```lua
+zhac.on_attr_change(REMOTE, "action", function(_, _, a)
+    zhac.publish("zhac/remote/action", a, 0, false)     -- raw action string
+end)
+
+zhac.on_boot(function()
+    -- trigger(config-id, action-payload, type, subtype)
+    local function trigger(id, payload, typ, subtype)
+        zhac.publish("homeassistant/device_automation/zhac/" .. id .. "/config",
+            string.format([[{
+              "automation_type":"trigger","topic":"zhac/remote/action","payload":"%s",
+              "type":"%s","subtype":"%s",
+              "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+            }]], payload, typ, subtype), 0, true)
+    end
+    trigger("b1_press", "on",       "button_short_press", "button_1")
+    trigger("b1_hold",  "up_hold",  "button_long_press",  "button_1")
+    trigger("b2_press", "off",      "button_short_press", "button_2")
+    trigger("b2_hold",  "down_hold","button_long_press",  "button_2")
+    -- … one per button + press-type your remote emits
+end)
+```
+
+> You don't need MQTT at all to *act* on a remote — a rule (`ON remote#action=on
+> DO …`, §4) or a Lua handler (§2.3, multi-press → scenes) runs the scene on the
+> hub directly. Use the discovery above when you specifically want the buttons to
+> drive **Home Assistant** automations.
+
 **Removing an entity:** publish an empty retained payload to its config topic —
 `zhac.publish("homeassistant/sensor/zhac/living_temp/config", "", 0, true)`.
 
