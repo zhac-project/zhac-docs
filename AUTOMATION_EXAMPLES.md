@@ -397,6 +397,108 @@ zhac.on_mqtt("home/cmd/scene", function(_, payload)
 end)
 ```
 
+**H. Home Assistant MQTT auto-discovery.** Publish a **retained** JSON config to
+`homeassistant/<component>/zhac/<object>/config` and HA creates the entity
+automatically, wired to the `zhac/…` state/command topics from the patterns
+above. Do it from `on_boot` (retained, so it survives reconnects). Two
+prerequisites: HA's discovery prefix is the default `homeassistant`, and the
+gateway's **subscription filter** must cover both your `.../set` command topics
+and `homeassistant/status` (the HA birth/last-will topic).
+
+A tiny helper + a shared `device` block so all entities group under one "ZHAC"
+device in HA:
+
+```lua
+-- component = sensor | binary_sensor | switch | light | cover | lock | climate
+local function ha_discover(component, object, cfg)
+    zhac.publish("homeassistant/" .. component .. "/zhac/" .. object .. "/config",
+                 cfg, 0, true)              -- retained
+end
+
+local function announce_all()
+    -- binary_sensor: motion
+    ha_discover("binary_sensor", "hall_motion", [[{
+      "name":"Hall Motion","unique_id":"zhac_hall_motion",
+      "state_topic":"zhac/hall_motion/occupancy",
+      "payload_on":"1","payload_off":"0","device_class":"motion",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC","manufacturer":"ZHAC"}
+    }]])
+
+    -- sensor: temperature (state published as whole units by the rule below)
+    ha_discover("sensor", "living_temp", [[{
+      "name":"Living Temperature","unique_id":"zhac_living_temp",
+      "state_topic":"zhac/living/temperature","unit_of_measurement":"°C",
+      "device_class":"temperature","state_class":"measurement",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]])
+
+    -- switch: metering plug
+    ha_discover("switch", "kitchen_plug", [[{
+      "name":"Kitchen Plug","unique_id":"zhac_kitchen_plug",
+      "state_topic":"zhac/kitchen_plug/state","command_topic":"zhac/kitchen_plug/set",
+      "payload_on":"1","payload_off":"0",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]])
+
+    -- cover: blind by position (0–100)
+    ha_discover("cover", "bedroom_blind", [[{
+      "name":"Bedroom Blind","unique_id":"zhac_bedroom_blind",
+      "position_topic":"zhac/bedroom_blind/position",
+      "set_position_topic":"zhac/bedroom_blind/set_position",
+      "position_open":100,"position_closed":0,
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]])
+
+    -- light: on/off + brightness + colour temperature (default schema)
+    ha_discover("light", "bedroom_light", [[{
+      "name":"Bedroom Light","unique_id":"zhac_bedroom_light",
+      "state_topic":"zhac/bedroom_light/state","command_topic":"zhac/bedroom_light/set",
+      "payload_on":"1","payload_off":"0",
+      "brightness_state_topic":"zhac/bedroom_light/brightness",
+      "brightness_command_topic":"zhac/bedroom_light/brightness/set","brightness_scale":254,
+      "color_temp_state_topic":"zhac/bedroom_light/color_temp",
+      "color_temp_command_topic":"zhac/bedroom_light/color_temp/set",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]])
+end
+
+zhac.on_boot(announce_all)
+
+-- HA republishes a birth message on restart; re-announce so entities survive it.
+zhac.on_mqtt("homeassistant/status", function(_, payload)
+    if payload == "online" then announce_all() end
+end)
+```
+
+Each discovered entity needs its state (and, if controllable, command) topics
+fed — the rules from §3 do exactly that. For the discovery set above:
+
+```
+# ── state OUT ──
+ON hall_motion#occupancy    DO publish zhac/hall_motion/occupancy %value%   ENDON
+ON living_temp#temperature  DO publish zhac/living/temperature %value%/100  ENDON
+ON kitchen_plug#state       DO publish zhac/kitchen_plug/state %value%      ENDON
+ON bedroom_blind#position   DO publish zhac/bedroom_blind/position %value%  ENDON
+ON bedroom_light#state      DO publish zhac/bedroom_light/state %value%     ENDON
+ON bedroom_light#brightness DO publish zhac/bedroom_light/brightness %value% ENDON
+ON bedroom_light#color_temp DO publish zhac/bedroom_light/color_temp %value% ENDON
+
+# ── command IN (HA → device) ──
+ON Mqtt#zhac/kitchen_plug/set             DO zigbee.set kitchen_plug state %value%       ENDON
+ON Mqtt#zhac/bedroom_blind/set_position   DO zigbee.set bedroom_blind position %value%   ENDON
+ON Mqtt#zhac/bedroom_light/set            DO zigbee.set bedroom_light state %value%      ENDON
+ON Mqtt#zhac/bedroom_light/brightness/set DO zigbee.set bedroom_light brightness %value% ENDON
+ON Mqtt#zhac/bedroom_light/color_temp/set DO zigbee.set bedroom_light color_temp %value% ENDON
+```
+
+**Removing an entity:** publish an empty retained payload to its config topic —
+`zhac.publish("homeassistant/sensor/zhac/living_temp/config", "", 0, true)`.
+
 > A device can also be re-interviewed over MQTT by publishing to
 > `zhac/devices/<ieee>/interview` — handy for onboarding tooling.
 
