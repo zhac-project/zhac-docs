@@ -559,6 +559,81 @@ end)
 Add `announce_trv()` to `announce_all()` (and the `homeassistant/status`
 re-announce) so the thermostat comes back after an HA restart too.
 
+**Fan** maps a `fan_mode` string enum (`low`/`medium`/`high`/`auto`) onto HA's
+`preset_modes`, plus on/off — so it can stay mostly in the DSL (a bare `%value%`
+passes the mode string through). Discovery:
+
+```lua
+ha_discover("fan", "ceiling_fan", [[{
+  "name":"Ceiling Fan","unique_id":"zhac_ceiling_fan",
+  "state_topic":"zhac/fan/state","command_topic":"zhac/fan/set",
+  "payload_on":"1","payload_off":"0",
+  "preset_mode_state_topic":"zhac/fan/mode",
+  "preset_mode_command_topic":"zhac/fan/mode/set",
+  "preset_modes":["low","medium","high","auto"],
+  "availability_topic":"zhac/availability",
+  "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+}]])
+```
+
+```
+# state OUT — bare %value% passes the fan_mode string ("low", …) straight through
+ON ceiling_fan#state    DO publish zhac/fan/state %value% ENDON
+ON ceiling_fan#fan_mode DO publish zhac/fan/mode  %value% ENDON
+# command IN
+ON Mqtt#zhac/fan/set      DO zigbee.set ceiling_fan state %value%    ENDON
+ON Mqtt#zhac/fan/mode/set DO zigbee.set ceiling_fan fan_mode %value% ENDON
+```
+
+> The device's `fan_mode` values must match `preset_modes` — check the expose. If
+> they differ (or the fan exposes a numeric `fan_speed`/`speed` instead), drop to
+> Lua: map the strings, or use HA's percentage topics
+> (`percentage_state_topic` / `percentage_command_topic` + `speed_range_min/max`)
+> and publish the number.
+
+**Humidifier** needs **Lua**: `target_humidity` and `humidity` are stored ×100
+in the shadow (whole-percent for HA), and the on/off is a separate `state`
+attribute. Discovery + wiring:
+
+```lua
+local HUM = "0x00158D000F0F0F0F"
+
+ha_discover("humidifier", "bedroom_humidifier", [[{
+  "name":"Bedroom Humidifier","unique_id":"zhac_bedroom_humidifier",
+  "state_topic":"zhac/humidifier/state","command_topic":"zhac/humidifier/set",
+  "payload_on":"1","payload_off":"0",
+  "target_humidity_state_topic":"zhac/humidifier/target",
+  "target_humidity_command_topic":"zhac/humidifier/target/set",
+  "current_humidity_topic":"zhac/humidifier/current",
+  "min_humidity":30,"max_humidity":80,"device_class":"humidifier",
+  "availability_topic":"zhac/availability",
+  "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+}]])
+
+-- state OUT (÷100 → whole percent)
+zhac.on_attr_change(HUM, "state", function(_, _, on)
+    zhac.publish("zhac/humidifier/state", on and "1" or "0", 0, true)
+end)
+zhac.on_attr_change(HUM, "target_humidity", function(_, _, v)
+    zhac.publish("zhac/humidifier/target", tostring(math.floor(v / 100)), 0, true)   -- 5000 → 50
+end)
+zhac.on_attr_change(HUM, "humidity", function(_, _, v)
+    zhac.publish("zhac/humidifier/current", tostring(math.floor(v / 100)), 0, true)
+end)
+
+-- command IN (whole percent → ×100)
+zhac.on_mqtt("zhac/humidifier/set", function(_, payload)
+    zhac.set_attr(HUM, "state", payload == "1" or payload == "on")
+end)
+zhac.on_mqtt("zhac/humidifier/target/set", function(_, payload)
+    local pct = tonumber(payload)
+    if pct then zhac.set_attr(HUM, "target_humidity", math.floor(pct) * 100) end     -- 50 → 5000
+end)
+```
+
+Fold `announce_fan()` / the humidifier `ha_discover` into `announce_all()` (and
+the `homeassistant/status` re-announce) so they return after an HA restart.
+
 **Removing an entity:** publish an empty retained payload to its config topic —
 `zhac.publish("homeassistant/sensor/zhac/living_temp/config", "", 0, true)`.
 
@@ -692,7 +767,160 @@ end)
 
 ---
 
-## 5. Rules ↔ Lua together
+## 5. Whole-home scenarios
+
+Multi-device, stateful automations. These hold state across events, so they're
+Lua — with HA discovery + control where it helps.
+
+### 5.1 Water-leak alarm with valve shut-off
+
+Any of several leak sensors → **close the main water valve**, sound the siren,
+alert. Critically, it **latches**: a sensor going dry does *not* reopen the valve
+(a cleared sensor doesn't mean the leak is fixed) — reopening is a deliberate
+reset only.
+
+```lua
+local VALVE = "0x00158D0001010101"   -- motorised main valve (state: 1 = open)
+local SIREN = "0x00158D0002020202"
+local LEAKS = { "0x00158D00A1A1A1A1", "0x00158D00A2A2A2A2", "0x00158D00A3A3A3A3" }
+local tripped = false
+
+local function trip(where)
+    if tripped then return end
+    tripped = true
+    zhac.set_attr(VALVE, "state", false)          -- CLOSE the valve (check polarity!)
+    zhac.set_attr(SIREN, "state", true)
+    zhac.publish("zhac/alarm/leak", "TRIPPED", 1, true)   -- retained → HA sees it on connect
+    zhac.publish("home/notify", "water_leak_" .. where, 1, false)
+    zhac.log("E", "WATER LEAK (" .. where .. ") — valve closed")
+end
+
+for i, ieee in ipairs(LEAKS) do
+    zhac.on_attr_change(ieee, "water_leak", function(_, _, wet)
+        if wet then trip("zone" .. i) end
+    end)
+end
+
+-- Reset is manual only — reopen the valve after you've physically checked.
+-- HA exposes this as a button (discovery below) publishing to the reset topic.
+zhac.on_mqtt("zhac/alarm/leak/reset", function()
+    tripped = false
+    zhac.set_attr(SIREN, "state", false)
+    zhac.set_attr(VALVE, "state", true)           -- reopen ONLY on explicit reset
+    zhac.publish("zhac/alarm/leak", "OK", 1, true)
+    zhac.log("I", "leak alarm reset — valve reopened")
+end)
+
+-- HA discovery: a leak binary_sensor + a reset button.
+zhac.on_boot(function()
+    zhac.publish("homeassistant/binary_sensor/zhac/leak/config", [[{
+      "name":"Water Leak","unique_id":"zhac_leak","state_topic":"zhac/alarm/leak",
+      "payload_on":"TRIPPED","payload_off":"OK","device_class":"moisture",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]], 0, true)
+    zhac.publish("homeassistant/button/zhac/leak_reset/config", [[{
+      "name":"Leak Alarm Reset","unique_id":"zhac_leak_reset",
+      "command_topic":"zhac/alarm/leak/reset","payload_press":"reset",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]], 0, true)
+end)
+```
+
+> **Check valve polarity.** On some valves `state=1` is *open*, on others *closed*.
+> Verify in the Web UI before trusting this with your plumbing.
+
+### 5.2 Security system (motion + door/window + siren)
+
+A small alarm panel: `disarmed` → `armed_home` / `armed_away` → `pending` (entry
+delay) → `triggered`. Perimeter contacts always trip when armed; interior motion
+trips only when *armed away* (so you can move around when home). Arm/disarm and
+state are wired to an HA **alarm_control_panel**.
+
+```lua
+local SIREN    = "0x00158D0002020202"
+local CONTACTS = { "0x00158D00C1C1C1C1", "0x00158D00C2C2C2C2" }  -- doors / windows
+local MOTION   = { "0x00158D00D1D1D1D1", "0x00158D00D2D2D2D2" }  -- PIRs
+local EXIT_DELAY, ENTRY_DELAY = 30000, 30000
+
+local state = "disarmed"   -- disarmed|arming|armed_home|armed_away|pending|triggered
+local gen   = 0            -- bumped on every state change to cancel pending sleeps
+
+local function set_state(s)
+    gen = gen + 1
+    state = s
+    zhac.publish("zhac/alarm/state", s, 1, true)   -- HA reads this
+    zhac.log("I", "alarm → " .. s)
+end
+
+local function trigger(zone)
+    set_state("triggered")
+    zhac.set_attr(SIREN, "state", true)
+    zhac.publish("home/notify", "alarm_breach_" .. zone, 1, false)
+end
+
+-- Start the entry countdown; a disarm (or any state change) during it cancels.
+local function entry_countdown(zone)
+    if state ~= "armed_home" and state ~= "armed_away" then return end
+    local mine = gen
+    set_state("pending")
+    local was = gen        -- set_state bumped gen; remember this pending's id
+    zhac.sleep(ENTRY_DELAY)
+    if state == "pending" and gen == was then trigger(zone) end
+end
+
+for _, ieee in ipairs(CONTACTS) do
+    zhac.on_attr_change(ieee, "contact", function(_, _, contact)
+        -- 'contact' polarity varies: many sensors report false/0 when OPENED.
+        -- Treat the "opened" edge as the breach — adjust for your sensor.
+        local opened = (contact == false or contact == 0)
+        if opened and (state == "armed_home" or state == "armed_away") then
+            entry_countdown("perimeter")
+        end
+    end)
+end
+for _, ieee in ipairs(MOTION) do
+    zhac.on_attr_change(ieee, "occupancy", function(_, _, occ)
+        if occ and state == "armed_away" then      -- interior motion ignored when home
+            entry_countdown("interior")
+        end
+    end)
+end
+
+-- HA alarm_control_panel sends DISARM / ARM_HOME / ARM_AWAY to the command topic.
+zhac.on_mqtt("zhac/alarm/set", function(_, cmd)
+    if cmd == "DISARM" then
+        zhac.set_attr(SIREN, "state", false)
+        set_state("disarmed")
+    elseif cmd == "ARM_HOME" then
+        set_state("armed_home")
+    elseif cmd == "ARM_AWAY" then
+        set_state("arming")                        -- exit delay
+        local was = gen
+        zhac.sleep(EXIT_DELAY)
+        if state == "arming" and gen == was then set_state("armed_away") end
+    end
+end)
+
+zhac.on_boot(function()
+    zhac.publish("homeassistant/alarm_control_panel/zhac/house/config", [[{
+      "name":"House Alarm","unique_id":"zhac_house_alarm",
+      "state_topic":"zhac/alarm/state","command_topic":"zhac/alarm/set",
+      "supported_features":["arm_home","arm_away"],
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]], 0, true)
+end)
+```
+
+> This is a starting point, not a certified alarm: it has no tamper handling,
+> battery-fail supervision, or duress code. Keep life-safety (smoke/CO/leak) as
+> its own always-on rule (§4), independent of the arm state.
+
+---
+
+## 6. Rules ↔ Lua together
 
 The named-event bus is the seam. Use each side for what it's best at: a script
 for the tricky detection, rules for the easy fan-out.
@@ -727,7 +955,7 @@ zhac.set_attr("0x00158D0009080706", "brightness", 120) -- hall fades up after 2 
 
 ---
 
-## 6. Quick reference
+## 7. Quick reference
 
 | Need | Rule | Lua |
 |------|------|-----|
