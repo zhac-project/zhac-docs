@@ -807,6 +807,60 @@ zhac.on_boot(function()
 end)
 ```
 
+**Illuminance (lux) sensor** — `illuminance` is a whole-lux integer, so a plain
+rule feeds an HA `sensor`:
+
+```lua
+ha_discover("sensor", "hall_lux", [[{
+  "name":"Hall Illuminance","unique_id":"zhac_hall_lux",
+  "state_topic":"zhac/hall/illuminance","unit_of_measurement":"lx",
+  "device_class":"illuminance","state_class":"measurement",
+  "availability_topic":"zhac/availability",
+  "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+}]])
+```
+
+```
+ON hall_motion#illuminance DO publish zhac/hall/illuminance %value% ENDON
+```
+
+> Publish `%value%` directly (whole lux). If your sensor's expose shows a
+> fractional value it's a shadow float — `÷100` in Lua as in the metering
+> example. Pair it with a light rule to only switch on when it's dark:
+> `ON hall_motion#occupancy=1 DO script.run "maybe_light" ENDON` (a Lua handler
+> that checks `zhac.get_attr(SENSOR, "illuminance")` first).
+
+**Thermostat weekly schedule.** A programmable TRV exposes its schedule as a
+writable string `program` (e.g. Moes/BHT: four `HH:MM/T.t` set-points per day in
+three groups — `"06:00/20.0 08:00/17.0 …  |  …  |  …"`). HA has no native schedule
+component, so surface it as an editable **`text`** entity (Lua — the string has
+spaces, which the DSL `publish`/`set` can't carry):
+
+```lua
+local TRV = "0x00158D0004040404"
+
+zhac.on_attr_change(TRV, "program", function(_, _, p)
+    zhac.publish("zhac/trv/program", p, 0, true)     -- current schedule (retained)
+end)
+zhac.on_mqtt("zhac/trv/program/set", function(_, payload)
+    zhac.set_attr(TRV, "program", payload)           -- write a new schedule
+end)
+
+zhac.on_boot(function()
+    zhac.publish("homeassistant/text/zhac/trv_program/config", [[{
+      "name":"TRV Schedule","unique_id":"zhac_trv_program",
+      "state_topic":"zhac/trv/program","command_topic":"zhac/trv/program/set",
+      "mode":"text","max":128,
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]], 0, true)
+end)
+```
+
+> Some TRVs split the week into per-day strings (`schedule_monday` …
+> `schedule_sunday`) instead of one `program` — publish one `text` entity per day
+> in a loop, each on its own `zhac/trv/<day>` topic.
+
 **Removing an entity:** publish an empty retained payload to its config topic —
 `zhac.publish("homeassistant/sensor/zhac/living_temp/config", "", 0, true)`.
 
