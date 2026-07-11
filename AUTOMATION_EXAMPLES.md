@@ -303,7 +303,231 @@ end)
 
 ---
 
-## 3. Rules ↔ Lua together
+## 3. MQTT bridge patterns
+
+ZHAC's MQTT gateway (S3) speaks to a broker so Home Assistant, Node-RED, or
+anything else can see and drive your devices.
+
+- **Root topic** defaults to `zhac/` (configurable in **Settings → MQTT**). All
+  examples below assume it.
+- **Availability** is automatic: the gateway publishes `zhac/availability`
+  (`online` / `offline` via the MQTT LWT). Use it as the bridge's availability
+  topic in Home Assistant.
+- **Device state is *not* auto-published per attribute** — you publish what you
+  want, on the topics you want (below). That keeps the broker traffic to what
+  you actually consume.
+- **Inbound** topics (`ON Mqtt#…` / `zhac.on_mqtt`) only fire for topics inside
+  the gateway's configured **subscription filter** — set that filter to cover
+  the command topics you use (e.g. `zhac/#`).
+- The DSL `publish` payload is a single token with **no qos/retain**. For
+  **retained** state (so a reconnecting consumer sees the last value) use Lua's
+  `zhac.publish(topic, payload, qos, retain)`.
+
+**A. State out — one attribute, one topic (rule).** Temperature is ×100 in the
+shadow, so scale it:
+
+```
+ON living_temp#temperature DO publish zhac/living/temperature %value%/100 ENDON
+ON front_door#contact      DO publish zhac/front_door/contact  %value%      ENDON
+```
+
+**B. State out, retained (Lua)** — survives a broker restart / HA reconnect:
+
+```lua
+zhac.on_attr_change("0x00158D0001020304", "temperature", function(_, _, t)
+    zhac.publish("zhac/living/temperature", string.format("%.2f", t / 100), 0, true)  -- retain=true
+end)
+```
+
+**C. Command in — MQTT drives a device (rule).** For a `Mqtt#` trigger, `%value%`
+is the message payload:
+
+```
+ON Mqtt#zhac/living/light/set DO zigbee.set living_light state %value% ENDON
+```
+
+Lua when you need to parse the payload:
+
+```lua
+zhac.on_mqtt("zhac/living/light/set", function(_, payload)
+    zhac.set_attr("0x00158D0009080706", "state", payload == "on" or payload == "1")
+end)
+```
+
+**D. Full round-trip for one device** — the "MQTT switch" wiring HA expects
+(state topic + set topic):
+
+```
+ON kitchen_plug#state         DO publish zhac/kitchen_plug/state %value% ENDON
+ON Mqtt#zhac/kitchen_plug/set DO zigbee.set kitchen_plug state %value%   ENDON
+```
+
+**E. Aggregate a multi-sensor into one JSON payload (Lua).** Read the sibling
+attributes with `zhac.get_attr` and publish one retained document:
+
+```lua
+local AQ = "0x00158D000A0A0A0A"          -- air-quality monitor
+zhac.on_attr_change(AQ, "co2", function()
+    local j = string.format(
+        '{"temp":%.1f,"hum":%.0f,"co2":%d,"pm25":%d,"voc":%d}',
+        (zhac.get_attr(AQ, "temperature") or 0) / 100,
+        (zhac.get_attr(AQ, "humidity")    or 0) / 100,
+         zhac.get_attr(AQ, "co2")  or 0,
+         zhac.get_attr(AQ, "pm25") or 0,
+         zhac.get_attr(AQ, "voc")  or 0)
+    zhac.publish("zhac/air_quality", j, 0, true)
+end)
+```
+
+**F. Per-device presence** (the LWT covers only the gateway itself):
+
+```lua
+zhac.on_attr_change("0x00158D0001020304", "occupancy", function(_, _, occ)
+    zhac.publish("zhac/presence/hallway", occ and "1" or "0", 0, true)
+end)
+```
+
+**G. Bridge FROM another system's topic.** Have Node-RED / HA publish to a
+topic inside your subscription filter, then react:
+
+```lua
+zhac.on_mqtt("home/cmd/scene", function(_, payload)
+    if     payload == "movie" then zhac.set_attr("0x…", "brightness", 40)
+    elseif payload == "bright" then zhac.set_attr("0x…", "brightness", 254) end
+end)
+```
+
+> A device can also be re-interviewed over MQTT by publishing to
+> `zhac/devices/<ieee>/interview` — handy for onboarding tooling.
+
+---
+
+## 4. More device recipes
+
+Accurate attribute keys per device class (from the ZHC exposes). Enum values
+(e.g. `system_mode`) are device-specific — check the device's expose in the Web
+UI. Numeric temperatures/setpoints are stored ×100.
+
+**Cover / blinds** (`position` 0–100, `state`):
+
+```
+ON Time#Cron=0 0 7 * * 1-5 DO zigbee.set bedroom_blind position 100 ENDON   # open, weekdays 07:00
+ON Time#Cron=0 30 21 * * *  DO zigbee.set bedroom_blind position 0   ENDON   # close 21:30
+ON goodnight#action=hold    DO zigbee.set bedroom_blind position 0   ENDON
+```
+
+**RGB / CCT light** (`state`, `brightness` 0–254, `color_temp` mireds):
+
+```
+ON wake#action=single DO zigbee.set bedroom_light state 1 ; zigbee.set bedroom_light brightness 60 ; zigbee.set bedroom_light color_temp 370 ENDON
+```
+
+Lua sunrise ramp (a slow fade the DSL can't express):
+
+```lua
+local LIGHT = "0x00158D0009080706"
+zhac.on_cron("0 0 6 * * *", function()
+    zhac.set_attr(LIGHT, "state", true)
+    for b = 1, 254, 12 do
+        zhac.set_attr(LIGHT, "brightness", b)
+        zhac.sleep(20000)              -- ≈ 7 min to full
+    end
+end)
+```
+
+**Thermostat / TRV** (`setpoint` ×100, `local_temperature` ×100, `system_mode`):
+
+```
+ON Time#Cron=0 0 6 * * *  DO zigbee.set living_trv setpoint 2100 ENDON   # 21.00 °C morning
+ON Time#Cron=0 0 23 * * * DO zigbee.set living_trv setpoint 1700 ENDON   # 17.00 °C night
+ON balcony_door#contact=1 DO zigbee.set living_trv system_mode 0 ENDON   # window open → off (check enum)
+```
+
+**Metering plug** (`state`, `power` W, `energy` kWh) — "washer done" from power:
+
+```
+ON washer_plug#power>5 DO publish zhac/washer running ENDON
+ON washer_plug#power<2 DO event washer_done            ENDON
+ON Event#washer_done   DO publish zhac/washer done ; publish home/notify washer_done ENDON
+```
+
+Lua overload trip (payloads with spaces aren't possible in the DSL):
+
+```lua
+local PLUG = "0x00158D000B0B0B0B"
+zhac.on_attr_change(PLUG, "power", function(_, _, w)
+    if w > 3000 then
+        zhac.set_attr(PLUG, "state", false)                    -- cut power
+        zhac.publish("zhac/alert/overload", tostring(w), 1, true)
+    end
+end)
+```
+
+**Door lock** (`lock_state` / `state`):
+
+```
+ON front_lock#lock_state=1 DO publish zhac/front_door locked ; event arrived_home ENDON
+ON Time#Cron=0 0 23 * * *  DO zigbee.set front_lock state 1 ENDON            # auto-lock 23:00
+```
+
+**Water-leak safety** (`water_leak`) → close the valve, sound the siren, alert
+— one rule, several actuators:
+
+```
+ON kitchen_leak#water_leak=1 DO zigbee.set main_valve state 0 ; zigbee.set siren state 1 ; publish zhac/alert/leak kitchen ENDON
+```
+
+**Smoke / CO** (`smoke`) — lights up, siren, notify:
+
+```
+ON hall_smoke#smoke=1 DO zigbee.set all_lights state 1 ; zigbee.set siren state 1 ; publish home/alert smoke ENDON
+```
+
+**Vibration / tilt** (`vibration`) — e.g. a mailbox sensor:
+
+```lua
+zhac.on_attr_change("0x00158D000C0C0C0C", "vibration", function(_, _, v)
+    if v then zhac.publish("home/notify", "mail_arrived", 1, false) end
+end)
+```
+
+**Button / dimmer** (`action` — string values like `on`, `off`, `single`,
+`brightness_step_up`):
+
+```
+ON dimmer#action=on  DO zigbee.set lounge state 1 ENDON
+ON dimmer#action=off DO zigbee.set lounge state 0 ENDON
+```
+
+Hold-to-dim needs current state → Lua:
+
+```lua
+local DIMMER, LOUNGE = "0x00158D000D0D0D0D", "0x00158D000E0E0E0E"
+zhac.on_attr_change(DIMMER, "action", function(_, _, a)
+    local b = zhac.get_attr(LOUNGE, "brightness") or 128
+    if     a == "brightness_step_up"   then zhac.set_attr(LOUNGE, "brightness", math.min(254, b + 25))
+    elseif a == "brightness_step_down" then zhac.set_attr(LOUNGE, "brightness", math.max(1,   b - 25)) end
+end)
+```
+
+**Low-battery sweep** (`battery` %, on any battery device) — nag once a day:
+
+```
+ON any_sensor#battery<15 DO publish zhac/alert/battery low ENDON
+```
+
+```lua
+zhac.on_cron("0 0 9 * * *", function()      -- 09:00 daily
+    for _, d in ipairs({ "0x00158D0001020304", "0x00158D0002020202" }) do
+        local b = zhac.get_attr(d, "battery")
+        if b and b < 15 then zhac.publish("zhac/alert/battery/" .. d, tostring(b), 0, true) end
+    end
+end)
+```
+
+---
+
+## 5. Rules ↔ Lua together
 
 The named-event bus is the seam. Use each side for what it's best at: a script
 for the tricky detection, rules for the easy fan-out.
@@ -338,7 +562,7 @@ zhac.set_attr("0x00158D0009080706", "brightness", 120) -- hall fades up after 2 
 
 ---
 
-## 4. Quick reference
+## 6. Quick reference
 
 | Need | Rule | Lua |
 |------|------|-----|
