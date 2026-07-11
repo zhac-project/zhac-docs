@@ -634,6 +634,56 @@ end)
 Fold `announce_fan()` / the humidifier `ha_discover` into `announce_all()` (and
 the `homeassistant/status` re-announce) so they return after an HA restart.
 
+**Cover with tilt** (venetian blind — `position` *and* `tilt`, both whole-number
+percentages, so plain DSL). Add the tilt topics to the `cover` config:
+
+```lua
+ha_discover("cover", "living_venetian", [[{
+  "name":"Living Venetian","unique_id":"zhac_living_venetian",
+  "position_topic":"zhac/venetian/position",
+  "set_position_topic":"zhac/venetian/set_position",
+  "position_open":100,"position_closed":0,
+  "tilt_status_topic":"zhac/venetian/tilt",
+  "tilt_command_topic":"zhac/venetian/set_tilt",
+  "tilt_min":0,"tilt_max":100,
+  "availability_topic":"zhac/availability",
+  "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+}]])
+```
+
+```
+# state OUT
+ON living_venetian#position DO publish zhac/venetian/position %value% ENDON
+ON living_venetian#tilt     DO publish zhac/venetian/tilt     %value% ENDON
+# command IN
+ON Mqtt#zhac/venetian/set_position DO zigbee.set living_venetian position %value% ENDON
+ON Mqtt#zhac/venetian/set_tilt     DO zigbee.set living_venetian tilt     %value% ENDON
+```
+
+**Lock.** `lock_state` is a binary (`1` = locked, `0` = unlocked). Instead of
+mapping to HA's default `LOCK`/`UNLOCK`/`LOCKED`/`UNLOCKED` strings, tell HA to
+use `1`/`0` directly — then it stays in the DSL:
+
+```lua
+ha_discover("lock", "front_lock", [[{
+  "name":"Front Lock","unique_id":"zhac_front_lock",
+  "state_topic":"zhac/lock/state","command_topic":"zhac/lock/set",
+  "state_locked":"1","state_unlocked":"0",
+  "payload_lock":"1","payload_unlock":"0",
+  "availability_topic":"zhac/availability",
+  "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+}]])
+```
+
+```
+ON front_lock#lock_state DO publish zhac/lock/state %value%       ENDON
+ON Mqtt#zhac/lock/set    DO zigbee.set front_lock lock_state %value% ENDON
+```
+
+> Some locks expose the state as a string or under `state` instead of a binary
+> `lock_state` — check the expose and adjust the mapped values (or keep HA's
+> defaults and map the strings in Lua).
+
 **Removing an entity:** publish an empty retained payload to its config topic —
 `zhac.publish("homeassistant/sensor/zhac/living_temp/config", "", 0, true)`.
 
@@ -762,6 +812,64 @@ zhac.on_cron("0 0 9 * * *", function()      -- 09:00 daily
         local b = zhac.get_attr(d, "battery")
         if b and b < 15 then zhac.publish("zhac/alert/battery/" .. d, tostring(b), 0, true) end
     end
+end)
+```
+
+**Occupancy → light, with a custom off-delay.** Keep a light on while a room is
+occupied, then switch it off a configurable time *after* occupancy clears. Two
+ways — use **one**, not both:
+
+*Simplest — let the firmware clear occupancy.* Every occupancy sensor has an
+`occupancy_timeout` (seconds) in its **Options** tab (or `device.options.set
+{ieee, occupancy_timeout}`). Set it to your off-delay; the device then
+synthesises `occupancy=0` that long after the last motion, and one rule mirrors
+occupancy onto the light — on when motion starts, off when the timeout elapses:
+
+```
+ON office_motion#occupancy DO zigbee.set office_light state %value% ENDON
+```
+
+*Configurable from Home Assistant (Lua).* When you want to change the delay live
+(or the PIR reports `occupancy=0` immediately), run the timer yourself and expose
+it as an HA `number`. A generation counter cancels the pending off if motion
+returns:
+
+```lua
+local MOTION = "0x00158D00D1D1D1D1"
+local LIGHT  = "0x00158D0009080706"
+local off_ms = 120000            -- default 2 min; HA can change it (below)
+local gen    = 0
+
+zhac.on_attr_change(MOTION, "occupancy", function(_, _, occupied)
+    gen = gen + 1                -- any occupancy change cancels a pending off
+    if occupied then
+        zhac.set_attr(LIGHT, "state", true)
+    else
+        local mine = gen
+        zhac.sleep(off_ms)       -- wait the custom delay …
+        if mine == gen then      -- … off only if no motion since
+            zhac.set_attr(LIGHT, "state", false)
+        end
+    end
+end)
+
+-- HA number entity drives the delay (seconds).
+zhac.on_mqtt("zhac/office/off_delay/set", function(_, payload)
+    local s = tonumber(payload)
+    if s and s > 0 then
+        off_ms = math.floor(s) * 1000
+        zhac.publish("zhac/office/off_delay", tostring(math.floor(s)), 0, true)
+    end
+end)
+zhac.on_boot(function()
+    zhac.publish("zhac/office/off_delay", tostring(math.floor(off_ms / 1000)), 0, true)
+    zhac.publish("homeassistant/number/zhac/office_off_delay/config", [[{
+      "name":"Office Light Off-Delay","unique_id":"zhac_office_off_delay",
+      "state_topic":"zhac/office/off_delay","command_topic":"zhac/office/off_delay/set",
+      "min":10,"max":1800,"step":10,"unit_of_measurement":"s","mode":"box",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]], 0, true)
 end)
 ```
 
