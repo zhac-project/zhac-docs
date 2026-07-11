@@ -496,6 +496,69 @@ ON Mqtt#zhac/bedroom_light/brightness/set DO zigbee.set bedroom_light brightness
 ON Mqtt#zhac/bedroom_light/color_temp/set DO zigbee.set bedroom_light color_temp %value% ENDON
 ```
 
+**Climate / thermostat** is the one HA component best done entirely in **Lua** —
+its setpoint and current temperature are floats (`21.5 °C`), but the shadow keeps
+them as integer ×100, and the DSL's `%value%/100` is *integer* division (it would
+drop the `.5`). Modes (`system_mode`) and HVAC action (`running_state`) are also
+device-specific enums that need mapping to HA's `off`/`heat` and
+`heating`/`idle` strings. So format the floats and map the enums in Lua:
+
+```lua
+local TRV = "0x00158D0004040404"
+
+-- system_mode enum ↔ HA mode. Enum values are DEVICE-SPECIFIC — check the
+-- expose in the Web UI; this maps a common off=0 / heat=1 TRV.
+local MODE_TO_HA = { [0] = "off", [1] = "heat" }
+local HA_TO_MODE = { off = 0, heat = 1 }
+
+local function announce_trv()
+    ha_discover("climate", "living_trv", [[{
+      "name":"Living TRV","unique_id":"zhac_living_trv",
+      "modes":["off","heat"],
+      "mode_state_topic":"zhac/living_trv/mode",
+      "mode_command_topic":"zhac/living_trv/mode/set",
+      "temperature_state_topic":"zhac/living_trv/setpoint",
+      "temperature_command_topic":"zhac/living_trv/setpoint/set",
+      "current_temperature_topic":"zhac/living_trv/temperature",
+      "action_topic":"zhac/living_trv/action",
+      "temp_step":0.5,"min_temp":5,"max_temp":30,"temperature_unit":"C",
+      "availability_topic":"zhac/availability",
+      "device":{"identifiers":["zhac_bridge"],"name":"ZHAC"}
+    }]])
+end
+zhac.on_boot(announce_trv)
+
+-- State OUT — float-formatted (integer /100 in the DSL would drop the .5).
+zhac.on_attr_change(TRV, "setpoint", function(_, _, v)
+    zhac.publish("zhac/living_trv/setpoint", string.format("%.1f", v / 100), 0, true)
+end)
+zhac.on_attr_change(TRV, "local_temperature", function(_, _, v)
+    zhac.publish("zhac/living_trv/temperature", string.format("%.1f", v / 100), 0, true)
+end)
+zhac.on_attr_change(TRV, "system_mode", function(_, _, m)
+    zhac.publish("zhac/living_trv/mode", MODE_TO_HA[m] or "off", 0, true)
+end)
+zhac.on_attr_change(TRV, "running_state", function(_, _, r)
+    -- HA hvac_action wants "heating" | "idle" | "off"; running_state is a
+    -- string ("heat"/"idle"), bool, or int depending on the device — normalise.
+    local heating = (r == "heat" or r == 1 or r == true)
+    zhac.publish("zhac/living_trv/action", heating and "heating" or "idle", 0, true)
+end)
+
+-- Command IN — HA sends a float setpoint and a mode string.
+zhac.on_mqtt("zhac/living_trv/setpoint/set", function(_, payload)
+    local c = tonumber(payload)
+    if c then zhac.set_attr(TRV, "setpoint", math.floor(c * 100 + 0.5)) end   -- 21.5 → 2150
+end)
+zhac.on_mqtt("zhac/living_trv/mode/set", function(_, payload)
+    local m = HA_TO_MODE[payload]
+    if m ~= nil then zhac.set_attr(TRV, "system_mode", m) end
+end)
+```
+
+Add `announce_trv()` to `announce_all()` (and the `homeassistant/status`
+re-announce) so the thermostat comes back after an HA restart too.
+
 **Removing an entity:** publish an empty retained payload to its config topic —
 `zhac.publish("homeassistant/sensor/zhac/living_temp/config", "", 0, true)`.
 
