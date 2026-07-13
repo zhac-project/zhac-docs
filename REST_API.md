@@ -21,6 +21,27 @@ W (1234) main: *** NEW API TOKEN (save this): a1b2c3d4e5f6... ***
 
 The token persists in NVS across reboots. Endpoints marked **Auth required** return `401` if the header is missing or wrong.
 
+### Password login (WebUI flow)
+
+Humans don't handle 32-hex tokens well, so the WebUI authenticates with an
+**admin password** and exchanges it for the token. The token remains the only
+wire credential; these endpoints are the exchange layer on top:
+
+| Endpoint | Auth | Body | Purpose |
+|---|---|---|---|
+| `POST /api/auth/login` | none (is the exchange) | `{"password":"…"}` | Verify password → `{"ok":true,"token":"<32hex>"}`. `401` wrong password, `409` no password set yet. |
+| `POST /api/auth/setup` | none, **only while no password exists** | `{"password":"…"}` | First-boot: set the admin password (8-63 chars) and return the token. `403` once set. |
+| `POST /api/auth/password` | **Auth required** + current password | `{"current":"…","new":"…"}` | Change password. Rotates the API token (invalidates other clients) and returns the fresh one. |
+
+The password is stored as a salted iterated-SHA-256 hash in NVS (never
+plaintext). Login/setup attempts share the same per-peer lockout as token
+checks. `/api/status` reports `auth_setup_required: true` while auth is
+enabled but no password exists — the SPA shows its one-time setup card then.
+A build can seed the password via `CONFIG_ZHAC_DEFAULT_PASSWORD` (keep it
+empty in anything public — a committed password is a shared credential).
+The serial-printed token remains the recovery path (lost password → sign in
+with the token, or erase NVS to re-run setup).
+
 ---
 
 ## Relationship to the WebSocket API and the SPA
