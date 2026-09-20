@@ -23,6 +23,33 @@ for all contributions to every repo.
 No ESP-IDF or hardware required to contribute here — just a text
 editor.
 
+## Contributing to the firmware and web UI without a hub
+
+Most of ZHAC can be worked on and checked with nothing but a laptop:
+
+- **Web UI** (`www-spa`): `npm install`, then `npm run demo` starts a fake hub with six
+  devices, rules and scripts on `http://localhost:8080`; `npm run dev` serves the UI against
+  it. `npm test` runs the pure-logic tests (release picker, recipes, backup preview). The demo
+  hub has switches for the awkward states: `DEMO_CLOCK_UNSET`, `DEMO_AUTH=setup|closed`,
+  `DEMO_OTA_PENDING`, `DEMO_JOIN=unsupported|none`, `DEMO_RADIO_DOWN` (see the top of
+  `tools/demo-server.mjs`).
+- **Shared components** (`zhac-components`): the rule engine, HAP codec, event bus and others
+  have host tests under `components/<name>/test/host/` — `cmake -B build -S . && cmake --build
+  build && ctest --test-dir build`, plain g++, no ESP-IDF.
+- **Device library** (`embedded-zhc`): `cmake -B build && cmake --build build && ctest
+  --test-dir build` runs the parity suite (366 tests). `tests/README.md` has the six-step recipe
+  for pinning a device's behaviour with a fixture, and every test runs without a radio.
+- **A device definition change**: the files under `definitions/<vendor>/generated/` are
+  produced by a private generator and are not edited by hand. To fix a device, add a
+  hand-written definition next to them (a `kDef_*` in `definitions/<vendor>/`), point the
+  vendor's `registry.cpp` at it, and pin the behaviour with a fixture test from the recipe
+  above. A pull request with the definition, the fixture and the device's model and
+  manufacturer strings is complete; the maintainer checks it on hardware.
+- **Documentation** (this repository): as above, a text editor.
+
+What does need a hub: anything Zigbee on the air (pairing, reports, writes) and the update
+and sign-in paths on real boards. Say in the pull request what you could and could not run.
+
 ## Style
 
 - **Markdown-first.** Keep plain prose that renders cleanly on

@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Publishes the browser flasher (flash/) to GitHub Pages together with the
+# images from the latest zhac-wired-core and zhac-platform releases, and the
+# device search page (supported-devices/) at /devices/.
+# One-time setup: Settings -> Pages -> Source: GitHub Actions.
+# Re-runs daily, so a new firmware release shows up within a day; run it by
+# hand (Actions -> flasher -> Run workflow) to publish one immediately.
+name: flasher
+on:
+  push:
+    branches: [master]
+    paths: ['flash/**', 'supported-devices/**', '.github/workflows/flasher.yml']
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}flash/
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./flash/build-site.sh _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: pages
+        uses: actions/deploy-pages@v4

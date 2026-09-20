@@ -1,0 +1,127 @@
+<!doctype html>
+<!--
+SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+Search page over devices.json, which zhac-tools/devices/gen_supported_devices.py
+writes next to it. Published at /devices/ by flash/build-site.sh.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZHAC supported devices</title>
+<meta name="description" content="Check whether your Zigbee device works with ZHAC, the ESP32 Zigbee hub. Search by brand, model or the IDs the device reports.">
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --fg:#1d2330; --muted:#5b6475; --line:#dfe3ea; --accent:#1f6fd1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12151b; --card:#1b2029; --fg:#e7eaf0; --muted:#a3acbb; --line:#2c3340; --accent:#6aa8ff; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.9rem; margin:0 0 4px; }
+  p { color:var(--muted); }
+  a { color:var(--accent); }
+  code { font-family:ui-monospace, monospace; font-size:.85em; background:var(--line); padding:1px 5px; border-radius:4px; overflow-wrap:anywhere; }
+  input[type=search] { box-sizing:border-box; width:100%; font:inherit; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--fg); }
+  input[type=search]:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  #status { font-size:.9rem; margin:10px 2px; }
+  .dev { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:10px 0; }
+  .dev h2 { font-size:1.05rem; margin:0 0 4px; overflow-wrap:anywhere; }
+  .dev h2 span { color:var(--muted); font-weight:normal; }
+  .dev p { margin:4px 0; font-size:.92rem; overflow-wrap:anywhere; }
+  .dev b { color:var(--fg); font-weight:600; }
+  footer { margin-top:32px; font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Supported devices</h1>
+  <p>Check whether ZHAC recognises your Zigbee device. Search by brand, model, or the model ID
+     and manufacturer name your device reports (the hub's Devices page shows both once it has
+     joined). Several words must all match.</p>
+  <input type="search" id="q" placeholder="e.g. ikea remote, TS0601, _TZE200_, lidl plug" autofocus
+         aria-label="Search devices" autocomplete="off">
+  <p id="status" role="status">Loading the device list…</p>
+  <div id="results"></div>
+  <footer>
+    <p>Not listed? Lights, plugs and sensors that use the standard Zigbee clusters usually work
+       anyway through the generic fallback.
+       <a href="https://github.com/zhac-project/zhac-platform/issues/new?template=device-request.yml">Request a device</a>
+       · <a href="https://github.com/zhac-project/zhac-docs/blob/master/supported-devices/README.md">Browse by brand</a>
+       · <a href="../flash/">Install ZHAC</a></p>
+  </footer>
+</main>
+<script>
+  const LIMIT = 100;
+  const q = document.getElementById("q");
+  const status = document.getElementById("status");
+  const results = document.getElementById("results");
+  let devices = [], total = 0;
+
+  const list = (items, max) => items.length > max
+    ? items.slice(0, max).join(", ") + ` and ${items.length - max} more`
+    : items.join(", ");
+
+  function el(tag, text, cls) {
+    const e = document.createElement(tag);
+    if (text !== undefined) e.textContent = text;
+    if (cls) e.className = cls;
+    return e;
+  }
+
+  function line(label, text) {
+    const p = el("p");
+    p.append(el("b", label + " "), text);
+    return p;
+  }
+
+  function card(d) {
+    const div = el("div", undefined, "dev");
+    const h = el("h2", d.model + " ");
+    h.append(el("span", d.vendor));
+    div.append(h);
+    if (d.description) div.append(el("p", d.description));
+    let reports = d.ids.join(", ") || "any model ID";
+    const makers = (d.prefix ? [d.prefix + "*"] : []).concat(d.manufacturers);
+    if (makers.length) reports += " from " + list(makers, 8);
+    div.append(line("Reports as", reports));
+    if (d.also.length) div.append(line("Also sold as", list(d.also.map(([v, m]) => v + " " + m), 12)));
+    div.append(line("Exposes", d.exposes.join(", ") || "nothing listed"));
+    return div;
+  }
+
+  function search() {
+    const terms = q.value.toLowerCase().split(/\s+/).filter(Boolean);
+    const url = new URL(location);
+    if (terms.length) url.searchParams.set("q", q.value.trim()); else url.searchParams.delete("q");
+    history.replaceState(null, "", url);
+    results.replaceChildren();
+    if (!terms.length) {
+      status.textContent = `${total.toLocaleString("en")} device definitions. Type to search.`;
+      return;
+    }
+    const hits = devices.filter((d) => terms.every((t) => d.hay.includes(t)));
+    status.textContent = hits.length === 0 ? "No match. Try fewer words, or the model ID alone."
+      : hits.length > LIMIT ? `${hits.length} matches, showing the first ${LIMIT}. Add a word to narrow it down.`
+      : `${hits.length} match${hits.length === 1 ? "" : "es"}.`;
+    results.append(...hits.slice(0, LIMIT).map(card));
+  }
+
+  let timer;
+  q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(search, 80); });
+
+  fetch("devices.json").then((r) => r.json()).then((data) => {
+    total = data.definitions;
+    devices = data.devices
+      .map((d) => ({ ...d, hay: [d.vendor, d.model, d.description || "", d.prefix || "", ...d.ids, ...d.manufacturers,
+                                  ...d.also.flat(), ...d.exposes].join(" ").toLowerCase() }))
+      .sort((a, b) => (a.vendor + a.model).localeCompare(b.vendor + b.model));
+    q.value = new URL(location).searchParams.get("q") || "";
+    search();
+  }).catch(() => {
+    status.textContent = "Could not load the device list. Browse by brand instead (link below).";
+  });
+</script>
+</body>
+</html>

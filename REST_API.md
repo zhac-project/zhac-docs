@@ -30,13 +30,17 @@ wire credential; these endpoints are the exchange layer on top:
 | Endpoint | Auth | Body | Purpose |
 |---|---|---|---|
 | `POST /api/auth/login` | none (is the exchange) | `{"password":"…"}` | Verify password → `{"ok":true,"token":"<32hex>"}`. `401` wrong password, `409` no password set yet. |
-| `POST /api/auth/setup` | none, **only while no password exists** | `{"password":"…"}` | First-boot: set the admin password (8-63 chars) and return the token. `403` once set. |
+| `POST /api/auth/setup` | none, **only while no password exists and for 10 minutes after power-on** | `{"password":"…"}` | First-boot: set the admin password (8-63 chars) and return the token. `403 {"error":"already_set"}` once set; `403 {"error":"setup_closed"}` when the window has passed (power-cycle the hub to reopen it). |
 | `POST /api/auth/password` | **Auth required** + current password | `{"current":"…","new":"…"}` | Change password. Rotates the API token (invalidates other clients) and returns the fresh one. |
 
 The password is stored as a salted iterated-SHA-256 hash in NVS (never
 plaintext). Login/setup attempts share the same per-peer lockout as token
 checks. `/api/status` reports `auth_setup_required: true` while auth is
-enabled but no password exists — the SPA shows its one-time setup card then.
+enabled but no password exists — the SPA shows its one-time setup card then —
+and `auth_setup_secs_left`, the seconds the first-claim window has left (0 once
+it closed). The window bounds the "first visitor claims the hub" pattern: a hub
+that was never set up, or was reset weeks ago, cannot be claimed by whoever
+finds it on the network later, only by someone who can power-cycle it.
 A build can seed the password via `CONFIG_ZHAC_DEFAULT_PASSWORD` (keep it
 empty in anything public — a committed password is a shared credential).
 The serial-printed token remains the recovery path (lost password → sign in
@@ -223,6 +227,12 @@ Returns a single device. `:ieee` = `0x001234567890ABCD`. No auth required.
 **Errors:** `500` on P4 timeout.
 
 #### `PUT /api/devices/:ieee/attrs`
+
+`value` may be a boolean, an integer, a decimal (`21.5` — the device's converter scales it;
+a thermostat setpoint goes out as 2150, a Tuya datapoint with divisor 10 as 215; a converter
+that only takes integers refuses it with "no zhc converter") or a string (an enum option).
+The same rule applies to the WebSocket `device.attr.set` and to the wired REST
+`/api/device/state`.
 Send a ZCL attribute write or command to a device. **Auth required.**
 
 **Request:**
@@ -485,12 +495,26 @@ Update WiFi credentials and reboot. **Auth required.**
 **Response:** `{"status": "ok", "reboot": true}` — device reboots ~1 s later.
 
 #### `POST /api/settings`
-Update MQTT broker URL. **Auth required.**
+Update settings. Every field is optional; send only what changes. **Auth required.**
 
 **Request:**
 ```json
-{ "broker_url": "mqtt://192.168.1.10:1883" }
+{ "broker_url": "mqtt://192.168.1.10:1883", "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+  "ntp_server": "192.168.1.1" }
 ```
+
+`ota_state` (wired build) is `pending` while a freshly updated firmware is on trial and
+`verified` once the hub has kept it; `ota_rollback_reason` appears only after an update was
+undone and says which check failed (storage, web server or radio). See the wired README,
+"Updates".
+
+`ntp_dhcp_server` appears when the router offered a time server (DHCP option 42) and the hub is
+using it; it comes first, `ntp_server` second. Naming a server switches the offer off.
+
+`ntp_server` is the time server SNTP asks. Name one on your own network when the hub has no
+internet access, or send an empty string for the public default (`pool.ntp.org`). It is
+persisted and applied at once, and `GET /api/status` reports it as `ntp_server` alongside
+`clock_set`. A host with spaces, quotes or over 63 characters is rejected.
 
 **Response:** `{"ok": true}` — takes effect immediately without reboot.
 

@@ -67,10 +67,18 @@ a command name to an `api_*` handler and the equivalent REST route.
 | cmd | handler | REST equivalent |
 |-----|---------|-----------------|
 | `status.get` | `api_status_get` | `GET /api/status` |
+| `time.set` | `api_time_set` | none (WS only) |
 | `alerts.get` | `api_alerts_get` | `GET /api/alerts` |
 | `logs.get` | `api_logs_get` | `GET /api/logs` |
 | `diagnostics.unhandled.get` | `api_diagnostics_unhandled_get` | `GET /api/diagnostics/unhandled` |
 | `settings.set` | `api_settings_set` | `POST /api/settings` |
+
+`time.set` `{"epoch": <Unix seconds>}` hands a hub the time when it has none. No ZHAC board
+has a battery-backed clock, so a hub without internet access (no NTP) starts every boot at
+1970, and its scheduled rules wait. The hub takes the time only while its own clock is unset:
+the reply `{"set": true}` means it did, `{"set": false}` that its clock was already set and was
+left alone. `status.get` reports `clock_set`, and the web UI sends `time.set` by itself when that
+is `false`. An epoch before 2020 or after 2099 is an error.
 
 ### WiFi
 

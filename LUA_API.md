@@ -487,7 +487,9 @@ the underlying wire encoding:
 - `key` — semantic attribute key from the device's exposes (e.g.
   `"state"`, `"brightness"`, `"color_temp"`).
 - `value` — `boolean`, `integer`, or `string`. Other types raise
-  `zhac.set_attr: value must be bool/integer/string`.
+  `zhac.set_attr: value must be bool/number/string`. A number with a fraction (`21.5`) is a
+  decimal write: the device's converter scales it (a setpoint goes out as 2150, a Tuya datapoint
+  with divisor 10 as 215); a converter that only takes integers returns `false`.
 
 **Returns.** `true` if the adapter accepted the write, `false`
 otherwise. A `false` return is also produced if the IEEE parses but

@@ -27,6 +27,11 @@ ON <device_ref>#<attr>[<op><value>] DO ... ENDON
 
 Fires when a Zigbee device reports an attribute value. `device_ref` is either a friendly name or an IEEE address string (`0x001234567890ABCD`).
 
+The value after the operator is a number (`=1`, `>2500`) or, for text values such as a
+button's `action` or a thermostat's `system_mode`, a string in **double quotes**
+(`#action="single"`). An unquoted word is read as a number and the rule is rejected with
+`invalid numeric literal`.
+
 | Operator | Meaning |
 |----------|---------|
 | `=` | equal |
@@ -38,7 +43,7 @@ Fires when a Zigbee device reports an attribute value. `device_ref` is either a 
 | *(none)* | any value change |
 
 ```
-ON kitchen switch#action=single DO zigbee.set kitchen_light state 1 ENDON
+ON kitchen switch#action="single" DO zigbee.set kitchen_light state 1 ENDON
 ON 0x001234567890ABCD#temperature>2500 DO publish home/alert hot ENDON
 ON door sensor#contact DO event motion ENDON
 ```
@@ -84,6 +89,14 @@ Fields support: single values, `*` (any), and comma-separated lists.
 ON Time#Cron=0 0 7 * * 1-5 DO zigbee.set bedroom_blinds position 100 ENDON
 ON Time#Cron=0 30 22 * * * DO zigbee.set all_lights state 0 ENDON
 ```
+
+Schedules follow the hub's clock, and no ZHAC board has a battery-backed one: the hub sets it
+from the internet (`pool.ntp.org`) after it gets an address. Until then, scheduled rules and
+Lua cron handlers wait rather than fire at the wrong time, and the Rules page says so. A hub
+with no internet access can be pointed at a time server on that network (Settings, Time), which
+is the only way its clock returns after a power cut on its own; otherwise it takes the time
+from the browser that opens its web UI, and needs that again after every power cut. All other
+triggers work without the clock.
 
 ### Named event
 
@@ -136,12 +149,19 @@ Set a device attribute by semantic key name.
   be used here; rename the device (e.g. `kitchen_light`) or use its IEEE address. (Trigger
   device names before `#` *may* contain spaces.)
 - `key`: `state`, `brightness`, `color_temp`, `hue`, `saturation`, or any registered attribute name
-- `value`: integer literal, `%value%` (the trigger value), or a `%value%` expression — see
-  [Value substitution & expressions](#value-substitution--expressions)
+  (up to 31 characters; a longer key is rejected at save time with "attr key too long")
+- `value`: integer literal, a decimal literal such as `21.5` (the device's converter scales
+  it — a thermostat setpoint goes out as 2150, a Tuya datapoint with divisor 10 as 215; a
+  converter that only takes integers refuses it and the log says "no tz converter"),
+  `%value%` (the trigger value), or a `%value%` expression — see
+  [Value substitution & expressions](#value-substitution--expressions). Note that
+  `%value%` of a decimal attribute is the raw ×100 integer, so `zigbee.set valve
+  current_heating_setpoint 21.5` is what you write by hand, not `2150`.
 
 ```
 zigbee.set kitchen_light state 1
 zigbee.set 0x001234567890ABCD brightness 128
+zigbee.set radiator_valve current_heating_setpoint 21.5
 ```
 
 ### `zigbee.toggle <device_ref> <key>`
@@ -158,7 +178,7 @@ zigbee.toggle 0x001234567890ABCD on_off
 ```
 
 ```
-ON kitchen switch#action=single DO zigbee.toggle kitchen_light state ENDON
+ON kitchen switch#action="single" DO zigbee.toggle kitchen_light state ENDON
 ```
 
 ### `publish <topic> <payload>`
@@ -266,7 +286,7 @@ ON Time#Cron=0 0 22 * * * DO zigbee.set living_room state 0 ; zigbee.set bedroom
 ### Chained events
 
 ```
-ON kitchen switch#action=double DO event all_lights_off ENDON
+ON kitchen switch#action="double" DO event all_lights_off ENDON
 ON Event#all_lights_off DO zigbee.set kitchen state 0 ; zigbee.set living_room state 0 ENDON
 ```
 
@@ -277,10 +297,11 @@ ON Event#all_lights_off DO zigbee.set kitchen state 0 ; zigbee.set living_room s
 | Limit | Value |
 |-------|-------|
 | Actions per rule | 4 |
-| Device ref length | 63 characters |
-| Attribute key length | 31 characters |
+| Device name length | 29 characters, the longest name a device can have |
+| Attribute key length | 27 characters |
 | Cron expression length | 63 characters |
-| Event name length | 31 characters |
+| Event name length | 63 characters |
+| MQTT topic length | 63 characters |
 | Timer indices | 1–8 |
 | Rule DSL source length | 499 bytes |
 

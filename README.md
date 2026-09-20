@@ -11,6 +11,12 @@ live in each module's own repo.
 
 > **Org:** https://github.com/zhac-project  ·  **Meta-repo:** [zhac-platform](https://github.com/zhac-project/zhac-platform)
 
+**Just want to run it?** Follow [your first 20 minutes](FIRST_20_MINUTES.md), or go straight to the
+[browser flasher](https://zhac-project.github.io/zhac-docs/flash/)
+— Chrome or Edge, a USB cable, no toolchain. A single ESP32-P4 board with Ethernet
+([zhac-wired-core](https://github.com/zhac-project/zhac-wired-core)) is the simplest
+hardware; the dual-chip build below is the original design.
+
 ---
 
 ## Architecture
@@ -51,8 +57,10 @@ Three tiers, each on its own silicon:
 | [zhac-main-core](https://github.com/zhac-project/zhac-main-core) | ESP32-**P4** firmware (coordinator + Lua) | ESP-IDF v6.0, `esp32p4` |
 | [zhac-net-core](https://github.com/zhac-project/zhac-net-core) | ESP32-**S3** firmware (WiFi gateway + SPA host) | ESP-IDF v6.0, `esp32s3` |
 | [zhac-components](https://github.com/zhac-project/zhac-components) | Shared ESP-IDF components (HAP, radio stack, MQTT, rules) | ESP-IDF |
-| [embedded-zhc](https://github.com/zhac-project/embedded-zhc) | Host-testable C++20 device library (~6600 device defs) | CMake (host) + ESP-IDF |
-| [www-spa](https://github.com/zhac-project/www-spa) | Preact + Vite web UI (built into the S3 SPIFFS image) | Node ≥18, Vite |
+| [embedded-zhc](https://github.com/zhac-project/embedded-zhc) | Host-testable C++20 device library (4,989 device definitions) | CMake (host) + ESP-IDF |
+| [www-spa](https://github.com/zhac-project/www-spa) | Preact + Vite web UI (built into every firmware's SPIFFS image) | Node ≥18, Vite |
+| [zhac-wired-core](https://github.com/zhac-project/zhac-wired-core) | Single-board firmware: ESP32-P4 or ESP32-S31 with Ethernet, no Wi-Fi | ESP-IDF v6.0 (P4) / v6.1 (S31) |
+| [zhac-mono-core](https://github.com/zhac-project/zhac-mono-core) | Single-board ESP32-S3 firmware (experimental) | ESP-IDF v6.0, `esp32s3` |
 | **zhac-docs** | This repo — platform docs | — |
 
 Clone over HTTPS (no SSH key needed) or SSH (`git@github.com:zhac-project/<repo>.git`).
@@ -250,14 +258,18 @@ just deep-clean    # also remove node_modules
 
 | Document | What |
 |----------|------|
+| [FIRST_20_MINUTES.md](FIRST_20_MINUTES.md) | From a bare board to a paired sensor and a first rule — start here |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Cannot find the hub, pairing, radio, clock, lost password, updates, what a backup does not contain |
 | [FEATURES.md](FEATURES.md) | Feature overview |
 | [REST_API.md](REST_API.md) · [WS_API.md](WS_API.md) · [openapi.yaml](openapi.yaml) | HTTP REST + WebSocket (`/ws`) APIs |
+| [HOME_ASSISTANT.md](HOME_ASSISTANT.md) | Home Assistant via MQTT discovery — setup, entities, topics |
 | [RULES_DSL.md](RULES_DSL.md) | Automation rule DSL (`ON … DO … ENDON`) |
 | [LUA_API.md](LUA_API.md) | Lua scripting API |
 | [AUTOMATION_EXAMPLES.md](AUTOMATION_EXAMPLES.md) | Automation cookbook — worked rule + Lua examples, beginner → advanced |
 | [HAP_PROTOCOL.md](HAP_PROTOCOL.md) | P4 ↔ S3 SPI binary protocol — framing, message catalog, reliability |
 | [ZNP_API_CONTRACT.md](ZNP_API_CONTRACT.md) | P4 ↔ radio ZNP/MT contract |
-| [VENDOR_PORTING_STATUS.md](VENDOR_PORTING_STATUS.md) | Supported devices / porting status |
+| [supported-devices/](supported-devices/README.md) · [search](https://zhac-project.github.io/zhac-docs/devices/) | Supported devices by brand, and a search page |
+| [VENDOR_PORTING_STATUS.md](VENDOR_PORTING_STATUS.md) | Porting status against zigbee2mqtt, for contributors |
 | [SECURITY.md](SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CLA.md](CLA.md) | Security policy, contributing, CLA |
 
 ---
@@ -269,7 +281,7 @@ Anyone is welcome to open a PR.
 1. Read [CLA.md](CLA.md) — signing is one-time across the whole ZHAC project.
 2. Make your edit. Markdown preferred; prose over diagrams where a sentence suffices.
 3. Run the link-check (`npm run lint`) locally if you add cross-document links — CI runs the same.
-4. Open a PR against `main`.
+4. Open a PR against `master`.
 
 ## License
 

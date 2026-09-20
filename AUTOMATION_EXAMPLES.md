@@ -11,7 +11,10 @@ using both automation surfaces:
 
 Every example below is grounded in those two references. Replace the friendly
 names (`kitchen_motion`, `hallway_light`, …) and IEEE addresses
-(`0x00158D0001020304`) with your own devices.
+(`0x00158D0001020304`) with your own devices — or start from the web UI's
+**Rules → + New Rule → Recipe** tab, which builds the first six of these
+(motion light with auto-off, light follows motion, button toggle, door light,
+scheduled off, leak valve) from device pickers and writes the addresses for you.
 
 > **Rules or Lua?** Reach for a **rule** first — it's simpler, survives reboots
 > in NVS, and is visible in the Web UI. Drop to **Lua** when you need to hold
@@ -85,7 +88,7 @@ ON greenhouse_probe#temperature DO publish home/temp/greenhouse %value%/100 ENDO
 **Toggle on a button single-press.**
 
 ```
-ON bedroom_button#action=single DO zigbee.toggle bedroom_light state ENDON
+ON bedroom_button#action="single" DO zigbee.toggle bedroom_light state ENDON
 ```
 
 ### 1.3 Intermediate — timers (auto-off, delayed action)
@@ -115,7 +118,7 @@ ON bath_light#state=1 DO zigbee.set bath_fan state 1 ENDON
 `;`):
 
 ```
-ON goodnight_button#action=hold DO zigbee.set all_lights state 0 ; zigbee.set thermostat setpoint 1800 ; publish home/mode night ENDON
+ON goodnight_button#action="hold" DO zigbee.set all_lights state 0 ; zigbee.set thermostat setpoint 1800 ; publish home/mode night ENDON
 ```
 
 **Decouple a sensor from consumers with a named event.** One rule fires the
@@ -144,7 +147,7 @@ ON front_door#contact=1 DO script.run "arrival" ENDON
 > - In **actions**, a device reference is a single space-delimited token and
 >   quotes are **not** stripped — use `zigbee.set hall_light …`, never
 >   `zigbee.set "hall light" …`. **Trigger** references may contain spaces
->   (they're split at `#`): `ON kitchen switch#action=single` is fine.
+>   (they're split at `#`): `ON kitchen switch#action="single"` is fine.
 > - Binary attributes compare with `=1` / `=0` (`ON x#occupancy=1`), not
 >   `="true"`.
 > - Floats (temperature, humidity) live in the shadow as integer ×100. Compare
@@ -744,7 +747,7 @@ zhac.on_boot(function()
 end)
 ```
 
-> You don't need MQTT at all to *act* on a remote — a rule (`ON remote#action=on
+> You don't need MQTT at all to *act* on a remote — a rule (`ON remote#action="on"
 > DO …`, §4) or a Lua handler (§2.3, multi-press → scenes) runs the scene on the
 > hub directly. Use the discovery above when you specifically want the buttons to
 > drive **Home Assistant** automations.
@@ -880,13 +883,13 @@ UI. Numeric temperatures/setpoints are stored ×100.
 ```
 ON Time#Cron=0 0 7 * * 1-5 DO zigbee.set bedroom_blind position 100 ENDON   # open, weekdays 07:00
 ON Time#Cron=0 30 21 * * *  DO zigbee.set bedroom_blind position 0   ENDON   # close 21:30
-ON goodnight#action=hold    DO zigbee.set bedroom_blind position 0   ENDON
+ON goodnight#action="hold"    DO zigbee.set bedroom_blind position 0   ENDON
 ```
 
 **RGB / CCT light** (`state`, `brightness` 0–254, `color_temp` mireds):
 
 ```
-ON wake#action=single DO zigbee.set bedroom_light state 1 ; zigbee.set bedroom_light brightness 60 ; zigbee.set bedroom_light color_temp 370 ENDON
+ON wake#action="single" DO zigbee.set bedroom_light state 1 ; zigbee.set bedroom_light brightness 60 ; zigbee.set bedroom_light color_temp 370 ENDON
 ```
 
 Lua sunrise ramp (a slow fade the DSL can't express):
@@ -962,8 +965,8 @@ end)
 `brightness_step_up`):
 
 ```
-ON dimmer#action=on  DO zigbee.set lounge state 1 ENDON
-ON dimmer#action=off DO zigbee.set lounge state 0 ENDON
+ON dimmer#action="on"  DO zigbee.set lounge state 1 ENDON
+ON dimmer#action="off" DO zigbee.set lounge state 0 ENDON
 ```
 
 Hold-to-dim needs current state → Lua:
