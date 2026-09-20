@@ -32,11 +32,13 @@ minutes after power-on, so a hub nobody claimed cannot be taken by whoever finds
 Unplug the hub, wait a few seconds, plug it back in, wait half a minute, then reload and set
 the password within ten minutes.
 
-**"The hub's sign-in storage is not readable."** The flash area that holds the password
-could not be opened when the hub started. The hub locks itself rather than opening up:
-connect USB, read the token it prints on the serial console at that boot, sign in with *Use
-API token instead*, then reset storage from Settings and set the password again. Restore a
-backup afterwards for names, rules and scripts.
+**"Storage error" or "The hub's sign-in storage is not readable."** The flash area that holds
+devices, rules, names and passwords could not be used when the hub started. The hub does not
+erase anything on its own and locks itself rather than opening up: on a Wi-Fi hub it comes up
+as an access point. Connect USB, read the token it prints on the serial console at that boot,
+sign in with *Use API token instead*, then use **Settings → Storage error → Erase storage and
+restart**. That erase is the only way forward: pair the devices again afterwards and restore
+your last backup for names, rules and scripts.
 
 **I forgot the password.** Connect a USB cable to the hub and open its serial console at
 115200 baud (the browser flasher has a *Logs* button that does this). At every boot the hub
