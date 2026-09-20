@@ -38,7 +38,10 @@ plaintext). Login/setup attempts share the same per-peer lockout as token
 checks. `/api/status` reports `auth_setup_required: true` while auth is
 enabled but no password exists — the SPA shows its one-time setup card then —
 and `auth_setup_secs_left`, the seconds the first-claim window has left (0 once
-it closed). The window bounds the "first visitor claims the hub" pattern: a hub
+it closed). `auth_storage_error: true` means the hub could not open its sign-in
+storage at boot and locked itself: sign-in is on, the only credential is the token printed
+on the serial console for that boot, and `POST /api/auth/setup` answers
+`503 {"error":"storage_error"}`. The window bounds the "first visitor claims the hub" pattern: a hub
 that was never set up, or was reset weeks ago, cannot be claimed by whoever
 finds it on the network later, only by someone who can power-cycle it.
 A build can seed the password via `CONFIG_ZHAC_DEFAULT_PASSWORD` (keep it

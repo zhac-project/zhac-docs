@@ -32,6 +32,12 @@ minutes after power-on, so a hub nobody claimed cannot be taken by whoever finds
 Unplug the hub, wait a few seconds, plug it back in, wait half a minute, then reload and set
 the password within ten minutes.
 
+**"The hub's sign-in storage is not readable."** The flash area that holds the password
+could not be opened when the hub started. The hub locks itself rather than opening up:
+connect USB, read the token it prints on the serial console at that boot, sign in with *Use
+API token instead*, then reset storage from Settings and set the password again. Restore a
+backup afterwards for names, rules and scripts.
+
 **I forgot the password.** Connect a USB cable to the hub and open its serial console at
 115200 baud (the browser flasher has a *Logs* button that does this). At every boot the hub
 prints its API token. On the login page choose *Use API token instead*, paste it, then set a
