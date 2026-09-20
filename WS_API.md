@@ -120,7 +120,9 @@ zhac-components): `device.rename` refuses names over 29 bytes or with quotes, ba
 control characters; `device.delete` with `hard: false` (default) asks the device to leave and
 hides it, `hard: true` also wipes its stored row, shadow and converter caches;
 `zigbee.permit_join` takes `duration` 0–254 (255 is clamped to 254 on the radio) and
-`zigbee.permit_join.status` reads the same deadline the REST route set.
+`zigbee.permit_join.status` reads the same deadline the REST route set. The `rule.added` /
+`rule.updated` / `rule.deleted` pushes are emitted for every change, whichever door made it
+(WebSocket, REST, backup restore), on the wired and mono builds.
 
 `device.get` / `device.list` responses carry an `exposes` array with
 `{name, type, access, unit, values}` entries, built on P4 by
