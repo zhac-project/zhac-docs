@@ -241,6 +241,11 @@ The same rule applies to the WebSocket `device.attr.set` and to the wired REST
 `/api/device/state`.
 Send a ZCL attribute write or command to a device. **Auth required.**
 
+**`name`:** 1–29 bytes, no quotes, backslashes or control characters (the device list is
+built with `snprintf`; one quote would break it). Refused with
+`name must be 1-29 characters without quotes, backslashes or control characters`. A rename
+reloads the rule engine's name table on every core.
+
 **Request:**
 ```json
 {
@@ -264,7 +269,9 @@ Send a ZCL attribute write or command to a device. **Auth required.**
 **Errors:** `500` on P4 timeout (3 s).
 
 #### `DELETE /api/devices/:ieee`
-Remove a device: sends ZDO leave request, removes from NVS, broadcasts `device_deleted` WebSocket event. **Auth required.**
+Remove a device. **Auth required.** Body `{"hard": false}` (default) asks the device to leave
+and hides it; its name is kept, so a rejoin restores it. `{"hard": true}` also wipes the
+stored row, the shadow and the converter caches. Same contract on every core (`device_cmd`).
 
 **Response:** `{"ok": true}` or `{"ok": false}` on P4 timeout (5 s).
 
@@ -560,7 +567,9 @@ Open the Zigbee network for new device joins. **Auth required.**
 { "duration": 254 }
 ```
 
-`duration` — seconds (1–254). `254` = open indefinitely. Default: `254`.
+`duration` — seconds (0–254). `254` is the longest window (about four minutes); `0` closes it.
+The Zigbee value `255` (open forever) is refused here and clamped to 254 on the radio core.
+Default: `254`.
 
 **Response:** `{"ok": true}` — fire-and-forget, no join confirmation.
 

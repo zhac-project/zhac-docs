@@ -115,6 +115,13 @@ is `false`. An epoch before 2020 or after 2099 is an error.
 | `device.rename` | `api_device_rename` | `PUT /api/devices/:ieee/attrs` (name field) |
 | `device.reinterview` | `api_device_reinterview` | `POST /api/devices/:ieee/interview` |
 
+Rename, delete and permit join share one implementation with REST (`device_cmd` in
+zhac-components): `device.rename` refuses names over 29 bytes or with quotes, backslashes or
+control characters; `device.delete` with `hard: false` (default) asks the device to leave and
+hides it, `hard: true` also wipes its stored row, shadow and converter caches;
+`zigbee.permit_join` takes `duration` 0–254 (255 is clamped to 254 on the radio) and
+`zigbee.permit_join.status` reads the same deadline the REST route set.
+
 `device.get` / `device.list` responses carry an `exposes` array with
 `{name, type, access, unit, values}` entries, built on P4 by
 `zhac_adapter_build_exposes_json` from the device's
