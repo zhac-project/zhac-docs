@@ -76,6 +76,10 @@ per-attribute topics — Node-RED, scripts — not only Home Assistant.
 - **Colour lights: no colour in Home Assistant yet.** Brightness and colour temperature
   work. The `color_x` / `color_y` values are exposed as numbers, and a write to one axis
   today resets the other, so a colour picker would misbehave. Tracked as a converter fix.
+- **Tuya devices without a hand-written definition** (most `TS0601` variants) get their
+  entities from the datapoint map. Types and options are exact; whether a value is a sensor
+  or a control is guessed from its name, so an unusual key may show up as a writable number
+  where a sensor was meant. Please report those with the model id.
 - **A thermostat's odd modes** (`emergency_heating`, `sleep`, …) are not Home Assistant hvac
   modes and are left out of the climate entity.
 - **Locks with a worded `lock_state`** (a few Weiser and Kwikset models) stay a sensor until
