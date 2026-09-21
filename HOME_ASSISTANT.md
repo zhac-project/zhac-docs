@@ -33,14 +33,19 @@ Assistant. Removing it in ZHAC removes it there. Turning discovery off removes t
 
 | ZHAC exposes | Home Assistant entity |
 |---|---|
+| `local_temperature` + a writable heating setpoint (+ `system_mode`, `preset`, `running_state`, `fan_mode`) | one **climate** entity, named after the device: target and current temperature, the modes Home Assistant knows (`off`, `heat`, `auto`, `cool`, `dry`, `fan_only`), presets, heating/idle action, fan speed |
 | writable `state` + `brightness` (+ `color_temp`) | one **light**, named after the device |
+| writable `position` and/or a `state` spoken in `OPEN` / `CLOSE` / `STOP` (+ `tilt`) | one **cover** |
+| writable `lock_state` on/off | one **lock** |
+| `fan_state`, or a `fan_mode` list with `off` (+ the other speeds as presets) | one **fan** |
 | writable `state` | a **switch**, named after the device |
 | other writable on/off values (`child_lock`, …) | **switch** |
 | read-only on/off values | **binary sensor** — `contact` is a door, `occupancy`, `water_leak`, `smoke`, `tamper`, `battery_low`, … get their device class |
-| writable numbers (setpoints, calibration) | **number**, with the device's range and step |
+| writable numbers (calibration, …) | **number**, with the device's range and step |
 | read-only numbers | **sensor**, with unit, device class and state class where Home Assistant knows them (temperature, humidity, power, energy, battery, …) |
-| writable choices (`system_mode`, `power_outage_memory`) | **select** |
-| read-only choices and text (`action`, …) | **sensor** |
+| writable choices (`power_outage_memory`, …) | **select** |
+| `action` (button and remote presses) | **event** — fires on every press, even two of the same in a row; use it as an automation trigger |
+| other read-only choices and text | **sensor** |
 
 Values marked *diagnostic* or *config* in the device definition land in those entity
 categories. Write-only commands (such as `identify`) are not exposed; they stay on the
@@ -56,6 +61,7 @@ With the default root `zhac` and prefix `homeassistant`:
 | `zhac/devices/<IEEE>/<key>` | ZHAC → HA | the value, retained — `1`/`0` for on/off, numbers as numbers, text as text |
 | `zhac/devices/<IEEE>/<key>/set` | HA → ZHAC | a new value, same format |
 | `zhac/availability` | ZHAC → HA | `online`, or `offline` when the hub drops off the broker |
+| `zhac/devices/<IEEE>/availability` | ZHAC → HA | battery devices only: `offline` after 25 hours without a report, `online` on the next one |
 | `zhac/devices/<IEEE>/state` | ZHAC → any | dual-chip only: every update as one JSON object |
 
 `<ieee>` is the 16-digit address in lower case, `<IEEE>` in upper case. Anything can use the
@@ -63,9 +69,17 @@ per-attribute topics — Node-RED, scripts — not only Home Assistant.
 
 ## Limits
 
-- **Availability is per hub, not per device.** If the hub goes offline, all its entities do.
-  A battery sensor that stops reporting keeps its last value.
-- **`action` is a sensor**, not a device trigger. Automations can use its state changes.
+- **Mains devices never go "unavailable" on their own.** They only report on change, so
+  silence proves nothing; only the hub's own availability applies to them. Battery devices
+  get their own topic and turn unavailable after 25 hours of silence (a dead battery, a
+  sensor out of range). The clock restarts when the hub reboots.
+- **Colour lights: no colour in Home Assistant yet.** Brightness and colour temperature
+  work. The `color_x` / `color_y` values are exposed as numbers, and a write to one axis
+  today resets the other, so a colour picker would misbehave. Tracked as a converter fix.
+- **A thermostat's odd modes** (`emergency_heating`, `sleep`, …) are not Home Assistant hvac
+  modes and are left out of the climate entity.
+- **Locks with a worded `lock_state`** (a few Weiser and Kwikset models) stay a sensor until
+  their word list is known.
 - **Choices on the dual-chip build** need both chips on a release that has this feature: the
-  P4 now receives the option name (`sval`) instead of a number.
-- The single-chip ESP32-S3 build (`zhac-mono-core`) does not have discovery yet.
+  P4 now receives the option name (`sval`) instead of a number; battery availability there
+  needs a P4 that reports the power source in `device.get`.
