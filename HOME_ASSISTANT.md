@@ -34,9 +34,9 @@ Assistant. Removing it in ZHAC removes it there. Turning discovery off removes t
 | ZHAC exposes | Home Assistant entity |
 |---|---|
 | `local_temperature` + a writable heating setpoint (+ `system_mode`, `preset`, `running_state`, `fan_mode`) | one **climate** entity, named after the device: target and current temperature, the modes Home Assistant knows (`off`, `heat`, `auto`, `cool`, `dry`, `fan_only`), presets, heating/idle action, fan speed |
-| writable `state` + `brightness` (+ `color_temp`) | one **light**, named after the device |
+| writable `state` + `brightness` (+ `color_temp`, `color_x`/`color_y`, `hue`/`saturation`) | one **light**, named after the device, with colour temperature, XY and hue/saturation colour where the bulb has them |
 | writable `position` and/or a `state` spoken in `OPEN` / `CLOSE` / `STOP` (+ `tilt`) | one **cover** |
-| writable `lock_state` on/off | one **lock** |
+| writable `lock_state` on/off, or `LOCK`/`UNLOCK` commands on `state` with a worded `lock_state` | one **lock** |
 | `fan_state`, or a `fan_mode` list with `off` (+ the other speeds as presets) | one **fan** |
 | writable `state` | a **switch**, named after the device |
 | other writable on/off values (`child_lock`, …) | **switch** |
@@ -60,6 +60,7 @@ With the default root `zhac` and prefix `homeassistant`:
 | `homeassistant/<component>/zhac_<ieee>_<key>/config` | ZHAC → HA | discovery config, retained |
 | `zhac/devices/<IEEE>/<key>` | ZHAC → HA | the value, retained — `1`/`0` for on/off, numbers as numbers, text as text |
 | `zhac/devices/<IEEE>/<key>/set` | HA → ZHAC | a new value, same format |
+| `zhac/devices/<IEEE>/color_xy`, `…/color_hs` | both | colour pairs, `x,y` (CIE 1931) and `h,s` (0–360, 0–100), as Home Assistant's light sends and expects them |
 | `zhac/availability` | ZHAC → HA | `online`, or `offline` when the hub drops off the broker |
 | `zhac/devices/<IEEE>/availability` | ZHAC → HA | battery devices only: `offline` after 25 hours without a report, `online` on the next one |
 | `zhac/devices/<IEEE>/state` | ZHAC → any | dual-chip only: every update as one JSON object |
@@ -73,17 +74,12 @@ per-attribute topics — Node-RED, scripts — not only Home Assistant.
   silence proves nothing; only the hub's own availability applies to them. Battery devices
   get their own topic and turn unavailable after 25 hours of silence (a dead battery, a
   sensor out of range). The clock restarts when the hub reboots.
-- **Colour lights: no colour in Home Assistant yet.** Brightness and colour temperature
-  work. The `color_x` / `color_y` values are exposed as numbers, and a write to one axis
-  today resets the other, so a colour picker would misbehave. Tracked as a converter fix.
 - **Tuya devices without a hand-written definition** (most `TS0601` variants) get their
   entities from the datapoint map. Types and options are exact; whether a value is a sensor
   or a control is guessed from its name, so an unusual key may show up as a writable number
   where a sensor was meant. Please report those with the model id.
 - **A thermostat's odd modes** (`emergency_heating`, `sleep`, …) are not Home Assistant hvac
   modes and are left out of the climate entity.
-- **Locks with a worded `lock_state`** (a few Weiser and Kwikset models) stay a sensor until
-  their word list is known.
 - **Choices on the dual-chip build** need both chips on a release that has this feature: the
   P4 now receives the option name (`sval`) instead of a number; battery availability there
   needs a P4 that reports the power source in `device.get`.
