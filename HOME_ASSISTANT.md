@@ -74,10 +74,9 @@ per-attribute topics — Node-RED, scripts — not only Home Assistant.
   silence proves nothing; only the hub's own availability applies to them. Battery devices
   get their own topic and turn unavailable after 25 hours of silence (a dead battery, a
   sensor out of range). The clock restarts when the hub reboots.
-- **Tuya devices without a hand-written definition** (most `TS0601` variants) get their
-  entities from the datapoint map. Types and options are exact; whether a value is a sensor
-  or a control is guessed from its name, so an unusual key may show up as a writable number
-  where a sensor was meant. Please report those with the model id.
+- **A handful of Tuya devices** get their entities from the datapoint map at runtime (their
+  zigbee2mqtt entry has no flat exposes). Types and options are exact; whether a value is a
+  sensor or a control is guessed from its name. Please report an odd one with the model id.
 - **A thermostat's odd modes** (`emergency_heating`, `sleep`, …) are not Home Assistant hvac
   modes and are left out of the climate entity.
 - **Choices on the dual-chip build** need both chips on a release that has this feature: the
