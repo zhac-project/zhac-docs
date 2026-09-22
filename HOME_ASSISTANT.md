@@ -63,7 +63,7 @@ With the default root `zhac` and prefix `homeassistant`:
 | `zhac/devices/<IEEE>/color_xy`, `…/color_hs` | both | colour pairs, `x,y` (CIE 1931) and `h,s` (0–360, 0–100), as Home Assistant's light sends and expects them |
 | `zhac/availability` | ZHAC → HA | `online`, or `offline` when the hub drops off the broker |
 | `zhac/devices/<IEEE>/availability` | ZHAC → HA | battery devices only: `offline` after 25 hours without a report, `online` on the next one |
-| `zhac/devices/<IEEE>/state` | ZHAC → any | dual-chip only: every update as one JSON object |
+| `zhac/devices/<IEEE>/state` | ZHAC → any | every update as one JSON object (`{"ieee","attrs":{…}}`), published whether or not discovery is on |
 
 `<ieee>` is the 16-digit address in lower case, `<IEEE>` in upper case. Anything can use the
 per-attribute topics — Node-RED, scripts — not only Home Assistant.
