@@ -9,7 +9,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flash ZHAC</title>
 <meta name="description" content="Install ZHAC, the Zigbee hub that runs on an ESP32, from your browser.">
-<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<script type="importmap">
+{ "imports": {
+    "esptool-js": "https://unpkg.com/esptool-js@0.7.0/lib/index.js",
+    "pako": "https://unpkg.com/pako@2.1.0/dist/pako.esm.mjs",
+    "atob-lite": "https://unpkg.com/atob-lite@2.0.0/atob-browser.js" } }
+</script>
+<script type="module" src="zhac-flash.js"></script>
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --fg:#1d2330; --muted:#5b6475; --line:#dfe3ea; --accent:#1f6fd1; --warn-bg:#fff4df; --warn-fg:#6b4500; }
   @media (prefers-color-scheme: dark) {
@@ -25,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin:16px 0; }
   .card p, .card li { margin:6px 0; }
   .ver { font-size:.85rem; color:var(--muted); }
-  .missing esp-web-install-button { display:none; }
+  .missing zhac-install-button { display:none; }
   .note { background:var(--warn-bg); color:var(--warn-fg); border-radius:8px; padding:10px 12px; }
   .note strong { color:inherit; }
   ol { padding-left:22px; }
@@ -36,8 +42,26 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 <main>
   <h1>Flash ZHAC</h1>
   <p>ZHAC is a Zigbee hub that runs entirely on an ESP32: coordinator, device library, rules,
-     Lua and the web UI. Plug your board in over USB, press a button, done.
+     Lua, MQTT and the web UI. Plug your board in over USB, press a button, done.
      This needs Chrome or Edge on a desktop computer.</p>
+
+  <section class="card" id="s31">
+    <h2>The ready-made hub — Espressif ESP32-S31 Function-CoreBoard</h2>
+    <p class="ver">checking for a release…</p>
+    <p>One board, about $25, nothing to solder or wire: Ethernet, the Zigbee radio, a status
+       LED and USB-C are all on it. This is the build we recommend.</p>
+    <ol>
+      <li>Connect the board's <strong>USB-to-UART</strong> USB-C port (the one next to the
+          RJ45 jack) to this computer.</li>
+      <li>Press Install, pick the serial port, wait about two minutes.</li>
+      <li>Plug in Ethernet and open <a href="http://zhac.local">http://zhac.local</a>. The first
+          visit asks you to set a password.</li>
+    </ol>
+    <zhac-install-button manifest="manifest-wired-s31.json"></zhac-install-button>
+    <p>Updating later happens from the web UI (Settings → Update); it keeps your devices, rules
+       and settings. The status LED blinks green while the join window is open and flashes blue
+       on Zigbee traffic.</p>
+  </section>
 
   <section class="card" id="wired">
     <h2>Wired hub — ESP32-P4 board with Ethernet</h2>
@@ -46,10 +70,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     <p class="note"><strong>Check the chip first.</strong> This build runs on ESP32-P4 silicon
        <strong>v0.x–v1.x</strong> only. Run <code>esptool --port &lt;PORT&gt; flash-id</code> and look
        for <code>ESP32-P4 (revision v1.3)</code>. A v3.x chip will not boot it.</p>
-    <esp-web-install-button manifest="manifest-wired-p4.json">
-      <span slot="unsupported">Your browser cannot flash devices. Use Chrome or Edge on a desktop.</span>
-      <span slot="not-allowed">Flashing needs a secure (https) page.</span>
-    </esp-web-install-button>
+    <zhac-install-button manifest="manifest-wired-p4.json"></zhac-install-button>
     <p>Afterwards: plug in Ethernet and open <a href="http://zhac.local">http://zhac.local</a>.
        The on-module ESP32-C6 also needs the radio firmware below, once.</p>
   </section>
@@ -68,10 +89,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       <li>Hold <code>C6_IO9</code> to GND while you pulse <code>C6_CHIP_PU</code> (reset), then press the button below
           and pick the adapter's port.</li>
     </ol>
-    <esp-web-install-button manifest="manifest-rcp-c6.json">
-      <span slot="unsupported">Your browser cannot flash devices. Use Chrome or Edge on a desktop.</span>
-      <span slot="not-allowed">Flashing needs a secure (https) page.</span>
-    </esp-web-install-button>
+    <zhac-install-button manifest="manifest-rcp-c6.json"></zhac-install-button>
     <p>Header labels come from the Guition schematic; check yours before wiring.</p>
   </section>
 
@@ -82,15 +100,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
        <a href="https://github.com/zhac-project/zhac-docs#hardware-wiring">hardware guide</a>.
        Flash each board separately.</p>
     <p><strong>ESP32-S3</strong> (network, web UI, MQTT):</p>
-    <esp-web-install-button manifest="manifest-dualchip-s3.json">
-      <span slot="unsupported">Your browser cannot flash devices. Use Chrome or Edge on a desktop.</span>
-      <span slot="not-allowed">Flashing needs a secure (https) page.</span>
-    </esp-web-install-button>
+    <zhac-install-button manifest="manifest-dualchip-s3.json"></zhac-install-button>
     <p><strong>ESP32-P4</strong> (Zigbee, rules, Lua) — silicon v0.x–v1.x only, as above:</p>
-    <esp-web-install-button manifest="manifest-dualchip-p4.json">
-      <span slot="unsupported">Your browser cannot flash devices. Use Chrome or Edge on a desktop.</span>
-      <span slot="not-allowed">Flashing needs a secure (https) page.</span>
-    </esp-web-install-button>
+    <zhac-install-button manifest="manifest-dualchip-p4.json"></zhac-install-button>
     <p>Right after the S3 install, the installer asks for your Wi-Fi name and password and
        hands them to the hub over the USB cable, then links you to its web UI. This needs the
        board's UART port; on a board with two USB sockets, use the one marked UART. Reopen this
@@ -104,14 +116,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     <p>Something went wrong, or you tried another board?
        <a href="https://github.com/zhac-project/zhac-platform/issues/new/choose">Tell us</a>.
        Source and docs: <a href="https://github.com/zhac-project/zhac-platform">github.com/zhac-project</a>.
-       Flashing uses <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a>.</p>
+       Flashing runs in your browser on <a href="https://github.com/espressif/esptool-js">esptool-js</a>; nothing is uploaded anywhere.</p>
   </footer>
 </main>
 <script>
   // A manifest exists only for images that have been released (build-site.sh
   // writes them). Show the version, or say plainly that there is none yet.
   for (const card of document.querySelectorAll(".card")) {
-    const buttons = [...card.querySelectorAll("esp-web-install-button")];
+    const buttons = [...card.querySelectorAll("zhac-install-button")];
     Promise.all(buttons.map((b) => fetch(b.getAttribute("manifest"), { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null)).catch(() => null)))
       .then((manifests) => {

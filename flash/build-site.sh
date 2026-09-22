@@ -17,7 +17,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 
 rm -rf "$OUT"
 mkdir -p "$OUT/flash/firmware"
-cp "$HERE/index.html" "$OUT/flash/"
+cp "$HERE/index.html" "$HERE/zhac-flash.js" "$OUT/flash/"
 printf '<!doctype html><meta http-equiv="refresh" content="0; url=flash/"><a href="flash/">Flash ZHAC</a>\n' > "$OUT/index.html"
 touch "$OUT/.nojekyll"
 
@@ -53,6 +53,7 @@ JSON
     echo "ok   $manifest -> $repo $tag $file"
 }
 
+publish zhac-wired-core "zhac-wired-s31-*[0-9].bin" ESP32-S31 manifest-wired-s31.json "ZHAC hub (ESP32-S31 Function-CoreBoard)" 0
 publish zhac-wired-core "zhac-wired-p4-*[0-9].bin" ESP32-P4 manifest-wired-p4.json    "ZHAC wired (ESP32-P4, silicon v0.x-v1.x)" 0
 publish zhac-wired-core "zhac-rcp-c6-*[0-9].bin"   ESP32-C6 manifest-rcp-c6.json      "ZHAC Zigbee radio (ESP32-C6 ot_rcp)" 0
 # The S3 name must equal kImprovFirmware in zhac-net-core/main/wifi_mgr.cpp:

@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Publishes the browser flasher (flash/) and the supported-devices list as
+# GitHub Pages. flash/build-site.sh pulls the newest release image of every
+# firmware repo with the gh CLI and writes one ESP Web Tools-style manifest per
+# image; a repo without a release simply gets no button.
+#
+# One-time setting on GitHub: Settings -> Pages -> Source: "GitHub Actions".
+# Runs on every push to main that touches the site, by hand, and every six
+# hours so a new firmware release shows up without a docs commit.
+name: pages
+on:
+  push:
+    branches: [main]
+    paths: ['flash/**', 'supported-devices/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash flash/build-site.sh _site
+      - name: What got published
+        run: |
+          ls -la _site/flash
+          for m in _site/flash/manifest-*.json; do echo "== $m"; cat "$m"; done
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
