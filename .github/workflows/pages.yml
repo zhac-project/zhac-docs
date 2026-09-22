@@ -12,7 +12,7 @@
 name: pages
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths: ['flash/**', 'supported-devices/**', '.github/workflows/pages.yml']
   workflow_dispatch:
   schedule:
