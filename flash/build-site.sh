@@ -18,6 +18,11 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 rm -rf "$OUT"
 mkdir -p "$OUT/flash/firmware"
 cp "$HERE/index.html" "$HERE/zhac-flash.js" "$OUT/flash/"
+# esptool-js, pinned: the browser flasher imports it from next door, so the
+# page depends on nothing at unpkg at run time. A failed download fails the build.
+ESPTOOL_JS_VERSION=0.7.0
+curl -fsSL "https://unpkg.com/esptool-js@${ESPTOOL_JS_VERSION}/bundle.js" -o "$OUT/flash/esptool-js.bundle.js"
+grep -q "ESPLoader" "$OUT/flash/esptool-js.bundle.js" || { echo "esptool-js bundle looks wrong" >&2; exit 1; }
 printf '<!doctype html><meta http-equiv="refresh" content="0; url=flash/"><a href="flash/">Flash ZHAC</a>\n' > "$OUT/index.html"
 touch "$OUT/.nojekyll"
 

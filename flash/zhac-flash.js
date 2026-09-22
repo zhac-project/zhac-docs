@@ -14,7 +14,11 @@
 // the build whose chipFamily matches -> download its parts -> (erase) ->
 // write -> reset. Everything the user needs to know is rendered inline.
 
-import { ESPLoader, Transport } from "esptool-js";
+// The single-file bundle: a real ES module with pako/atob-lite inlined. The
+// per-file lib/ build pulls atob-lite, which is CommonJS -- a browser throws on
+// it and the whole graph, this element included, never defines.
+// build-site.sh downloads the pinned bundle next to this file.
+import { ESPLoader, Transport } from "./esptool-js.bundle.js";
 
 const STYLE = `
   :host { display:block; margin:12px 0; }
