@@ -58,8 +58,40 @@ JSON
     echo "ok   $manifest -> $repo $tag $file"
 }
 
-publish zhac-wired-core "zhac-wired-s31-*[0-9].bin" ESP32-S31 manifest-wired-s31.json "ZHAC hub (ESP32-S31 Function-CoreBoard)" 0
-publish zhac-wired-core "zhac-wired-p4-*[0-9].bin" ESP32-P4 manifest-wired-p4.json    "ZHAC wired (ESP32-P4, silicon v0.x-v1.x)" 0
+# Parts, not the merged image: the merged file pads the gap between partition
+# table and otadata with 0xFF, and that gap is NVS (devices, rules, password,
+# settings) -- writing it at 0x0 wiped everything. Four regions, nothing else.
+publish_parts() {
+    local repo=$1 prefix=$2 chip=$3 manifest=$4 name=$5 tag dir f
+    if ! tag=$(gh release view --repo "$ORG/$repo" --json tagName -q .tagName 2>/dev/null); then
+        echo "skip $manifest: $repo has no release"; return 0
+    fi
+    dir="$OUT/flash/firmware/$repo"
+    mkdir -p "$dir"
+    for f in bootloader partition-table otadata ota; do
+        if ! gh release download "$tag" --repo "$ORG/$repo" --pattern "${prefix}-${tag}-${f}.bin" --dir "$dir" --clobber 2>/dev/null; then
+            echo "skip $manifest: $repo $tag has no ${prefix}-${tag}-${f}.bin"; return 0
+        fi
+    done
+    cat > "$OUT/flash/$manifest" <<JSON
+{
+  "name": "$name",
+  "version": "$tag",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    { "chipFamily": "$chip", "parts": [
+        { "path": "firmware/$repo/${prefix}-${tag}-bootloader.bin",      "offset": 8192 },
+        { "path": "firmware/$repo/${prefix}-${tag}-partition-table.bin", "offset": 49152 },
+        { "path": "firmware/$repo/${prefix}-${tag}-otadata.bin",         "offset": 118784 },
+        { "path": "firmware/$repo/${prefix}-${tag}-ota.bin",             "offset": 131072 } ] }
+  ]
+}
+JSON
+    echo "ok   $manifest -> $repo $tag (4 parts)"
+}
+publish_parts zhac-wired-core zhac-wired-s31      ESP32-S31 manifest-wired-s31.json "ZHAC hub (ESP32-S31 Function-CoreBoard)"
+publish_parts zhac-wired-core zhac-wired-p4-rev1x ESP32-P4  manifest-wired-p4.json  "ZHAC wired (ESP32-P4, silicon v0.x-v1.x)"
 publish zhac-wired-core "zhac-rcp-c6-*[0-9].bin"   ESP32-C6 manifest-rcp-c6.json      "ZHAC Zigbee radio (ESP32-C6 ot_rcp)" 0
 # The S3 name must equal kImprovFirmware in zhac-net-core/main/wifi_mgr.cpp:
 # ESP Web Tools matches them to recognise an installed hub.
