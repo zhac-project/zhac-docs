@@ -66,7 +66,11 @@ class ZhacInstallButton extends HTMLElement {
     btn.disabled = true; bar.hidden = true; bar.value = 0; this.$(".log").textContent = "";
     let transport = null;
     try {
-      const manifest = await (await fetch(this.getAttribute("manifest"), { cache: "no-store" })).json();
+      // The attribute is relative to the page; part paths are relative to the
+      // manifest. Resolve both against absolute URLs (a bare "x.json" is not a
+      // valid base for new URL(), which is how the first live run died).
+      const manifestUrl = new URL(this.getAttribute("manifest"), document.baseURI);
+      const manifest = await (await fetch(manifestUrl, { cache: "no-store" })).json();
       if (manifest.new_install_prompt_erase === false) this.$("label").hidden = true;
 
       this.say("Choose the board's serial port…");
@@ -86,7 +90,7 @@ class ZhacInstallButton extends HTMLElement {
       this.say(`Downloading ${manifest.name} ${manifest.version}…`);
       const fileArray = [];
       for (const part of build.parts) {
-        const r = await fetch(new URL(part.path, this.getAttribute("manifest")), { cache: "no-store" });
+        const r = await fetch(new URL(part.path, manifestUrl), { cache: "no-store" });
         if (!r.ok) throw new Error(`Could not download ${part.path} (${r.status}).`);
         fileArray.push({ data: new Uint8Array(await r.arrayBuffer()), address: part.offset });
       }
