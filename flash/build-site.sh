@@ -17,7 +17,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 
 rm -rf "$OUT"
 mkdir -p "$OUT/flash/firmware"
-cp "$HERE/index.html" "$HERE/zhac-flash.js" "$OUT/flash/"
+cp "$HERE/index.html" "$HERE/zhac-flash.js" "$HERE/../images/s31-board.webp" "$OUT/flash/"
 # esptool-js, pinned: the browser flasher imports it from next door, so the
 # page depends on nothing at unpkg at run time. A failed download fails the build.
 ESPTOOL_JS_VERSION=0.7.0

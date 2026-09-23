@@ -25,6 +25,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin:16px 0; }
   .card p, .card li { margin:6px 0; }
   .ver { font-size:.85rem; color:var(--muted); }
+  #s31 { display:flow-root; }
+  .board { float:right; width:190px; height:auto; margin:0 0 10px 16px; }
+  @media (max-width:560px) { .board { float:none; display:block; width:60%; margin:8px auto; } }
   .missing zhac-install-button { display:none; }
   .note { background:var(--warn-bg); color:var(--warn-fg); border-radius:8px; padding:10px 12px; }
   .note strong { color:inherit; }
@@ -41,13 +44,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
   <section class="card" id="s31">
     <h2>The ready-made hub — Espressif ESP32-S31 Function-CoreBoard</h2>
+    <img class="board" src="s31-board.webp" width="640" height="888"
+         alt="ESP32-S31 Function-CoreBoard: the USB-UART port is the upper USB-C on the left edge, above USB-DBG">
     <p class="ver">checking for a release…</p>
     <p>One board, about $25, nothing to solder or wire: Ethernet, the Zigbee radio, a status
        LED and USB-C are all on it. This is the build we recommend. It talks to your network
        over Ethernet only (the firmware does not use the chip's Wi-Fi).</p>
     <ol>
-      <li>Connect the board's <strong>USB-to-UART</strong> USB-C port (the one next to the
-          RJ45 jack) to this computer.</li>
+      <li>Connect the USB-C port labelled <strong>USB-UART</strong> on the board (the upper one
+          in the photo, not USB-DBG) to this computer.</li>
       <li>Press Install, pick the serial port, wait about two minutes.</li>
       <li>Plug in Ethernet and open <a href="http://zhac.local">http://zhac.local</a>. The first
           visit asks you to set a password.</li>

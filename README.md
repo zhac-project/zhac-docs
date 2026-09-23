@@ -13,9 +13,29 @@ live in each module's own repo.
 
 **Just want to run it?** Follow [your first 20 minutes](FIRST_20_MINUTES.md), or go straight to the
 [browser flasher](https://zhac-project.github.io/zhac-docs/flash/)
-— Chrome or Edge, a USB cable, no toolchain. A single ESP32-P4 board with Ethernet
-([zhac-wired-core](https://github.com/zhac-project/zhac-wired-core)) is the simplest
-hardware; the dual-chip build below is the original design.
+— Chrome or Edge, a USB cable, no toolchain. The simplest hardware is one board, the
+[ESP32-S31 Function-CoreBoard](#the-recommended-hub-esp32-s31-function-coreboard)
+([zhac-wired-core](https://github.com/zhac-project/zhac-wired-core)); the dual-chip build
+below is the original design.
+
+## The recommended hub: ESP32-S31 Function-CoreBoard
+
+<p align="center">
+  <img src="images/s31-board.webp" width="320"
+       alt="Espressif ESP32-S31 Function-CoreBoard V1.0: ESP32-S31-WROOM-3 module, USB-C ports labelled USB-UART and USB-DBG, USB-A, RJ45 Ethernet, RST and BOOT buttons, pin header">
+</p>
+
+One Espressif board, nothing to solder or wire: Ethernet, the Zigbee radio, an RGB status LED
+and USB-C are on it. It runs [zhac-wired-core](https://github.com/zhac-project/zhac-wired-core)
+and talks to your network over Ethernet only (the firmware does not use the chip's Wi-Fi).
+
+1. Connect the USB-C port labelled **USB-UART** (the upper one in the photo) to a computer and
+   install from the [browser flasher](https://zhac-project.github.io/zhac-docs/flash/#s31).
+2. Plug in Ethernet and open <http://zhac.local>. The first visit asks you to set a password.
+3. Later updates come from the web UI (Settings → Update) or the
+   [zhac-wired-core releases](https://github.com/zhac-project/zhac-wired-core/releases).
+
+The status LED blinks green while the join window is open and flashes blue on Zigbee traffic.
 
 ---
 
