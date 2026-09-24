@@ -128,10 +128,12 @@ ON Rules#Timer=1 DO zigbee.set hallway_light state 0 ENDON
 ON Mqtt#<topic> DO ... ENDON
 ```
 
-Fires when a message is received on the given MQTT topic.
+Fires when a message is received on the given MQTT topic. The topic is matched exactly, root
+included, and the hub only receives topics under its root (`zhac/…` by default) — see
+[MQTT_API.md](MQTT_API.md#your-own-messages-rules-and-lua).
 
 ```
-ON Mqtt#home/alarm DO zigbee.set siren state 1 ENDON
+ON Mqtt#zhac/home/alarm DO zigbee.set siren state 1 ENDON
 ```
 
 ---

@@ -282,6 +282,7 @@ just deep-clean    # also remove node_modules
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Cannot find the hub, pairing, radio, clock, lost password, updates, what a backup does not contain |
 | [FEATURES.md](FEATURES.md) | Feature overview |
 | [REST_API.md](REST_API.md) · [WS_API.md](WS_API.md) · [openapi.yaml](openapi.yaml) | HTTP REST + WebSocket (`/ws`) APIs |
+| [MQTT_API.md](MQTT_API.md) | MQTT topics: device state, `…/set` commands, availability, rules/Lua messages — with examples |
 | [HOME_ASSISTANT.md](HOME_ASSISTANT.md) | Home Assistant via MQTT discovery — setup, entities, topics |
 | [RULES_DSL.md](RULES_DSL.md) | Automation rule DSL (`ON … DO … ENDON`) |
 | [LUA_API.md](LUA_API.md) | Lua scripting API |
