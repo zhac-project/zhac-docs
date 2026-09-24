@@ -6,7 +6,7 @@
 
 | Model | Description | Reports as | Exposes |
 |---|---|---|---|
-| NAS-AB02B0 | Temperature & humidity sensor and alarm | `0yu2xgi`, `TS0601` from `_TZE200_d0yu2xgi` | temperature, humidity, alarm, temperature_alarm, humidity_alarm, duration, temperature_min, temperature_max, humidity_min, humidity_max, melody, volume, power_type |
+| NAS-AB02B0 | Temperature & humidity sensor and alarm | `0yu2xgi`, `TS0601` from `_TZE200_d0yu2xgi`, `_TYST11_d0yu2xgi` | temperature, humidity, battery_low, alarm, temperature_alarm, humidity_alarm, duration, temperature_min, temperature_max, humidity_min, humidity_max, melody, volume, power_type |
 | NAS-AB02B2 | Alarm | `1blo2bj`, `lrfgpny`, `q76rtoa9`, `TS0601` from `_TZE200_t1blo2bj`, `_TZE204_t1blo2bj`, `_TZE204_q76rtoa9` | alarm, duration, volume, melody, battpercentage |
 | NAS-AB06B2 | Outdoor solar alarm | `TS0601` from `_TZE204_nlrfgpny` | state, action, alarm_state, alarm_switch, tamper_alarm_switch, tamper_alarm, alarm_melody, alarm_mode, alarm_time, charging, battery |
 | NAS-AB06B2 | Outdoor solar alarm | `TS0601` from `_TZE284_nlrfgpny` | state, action, alarm_state, alarm_switch, tamper_alarm_switch, tamper_alarm, alarm_melody, alarm_mode, alarm_time, charging, battery |

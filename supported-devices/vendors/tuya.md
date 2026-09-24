@@ -1178,7 +1178,6 @@
 | TS0601_temp_cwbvmsar |  | `TS0601` from `_TZE200_cwbvmsar` | state |
 | TS0601_temperature_humidity_sensor_1 | Temperature & humidity sensor | `TS0601` from `_TZE200_44af8vyi`, `_TZE200_qyflbnbj`, `_TZE204_qyflbnbj`, `_TZE284_qyflbnbj` | (none) |
 | TS0601_temperature_humidity_sensor_zl1kmjqx |  | `TS0601` from `_TZE200_zl1kmjqx` | (none) |
-| TS0601_th_slim |  | `TS0601` from `_TZE200_d0yu2xgi` | state |
 | TS0601_thermostat | Radiator valve with thermostat | `TS0601` from `_TZE200_2atgpdho`, `_TZE200_4eeyebrt`, `_TZE200_7fqkphoq`, `_TZE200_8thwkzxl`, `_TZE200_8whxpsiw`, `_TZE200_9sfg7gm0`, `_TZE200_ckud7u2l`, `_TZE200_do5qy8zo`, `_TZE200_lpwgshtl`, `_TZE200_pvvbommb`, `_TZE200_qjp4ynvi`, `_TZE200_rk1wojce`, `_TZE200_rndg81sf`, `_TZE200_rufdtfyv`, `_TZE200_ywdxldoj`, `_TZE200_znlqjmih`, `_TZE284_znlqjmih` | current_heating_setpoint, child_lock |
 | TS0601_thermostat<br><sub>also sold as Immax 07732L, Emos P5630S, THALEOS HY368, Moes HY368, Moes HY369RT, SHOJZJ 378RT, Silvercrest TVR01, Immax 07732B, Evolveo Heat M30</sub> | Radiator valve with thermostat | `TS0601`, `kud7u2l` from `_TZE200_chyvmhay` | state |
 | TS0601_thermostat_fancoil |  | `TS0601` from `_TZE200_xixlazkg` | preset, local_temperature, current_heating_setpoint, fan_mode, child_lock, battery_low, error |
