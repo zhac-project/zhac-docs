@@ -294,7 +294,7 @@ end)
 **MQTT-commanded scene** — accept a command from Home Assistant / Node-RED:
 
 ```lua
-zhac.on_mqtt("home/cmd/scene", function(topic, payload)
+zhac.on_mqtt("zhac/home/cmd/scene", function(topic, payload)
     if payload == "movie" then
         zhac.set_attr("0x00158D0009080706", "brightness", 40)
         zhac.set_attr("0x00158D000A0B0C0D", "state", false)
@@ -316,12 +316,13 @@ anything else can see and drive your devices.
 - **Availability** is automatic: the gateway publishes `zhac/availability`
   (`online` / `offline` via the MQTT LWT). Use it as the bridge's availability
   topic in Home Assistant.
-- **Device state is *not* auto-published per attribute** — you publish what you
-  want, on the topics you want (below). That keeps the broker traffic to what
-  you actually consume.
-- **Inbound** topics (`ON Mqtt#…` / `zhac.on_mqtt`) only fire for topics inside
-  the gateway's configured **subscription filter** — set that filter to cover
-  the command topics you use (e.g. `zhac/#`).
+- **Device state is published automatically** on `zhac/devices/<IEEE>/state`
+  (and, with Home Assistant discovery on, one retained topic per value). The
+  patterns below are for your own topics and formats. Full topic reference:
+  [MQTT_API.md](MQTT_API.md).
+- **Inbound** topics (`ON Mqtt#…` / `zhac.on_mqtt`) must be **under the root**
+  (`zhac/…`): the hub subscribes to `zhac/#` only, and matches the full topic
+  exactly.
 - The DSL `publish` payload is a single token with **no qos/retain**. For
   **retained** state (so a reconnecting consumer sees the last value) use Lua's
   `zhac.publish(topic, payload, qos, retain)`.

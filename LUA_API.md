@@ -315,6 +315,11 @@ end)
 - `fn(ieee, key, value)` — value is `boolean`, `integer`, or
   `string` depending on the attribute's shadow `ValType`.
 
+**Filters.** `ieee_hex` may be `nil` (any device); `key` may be `nil` or
+`"*"` (any key). `zhac.on_attr_change(fn)`, with no filters, receives every
+change — the handler then checks `ieee` / `key` itself. A handler whose
+filter does not match is not started at all.
+
 **Threading.** Runs on TaskLua. Long operations should `zhac.sleep`
 to let other events interleave.
 
@@ -332,10 +337,13 @@ zhac.on_cron("0 0 22 * * *", function()
 end)
 ```
 
-**Dispatch.** The simple_rules cron task walks registered cron
-triggers once per minute. When one fires it publishes a `RULE_EVENT`
-on EventBus, which the Lua scheduler consumes and routes to the
-matching handler. Sub-minute granularity is not guaranteed.
+**Dispatch.** TaskLua checks every registered expression once per
+second against the hub's local clock and starts `fn` on a match. A
+5-field expression (`min hour mday month wday`) fires at second 0. Nothing
+fires until the clock is set (NTP or the web UI); a clock jump does not
+replay the skipped seconds. An invalid expression is a Lua error when the
+script registers it. `zhac.on_cron(fn)` without an expression is ignored
+with a warning (older firmware accepted it and never called it).
 
 ### 4.4 `zhac.on_mqtt(topic, fn)`
 
@@ -344,16 +352,19 @@ Register `fn` for MQTT ingress on the given topic.
 **Signature.**
 
 ```lua
-zhac.on_mqtt("home/cmd/lights", function(topic, payload)
+zhac.on_mqtt("zhac/cmd/lights", function(topic, payload)
     if payload == "off" then
         zhac.set_attr("0x00158D0001020304", "state", false)
     end
 end)
 ```
 
-Dispatch: EventBus `MQTT_MSG` → event bridge → TaskLua. The MQTT
-gateway must be connected (`mqtt_gw.cpp`) and subscribed to a parent
-of the topic for messages to flow.
+Dispatch: EventBus `MQTT_MSG` → event bridge → TaskLua. The topic is the
+**full** topic and is matched exactly (no `+` / `#`). The hub only
+receives topics under its root topic (`zhac/…` by default), so a
+handler for a topic outside the root never fires. `zhac.on_mqtt(fn)`, with
+no topic, receives every message. Topic up to 63 characters, payload up to
+31 bytes (longer ones are cut short) — see [MQTT_API.md](MQTT_API.md).
 
 ### 4.5 `zhac.on_boot(fn)`
 
@@ -913,7 +924,7 @@ ON front_door#contact=0 DO script.run "siren_pulse" ENDON
 
 ```lua
 -- /scripts/scene_remote.lua
--- Select a scene via MQTT messages to home/cmd/scene.
+-- Select a scene via MQTT messages to zhac/home/cmd/scene.
 -- Values: "day", "night", "away".
 
 local LIVING = "0x00158D0001DDDD04"
@@ -921,7 +932,7 @@ local BEDROOM = "0x00158D0001EEEE05"
 
 local last_scene = "day"   -- in-memory; lost on reboot
 
-zhac.on_mqtt("home/cmd/scene", function(topic, payload)
+zhac.on_mqtt("zhac/home/cmd/scene", function(topic, payload)
     if payload == last_scene then return end
     last_scene = payload
 
@@ -950,7 +961,7 @@ The inbound payload is a JSON object `{"target":"...","brightness":N,
 
 ```lua
 -- /scripts/cmd_light.lua
--- Subscribes to: home/cmd/light
+-- Subscribes to: zhac/home/cmd/light
 -- Payload:       {"target":"0x00158D...","brightness":120,"transition":3}
 
 local cjson = require("cjson")
@@ -968,7 +979,7 @@ local function parse_cmd(payload)
     return obj
 end
 
-zhac.on_mqtt("home/cmd/light", function(topic, payload)
+zhac.on_mqtt("zhac/home/cmd/light", function(topic, payload)
     local cmd = parse_cmd(payload)
     if not cmd then return end
 

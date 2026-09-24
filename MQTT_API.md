@@ -187,25 +187,23 @@ Rules may publish to any topic (inside or outside the root). Topic and payload a
 
 ### Lua
 
-A Lua handler receives **every** message the hub gets (topic, payload) and picks its topics itself:
-
 ```lua
 local LIVING_ROOM = "70B3D52B600316B5"   -- device IEEE, from the device page
 
--- Incoming: react to a command
-zhac.on_mqtt(function(topic, payload)
-    if topic == "zhac/cmd/scene" and payload == "movie" then
+-- Incoming: react to a command (full topic, matched exactly)
+zhac.on_mqtt("zhac/cmd/scene", function(topic, payload)
+    if payload == "movie" then
         zhac.set_attr(LIVING_ROOM, "brightness", 40)
     end
 end)
 
--- Outgoing: republish a value, retained
-zhac.on_attr_change(function(ieee, key, value)
-    if key == "occupancy" then
-        zhac.publish("zhac/occupancy/" .. ieee, tostring(value), 0, true)
-    end
+-- Outgoing: republish a value, retained (nil = any device)
+zhac.on_attr_change(nil, "occupancy", function(ieee, key, value)
+    zhac.publish("zhac/occupancy/" .. ieee, tostring(value), 0, true)
 end)
 ```
+
+`zhac.on_mqtt(fn)` without a topic receives every message the hub gets.
 
 `zhac.publish(topic, payload [, qos [, retain]])` — qos default 0, retain default false; does nothing
 while the hub is not connected. More in [LUA_API.md](LUA_API.md).
