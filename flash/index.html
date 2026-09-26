@@ -66,31 +66,45 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   <section class="card" id="wired">
     <h2>Wired hub — ESP32-P4 board with Ethernet</h2>
     <p class="ver">checking for a release…</p>
-    <p>For the Guition JC-ESP32P4-M3-DEV and other ESP32-P4 boards with an Ethernet jack.</p>
+    <p>For the Guition JC-ESP32P4-M3-DEV and other ESP32-P4 boards with an Ethernet jack. Two
+       steps for a fresh board: install the Zigbee radio once, then install the hub itself.</p>
     <p class="note"><strong>Check the chip first.</strong> This build runs on ESP32-P4 silicon
        <strong>v0.x–v1.x</strong> only. Run <code>esptool --port &lt;PORT&gt; flash-id</code> and look
        for <code>ESP32-P4 (revision v1.3)</code>. A v3.x chip will not boot it.</p>
-    <zhac-install-button manifest="manifest-wired-p4.json"></zhac-install-button>
-    <p>Afterwards: plug in Ethernet and open <a href="http://zhac.local">http://zhac.local</a>.
-       The on-module ESP32-C6 also needs the radio firmware below, once.</p>
-  </section>
+    <p>Use the board's <strong>CH340</strong> USB-C port (labelled USB-TTL/UART, not the OTG
+       ports) for both steps below.</p>
 
-  <section class="card" id="radio">
-    <h2>Zigbee radio for the wired P4 board — ESP32-C6</h2>
-    <p class="ver">checking for a release…</p>
-    <p>The P4 has no radio of its own; the ESP32-C6 next to it is the Zigbee radio and needs
-       this firmware once. It is flashed through the C6's own serial pins, not the board's USB port:</p>
-    <ol>
-      <li>Hold the board's <strong>BOOT</strong> button, tap <strong>RESET</strong>, release BOOT.
-          The P4 now waits in download mode and stops resetting the C6.</li>
-      <li>Connect a 3.3 V USB-serial adapter to the C6 pins on the expansion header:
-          adapter TX → <code>C6_U0RXD</code>, RX → <code>C6_U0TXD</code>, GND → GND.
-          Leave 3.3 V unconnected.</li>
-      <li>Hold <code>C6_IO9</code> to GND while you pulse <code>C6_CHIP_PU</code> (reset), then press the button below
-          and pick the adapter's port.</li>
-    </ol>
-    <zhac-install-button manifest="manifest-rcp-c6.json"></zhac-install-button>
-    <p>Header labels come from the Guition schematic; check yours before wiring.</p>
+    <h3>1. Install the Zigbee radio (one time)</h3>
+    <p>A fresh board's ESP32-C6 does not yet run the Zigbee firmware. This writes it over the
+       link already wired inside the module, so there is nothing else to connect. It takes
+       about a minute; once it has run, this board does not need it again — go straight to
+       step 2 from now on.</p>
+    <zhac-install-button manifest="manifest-rcp-installer-p4.json"></zhac-install-button>
+
+    <h3>2. Install the hub</h3>
+    <zhac-install-button manifest="manifest-wired-p4.json"></zhac-install-button>
+    <p>Afterwards: plug in Ethernet and open <a href="http://zhac.local">http://zhac.local</a>.</p>
+
+    <details>
+      <summary>Advanced: flashing the C6 radio by wire (JP1), or updating it later</summary>
+      <p>Step 1 above only works once — afterwards the C6 no longer runs the firmware it needs,
+         so a later radio update, or recovering a board where step 1 does not work, means wiring
+         the C6's own serial header directly instead of using the board's USB port:</p>
+      <ol>
+        <li>Hold the board's <strong>BOOT</strong> button, tap <strong>RESET</strong>, release BOOT.
+            The P4 now waits in download mode and stops resetting the C6.</li>
+        <li>Connect a <strong>3.3 V</strong> USB-serial adapter to the C6 pins on the <strong>JP1</strong>
+            header: adapter TX → <code>C6_U0RXD</code> (JP1-20), RX → <code>C6_U0TXD</code>
+            (JP1-22), GND → GND (JP1-6). Leave 3.3 V/5 V unconnected — a 5 V adapter will
+            damage the C6.</li>
+        <li>Hold <code>C6_IO9</code> (JP1-24) to GND while you pulse <code>C6_CHIP_PU</code>
+            (JP1-26, reset), then press the button below and pick the adapter's port.</li>
+      </ol>
+      <zhac-install-button manifest="manifest-rcp-c6.json"></zhac-install-button>
+      <p>Header labels are from the M3-DEV's own schematic; check yours before wiring. An
+         ESP-Prog adapter (it drives the reset/boot pins itself) is more likely to work
+         cleanly here than a plain USB-serial adapter.</p>
+    </details>
   </section>
 
   <section class="card" id="dual">

@@ -92,6 +92,10 @@ JSON
 }
 publish_parts zhac-wired-core zhac-wired-s31      ESP32-S31 manifest-wired-s31.json "ZHAC hub (ESP32-S31 Function-CoreBoard)"
 publish_parts zhac-wired-core zhac-wired-p4-rev1x ESP32-P4  manifest-wired-p4.json  "ZHAC wired (ESP32-P4, silicon v0.x-v1.x)"
+# One-time C6 radio installer for a fresh Guition M3-DEV (no JP1 wiring): OTA-writes
+# ot_rcp onto the module's C6 over the SDIO pins it shares with the P4. Merged image,
+# offset 0; skipped gracefully if the release predates it (see publish()).
+publish zhac-wired-core "zhac-c6-rcp-installer-p4-rev1x-*[0-9].bin" ESP32-P4 manifest-rcp-installer-p4.json "ZHAC Zigbee radio installer (Guition P4, one-time)" 0
 publish zhac-wired-core "zhac-rcp-c6-*[0-9].bin"   ESP32-C6 manifest-rcp-c6.json      "ZHAC Zigbee radio (ESP32-C6 ot_rcp)" 0
 # The S3 name must equal kImprovFirmware in zhac-net-core/main/wifi_mgr.cpp:
 # ESP Web Tools matches them to recognise an installed hub.
