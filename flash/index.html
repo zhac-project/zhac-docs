@@ -43,13 +43,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
      This needs Chrome or Edge on a desktop computer.</p>
 
   <section class="card" id="s31">
-    <h2>The ready-made hub — Espressif ESP32-S31 Function-CoreBoard</h2>
+    <h2>Espressif ESP32-S31 Function-CoreBoard</h2>
     <img class="board" src="s31-board.webp" width="640" height="888"
          alt="ESP32-S31 Function-CoreBoard: the USB-UART port is the upper USB-C on the left edge, above USB-DBG">
     <p class="ver">checking for a release…</p>
     <p>One board, about $25, nothing to solder or wire: Ethernet, the Zigbee radio, a status
-       LED and USB-C are all on it. This is the build we recommend. It talks to your network
-       over Ethernet only (the firmware does not use the chip's Wi-Fi).</p>
+       LED and USB-C are all on it. It talks to your network over Ethernet only (the firmware
+       does not use the chip's Wi-Fi). One flash and it is done.</p>
     <ol>
       <li>Connect the USB-C port labelled <strong>USB-UART</strong> on the board (the upper one
           in the photo, not USB-DBG) to this computer.</li>
@@ -64,10 +64,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   </section>
 
   <section class="card" id="wired">
-    <h2>Wired hub — ESP32-P4 board with Ethernet</h2>
+    <h2>Guition JC-ESP32P4-M3-DEV (ESP32-P4 + C6)</h2>
     <p class="ver">checking for a release…</p>
-    <p>For the Guition JC-ESP32P4-M3-DEV and other ESP32-P4 boards with an Ethernet jack. Two
-       steps for a fresh board: install the Zigbee radio once, then install the hub itself.</p>
+    <p>ESP32-P4 with 32 MB PSRAM and an on-module ESP32-C6 for the Zigbee radio, about $25
+       delivered. Also runs on other ESP32-P4 boards with an Ethernet jack. Two steps for a
+       fresh board: install the Zigbee radio once, then install the hub itself.</p>
     <p class="note"><strong>Check the chip first.</strong> This build runs on ESP32-P4 silicon
        <strong>v0.x–v1.x</strong> only. Run <code>esptool --port &lt;PORT&gt; flash-id</code> and look
        for <code>ESP32-P4 (revision v1.3)</code>. A v3.x chip will not boot it.</p>
