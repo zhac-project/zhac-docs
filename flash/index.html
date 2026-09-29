@@ -28,6 +28,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   #s31 { display:flow-root; }
   .board { float:right; width:190px; height:auto; margin:0 0 10px 16px; }
   @media (max-width:560px) { .board { float:none; display:block; width:60%; margin:8px auto; } }
+  .boards { display:flex; flex-wrap:wrap; justify-content:center; gap:12px 24px; margin:14px 0 4px; }
+  .boards figure { flex:1 1 200px; max-width:min(260px, 70%); margin:0; text-align:center; }
+  .boards img { display:block; width:100%; height:auto; aspect-ratio:6/5; object-fit:contain; }
+  .boards figcaption, .card .credit { font-size:.85rem; color:var(--muted); }
+  .boards figcaption { margin-top:6px; }
+  .card .credit { margin:10px 0 12px; text-align:center; }
   .missing zhac-install-button { display:none; }
   .note { background:var(--warn-bg); color:var(--warn-fg); border-radius:8px; padding:10px 12px; }
   .note strong { color:inherit; }
@@ -69,6 +75,21 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     <p>ESP32-P4 with 32 MB PSRAM and an on-module ESP32-C6 for the Zigbee radio, about $25
        delivered. Also runs on other ESP32-P4 boards with an Ethernet jack. Two steps for a
        fresh board: install the Zigbee radio once, then install the hub itself.</p>
+    <div class="boards">
+      <figure>
+        <img src="p4-devkit-board.webp" width="523" height="447"
+             alt="Waveshare ESP32-P4-Module-DEV-KIT: black board with the P4 module in the middle, a 40-pin header along one edge, two USB-A ports and an Ethernet jack">
+        <figcaption>Waveshare ESP32-P4-Module-DEV-KIT — same P4↔C6 and Ethernet wiring per the
+                    schematics; not yet tested on hardware</figcaption>
+      </figure>
+      <figure>
+        <img src="p4-nano-board.webp" width="560" height="454"
+             alt="Waveshare ESP32-P4-NANO: small black board with an Ethernet jack, a USB-A port, a USB-C port and pin headers on two edges">
+        <figcaption>Waveshare ESP32-P4-NANO — same P4↔C6 and Ethernet wiring per the
+                    schematics; not yet tested on hardware</figcaption>
+      </figure>
+    </div>
+    <p class="credit">Photos: habr.com, Waveshare</p>
     <p class="note"><strong>Check the chip first.</strong> This build runs on ESP32-P4 silicon
        <strong>v0.x–v1.x</strong> only. Run <code>esptool --port &lt;PORT&gt; flash-id</code> and look
        for <code>ESP32-P4 (revision v1.3)</code>. A v3.x chip will not boot it.</p>
