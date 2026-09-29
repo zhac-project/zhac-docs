@@ -144,6 +144,18 @@ editable inputs, or enum dropdowns.
 | `rule.delete` | `api_rule_delete` | `DELETE /api/rules` |
 | `rule.enable` | `api_rule_enable` | `PUT /api/rules` |
 | `rule.update` | `api_rule_update` | `PUT /api/rules/:id` |
+| `rules.status` | — (wired build) | — |
+| `rule.run` | — (wired build) | — |
+
+`rules.status` answers `[{"id","last_fired","runs","last_skip","ago"}, …]`, one entry per active
+rule: runs since boot, the last run as epoch seconds (seconds since boot while the clock is unset),
+`ago` = seconds since it (present when `runs` > 0), and why the rule last did not run or which
+action failed (`""`, `unchanged`, `condition_false`, `action_error:<action>`). RAM only, reset on
+reboot. `rule.run` `{"id"}` ("Run now") runs a rule's actions at once with `%value%` = the trigger
+attribute's current value; the reply comes after they ran. Both are separate from `rule.list` and
+the `rule.*` pushes on purpose: the cloud mirrors the rule objects, and volatile fields there would
+churn every sync. Firmware without them answers `unknown cmd`; the Rules page then hides the status.
+See [RULES_DSL.md](RULES_DSL.md#rule-status-and-run-now).
 
 ### Scripts
 

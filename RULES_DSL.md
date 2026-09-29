@@ -2,6 +2,28 @@
 
 The Rules DSL lets you define event-driven automations without writing a Lua script. Rules are stored on P4 and evaluated in real-time as device attributes change, cron timers fire, or custom events arrive. When declarative rules aren't enough, a rule can invoke a named Lua script via the `script.run` action — see `docs/LUA_API.md` for the scripting reference.
 
+> **What changed for existing rules (2026-09).** A device-attribute rule now fires when the value
+> **changes**, not on every report. `ON door#contact=1 DO …` runs when the door opens, and no
+> longer again each time the sensor repeats "open" as a heartbeat (a Tuya contact sensor does so
+> about every 4 hours, and used to switch a socket on by itself). A reboot, saving or editing a
+> rule, or renaming a device no longer fires anything either. Buttons and other event-like
+> attributes (`action`, `click`, `event`, `scene`) still fire on every press, and time, event,
+> timer, MQTT and boot triggers work as before. Check the rules that relied on repeats:
+>
+> - A motion rule that restarts a timer (`ON sensor#occupancy=1 DO … ; timer 1 300000 ENDON`)
+>   now starts it when motion **begins**: a sensor repeating `occupancy=1` while you stay in the
+>   room no longer extends it. `ON sensor#occupancy DO zigbee.set light state %value% ENDON`
+>   follows the sensor instead.
+> - A sensor that never reports "no motion" itself (the Aqara RTCGQ11LM family) stays at
+>   `occupancy=1`, so `#occupancy=1` fires only once. Set its **occupancy timeout** (the
+>   device's options) so the hub reports `occupancy=0` after that many seconds without motion.
+> - A threshold rule such as `#temperature>2800 DO publish …` publishes once when the
+>   temperature crosses 28.00, not with every report above it. Use a bare `#temperature`
+>   trigger to act on every change of value.
+>
+> See [When device rules fire](#when-device-rules-fire) for the exact rules and
+> [Rule status and "Run now"](#rule-status-and-run-now) for how to check what a rule did.
+
 ---
 
 ## Syntax
@@ -25,7 +47,8 @@ ON <trigger> DO <action> [; <action> ...] ENDON
 ON <device_ref>#<attr>[<op><value>] DO ... ENDON
 ```
 
-Fires when a Zigbee device reports an attribute value. `device_ref` is either a friendly name or an IEEE address string (`0x001234567890ABCD`).
+Fires when a Zigbee device's attribute **changes** — see
+[When device rules fire](#when-device-rules-fire). `device_ref` is either a friendly name or an IEEE address string (`0x001234567890ABCD`).
 
 The value after the operator is a number (`=1`, `>2500`) or, for text values such as a
 button's `action` or a thermostat's `system_mode`, a string in **double quotes**
@@ -48,6 +71,33 @@ ON 0x001234567890ABCD#temperature>2500 DO publish home/alert hot ENDON
 ON door sensor#contact DO event motion ENDON
 ```
 
+#### When device rules fire
+
+The hub remembers, per rule, the last value of the trigger attribute and whether the comparison
+held for it. A report that changes nothing does not fire the rule.
+
+| Trigger | Fires when |
+|---------|------------|
+| `#attr` with a comparison (`=`, `!=`, `>`, `<`, `>=`, `<=`) | the comparison goes from not holding to holding. It does not fire again while it keeps holding, and fires again after it stopped holding in between (`>2500`: 2400 no, 2600 **yes**, 2700 no, 2400 no, 2600 **yes**). |
+| bare `#attr` (no comparison) | the value differs from the last one (`contact` 1 **yes**, 1 no, 0 **yes**, 0 no, 1 **yes**). `%value%` is the new value. |
+| `#action`, `#click`, `#event`, `#scene`, with or without a comparison | **every** report that matches: these attributes are events (a button press, a cube shake), not state. `ON cube#action="shake"` fires on every shake. |
+| bare `ON <device>` (wildcard, below) | every report of any attribute, as before. |
+
+Where the memory comes from:
+
+- **An attribute with no known value is "unknown"**: the first report that matches fires. This
+  is the case for a new rule on a device that has never reported that attribute.
+- **Boot.** The hub restores each device's last reported values when it starts (the values the
+  web UI shows), and every rule starts from them. The first report after a reboot that repeats
+  the stored value does not fire; a real change does. (The single-chip S3 build restores no
+  values, so there every rule starts unknown after a reboot.)
+- **Saving, editing, enabling, renaming.** Whenever rules are (re)loaded (a rule saved, edited or
+  enabled again, or every rule after a device rename), each rule starts again from the device's
+  current value. Saving a rule while the door is open does not fire it; neither does an unrelated
+  edit or a rename. When the hub has no stored value for the attribute (a device with more than
+  32 attributes), an edited or reloaded rule keeps what it already knew.
+- The memory is RAM only: nothing is written to flash on a report.
+
 #### Wildcard: any attribute on a device
 
 Omit the `#<attr>` suffix entirely to match **every** attribute change on
@@ -61,7 +111,8 @@ ON 0x001234567890ABCD DO script.run "router" ENDON
 The Lua handler receives the full event context in its single table
 argument (`ev.key`, `ev.value`, `ev.int_val`, `ev.cluster`, `ev.attr_id`,
 `ev.ieee`, etc.) and can dispatch however it wants — see
-[LUA_API.md](LUA_API.md#triggers) for the exact shape.
+[LUA_API.md](LUA_API.md#triggers) for the exact shape. The wildcard fires on
+**every** report, repeats included: the script decides what counts as a change.
 
 ### System boot
 
@@ -264,6 +315,41 @@ Fire-and-forget: the rule action returns as soon as the run request is queued on
 
 ---
 
+## Rule status and "Run now"
+
+The hub keeps, per rule, in RAM (reset on reboot):
+
+- **Last ran**: when the rule last ran, as epoch seconds once the hub's clock is set, else as
+  seconds since boot;
+- **Runs**: how many times it ran since boot;
+- **Last skip**: why it last did not run, or which action failed when it ran:
+  `unchanged` (a report of its trigger changed nothing), `condition_false` (a report did not
+  match the comparison) or `action_error:<action>` (for example `action_error:zigbee.set`: the
+  device was not found or the command was not sent; `action_error:publish`: MQTT is off or not
+  connected). A clean run clears it.
+
+The Rules page shows them next to each rule and refreshes them every 5 seconds while it is
+open. Its **Run now** button runs a rule's actions at once, as if the trigger had fired: the
+comparison is not checked, a disabled rule runs too, and `%value%` is the trigger attribute's
+current value (empty for a trigger that is not a device attribute). Run now counts as a run and
+leaves the rule's memory alone, so the next real change still fires it.
+
+Every run writes one line to the log (INFO), which the Logs page shows:
+
+```
+I (…) simple_rules: rule 'door open' fired (tuya_contact#contact=1)
+I (…) simple_rules: rule 'printer' fired (Time#Cron)
+I (…) simple_rules: rule 'door open' run now (tuya_contact#contact=1)
+```
+
+For clients: the WebSocket commands are `rules.status` (reply data
+`[{"id", "last_fired", "runs", "last_skip", "ago"}]`, `ago` = seconds since the last run, present
+when `runs` > 0) and `rule.run` `{"id"}` — see [WS_API.md](WS_API.md#rules). They exist on the
+wired (S31, P4 + C6) firmware; the rule objects from `rule.list`, `GET /api/rules` and the
+`rule.*` pushes carry none of these fields.
+
+---
+
 ## Complete Examples
 
 ### Motion sensor → lights on for 5 minutes
@@ -272,6 +358,9 @@ Fire-and-forget: the rule action returns as soon as the run request is queued on
 ON motion sensor#occupancy=1 DO zigbee.set hallway_light state 1 ; timer 1 300000 ENDON
 ON Rules#Timer=1 DO zigbee.set hallway_light state 0 ENDON
 ```
+
+The timer starts when motion begins (`occupancy` goes from 0 to 1); a repeated `occupancy=1`
+does not restart it.
 
 ### Door contact → MQTT alert
 
