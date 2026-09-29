@@ -39,7 +39,7 @@ is built for **v0.x–v1.x**.
 
 ## 2. Flash the hub (5 minutes)
 
-1. Open the [ZHAC flasher](https://zhac-project.github.io/zhac-docs/flash/).
+1. Open the [ZHAC flasher](https://zhac.org/flash/).
 2. Under **Wired hub**, press **Connect**, pick the port, choose **Install** and allow
    the erase. It writes one image: bootloader, firmware and web UI.
 
@@ -63,7 +63,7 @@ board: the only wires between the two chips are not the C6's programming pins.
    These labels come from Guition's schematic of a sibling board; check yours first.
 3. Hold **`C6_IO9`** to GND while you briefly connect **`C6_CHIP_PU`** to GND (reset),
    then release both.
-4. On the [flasher](https://zhac-project.github.io/zhac-docs/flash/), under
+4. On the [flasher](https://zhac.org/flash/), under
    **Zigbee radio**, press **Connect**, pick the adapter's port and install.
 5. Disconnect the adapter and press **RESET** on the board.
 

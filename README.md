@@ -12,7 +12,7 @@ live in each module's own repo.
 > **Org:** https://github.com/zhac-project  ·  **Meta-repo:** [zhac-platform](https://github.com/zhac-project/zhac-platform)
 
 **Just want to run it?** Follow [your first 20 minutes](FIRST_20_MINUTES.md), or go straight to the
-[browser flasher](https://zhac-project.github.io/zhac-docs/flash/)
+[browser flasher](https://zhac.org/flash/)
 — Chrome or Edge, a USB cable, no toolchain. The simplest hardware is one board, the
 [ESP32-S31 Function-CoreBoard](#the-recommended-hub-esp32-s31-function-coreboard)
 ([zhac-wired-core](https://github.com/zhac-project/zhac-wired-core)); the dual-chip build
@@ -30,7 +30,7 @@ and USB-C are on it. It runs [zhac-wired-core](https://github.com/zhac-project/z
 and talks to your network over Ethernet only (the firmware does not use the chip's Wi-Fi).
 
 1. Connect the USB-C port labelled **USB-UART** (the upper one in the photo) to a computer and
-   install from the [browser flasher](https://zhac-project.github.io/zhac-docs/flash/#s31).
+   install from the [browser flasher](https://zhac.org/flash/#s31).
 2. Plug in Ethernet and open <http://zhac.local>. The first visit asks you to set a password.
 3. Later updates come from the web UI (Settings → Update) or the
    [zhac-wired-core releases](https://github.com/zhac-project/zhac-wired-core/releases).
@@ -289,7 +289,7 @@ just deep-clean    # also remove node_modules
 | [AUTOMATION_EXAMPLES.md](AUTOMATION_EXAMPLES.md) | Automation cookbook — worked rule + Lua examples, beginner → advanced |
 | [HAP_PROTOCOL.md](HAP_PROTOCOL.md) | P4 ↔ S3 SPI binary protocol — framing, message catalog, reliability |
 | [ZNP_API_CONTRACT.md](ZNP_API_CONTRACT.md) | P4 ↔ radio ZNP/MT contract |
-| [supported-devices/](supported-devices/README.md) · [search](https://zhac-project.github.io/zhac-docs/devices/) | Supported devices by brand, and a search page |
+| [supported-devices/](supported-devices/README.md) · [search](https://zhac.org/devices/) | Supported devices by brand, and a search page |
 | [VENDOR_PORTING_STATUS.md](VENDOR_PORTING_STATUS.md) | Porting status against zigbee2mqtt, for contributors |
 | [SECURITY.md](SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CLA.md](CLA.md) | Security policy, contributing, CLA |
 
