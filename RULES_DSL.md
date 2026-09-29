@@ -12,14 +12,21 @@ The Rules DSL lets you define event-driven automations without writing a Lua scr
 >
 > - A motion rule that restarts a timer (`ON sensor#occupancy=1 DO … ; timer 1 300000 ENDON`)
 >   now starts it when motion **begins**: a sensor repeating `occupancy=1` while you stay in the
->   room no longer extends it. `ON sensor#occupancy DO zigbee.set light state %value% ENDON`
->   follows the sensor instead.
-> - A sensor that never reports "no motion" itself (the Aqara RTCGQ11LM family) stays at
->   `occupancy=1`, so `#occupancy=1` fires only once. Set its **occupancy timeout** (the
->   device's options) so the hub reports `occupancy=0` after that many seconds without motion.
+>   room no longer extends it. Switch the light off a few minutes after the motion **stops**
+>   instead ([example](#motion-sensor--light-on-off-5-minutes-after-the-motion-stops); the
+>   Rules page recipe builds it), or let the light follow the sensor:
+>   `ON sensor#occupancy DO zigbee.set light state %value% ENDON`.
+> - Motion sensors that never report "no motion" themselves (Aqara/Xiaomi PIRs, Tuya TS0202_1
+>   and SM0202, Bitron, Konke, Hive, …: the ones zigbee2mqtt gives the `occupancy_timeout`
+>   option) now get the hub's **no motion interval** by default: the hub reports
+>   `occupancy=0` 90 s after the last motion (Aqara RTCGQ12LM, RTCGQ13LM, RTCGQ15LM: 62 s;
+>   RTCGQ14LM: 32 s), as zigbee2mqtt does. Change it per device under Devices → the sensor →
+>   Options → "No motion interval" (0 = never). Other sensors report "no motion" themselves.
 > - A threshold rule such as `#temperature>2800 DO publish …` publishes once when the
 >   temperature crosses 28.00, not with every report above it. Use a bare `#temperature`
 >   trigger to act on every change of value.
+> - `timer <n> 0` now **stops** timer n (it used to fire it at once), and runs of timer and
+>   cron rules are logged at DEBUG.
 >
 > See [When device rules fire](#when-device-rules-fire) for the exact rules and
 > [Rule status and "Run now"](#rule-status-and-run-now) for how to check what a rule did.
@@ -285,13 +292,17 @@ event lights_off
 
 ### `timer <index> <ms>`
 
-Set a countdown timer. When it expires, fires `ON Rules#Timer=<index>`.
+Set a countdown timer. When it expires, fires `ON Rules#Timer=<index>`. Setting a timer that
+is already counting starts it again with the new time. `<ms>` = `0` **stops** the timer
+without firing it, as Tasmota's `RuleTimer<n> 0` does (stopping a timer that is not counting
+does nothing). The eight timers (1–8) are shared by all rules.
 
 ```
 timer 1 30000
+timer 1 0
 ```
 
-Fires `ON Rules#Timer=1` after 30 seconds.
+The first fires `ON Rules#Timer=1` after 30 seconds; the second stops it.
 
 ### `log <message>`
 
@@ -334,12 +345,14 @@ comparison is not checked, a disabled rule runs too, and `%value%` is the trigge
 current value (empty for a trigger that is not a device attribute). Run now counts as a run and
 leaves the rule's memory alone, so the next real change still fires it.
 
-Every run writes one line to the log (INFO), which the Logs page shows:
+Every run writes one line to the log, which the Logs page shows. Runs of `Rules#Timer=` and
+`Time#Cron=` rules are logged at DEBUG, so a rule every few seconds does not bury the log;
+every other run, and every Run now, at INFO. The status counts all of them.
 
 ```
 I (…) simple_rules: rule 'door open' fired (tuya_contact#contact=1)
-I (…) simple_rules: rule 'printer' fired (Time#Cron)
 I (…) simple_rules: rule 'door open' run now (tuya_contact#contact=1)
+D (…) simple_rules: rule 'printer' fired (Time#Cron)          (DEBUG: hidden by default)
 ```
 
 For clients: the WebSocket commands are `rules.status` (reply data
@@ -352,15 +365,19 @@ wired (S31, P4 + C6) firmware; the rule objects from `rule.list`, `GET /api/rule
 
 ## Complete Examples
 
-### Motion sensor → lights on for 5 minutes
+### Motion sensor → light on, off 5 minutes after the motion stops
 
 ```
-ON motion sensor#occupancy=1 DO zigbee.set hallway_light state 1 ; timer 1 300000 ENDON
+ON motion sensor#occupancy=1 DO zigbee.set hallway_light state 1 ; timer 1 0 ENDON
+ON motion sensor#occupancy=0 DO timer 1 300000 ENDON
 ON Rules#Timer=1 DO zigbee.set hallway_light state 0 ENDON
 ```
 
-The timer starts when motion begins (`occupancy` goes from 0 to 1); a repeated `occupancy=1`
-does not restart it.
+Each rule takes one change of `occupancy`: motion starts → light on, and the off-timer is
+stopped if it was counting; motion stops → the timer starts; 5 minutes later with no new motion
+→ light off. A sensor that never reports "no motion" itself gets `occupancy=0` from the hub's
+no motion interval (see "What changed" at the top). The Rules page's "Light on with motion"
+recipe builds these three rules.
 
 ### Door contact → MQTT alert
 

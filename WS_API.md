@@ -135,6 +135,14 @@ it is pinned to (−1 = any), priority and stack headroom; the Diag page polls i
 (bit 0 = STATE, bit 1 = SET, bit 2 = GET) to render read-only labels,
 editable inputs, or enum dropdowns.
 
+On the wired build, `device.get` of a motion sensor that reports motion but never "no motion"
+(its definition has zigbee2mqtt's `occupancy_timeout` option) also carries
+`occupancy_timeout_default` (the definition's default, seconds: 90, or 62 / 32 for some Aqara
+models) and `occupancy_timeout` (the interval in force: the user's choice once saved, else the
+default; 0 = never). The hub reports `occupancy = false` that long after the last motion.
+`device.options.set {"ieee", "occupancy_timeout": N}` saves the user's choice (0–65535; out of
+range is refused). Devices without the option carry neither field.
+
 ### Rules
 
 | cmd | handler | REST equivalent |
