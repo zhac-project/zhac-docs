@@ -27,6 +27,11 @@ The Rules DSL lets you define event-driven automations without writing a Lua scr
 >   trigger to act on every change of value.
 > - `timer <n> 0` now **stops** timer n (it used to fire it at once), and runs of timer and
 >   cron rules are logged at DEBUG.
+> - A number with a decimal point in a trigger is now in **real units**: `#temperature>25.5`
+>   is 25.5 °C. It used to be rounded to a whole number and compared with the stored ×100
+>   value (26 against 2340 for 23.40 °C), so such a rule fired at once and never again.
+>   Whole numbers keep their meaning (`#temperature>2500` is still 25.00 °C). See
+>   [Device attribute change](#device-attribute-change).
 >
 > See [When device rules fire](#when-device-rules-fire) for the exact rules and
 > [Rule status and "Run now"](#rule-status-and-run-now) for how to check what a rule did.
@@ -57,10 +62,24 @@ ON <device_ref>#<attr>[<op><value>] DO ... ENDON
 Fires when a Zigbee device's attribute **changes** — see
 [When device rules fire](#when-device-rules-fire). `device_ref` is either a friendly name or an IEEE address string (`0x001234567890ABCD`).
 
-The value after the operator is a number (`=1`, `>2500`) or, for text values such as a
+The value after the operator is a number (`=1`, `>25.5`) or, for text values such as a
 button's `action` or a thermostat's `system_mode`, a string in **double quotes**
 (`#action="single"`). An unquoted word is read as a number and the rule is rejected with
 `invalid numeric literal`.
+
+A number's meaning depends on whether it has a decimal point:
+
+- **With a decimal point, it is in real units.** `#temperature>25.5` is 25.5 °C,
+  `#temperature<-3.5` is -3.5 °C and `#brightness>99.5` holds at brightness 100. Use this
+  form. The hub keeps a decimal reading (temperature, humidity, power, …) as its value ×100
+  and scales the number the same way before comparing, so only two decimal places count.
+  The limit is ±21474836.47; a larger number is rejected with `decimal literal '…' out of
+  range`.
+- **Without a decimal point, it is the stored value as is.** For a whole-number attribute
+  (`#brightness>200`, `#contact=1`) that is the reading itself. For a decimal reading, it is
+  the value ×100: `#temperature>2500` means 25.00 °C, and `#temperature>25` means 0.25 °C.
+  This older form works exactly as before, so existing rules need no change;
+  `#temperature>25.0` and `#temperature>2500` are the same rule.
 
 | Operator | Meaning |
 |----------|---------|
@@ -74,7 +93,7 @@ button's `action` or a thermostat's `system_mode`, a string in **double quotes**
 
 ```
 ON kitchen switch#action="single" DO zigbee.set kitchen_light state 1 ENDON
-ON 0x001234567890ABCD#temperature>2500 DO publish home/alert hot ENDON
+ON 0x001234567890ABCD#temperature>25.5 DO publish home/alert hot ENDON
 ON door sensor#contact DO event motion ENDON
 ```
 
