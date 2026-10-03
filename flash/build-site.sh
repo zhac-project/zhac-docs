@@ -25,8 +25,18 @@ cp "$HERE/index.html" "$HERE/zhac-flash.js" \
 ESPTOOL_JS_VERSION=0.7.0
 curl -fsSL "https://unpkg.com/esptool-js@${ESPTOOL_JS_VERSION}/bundle.js" -o "$OUT/flash/esptool-js.bundle.js"
 grep -q "ESPLoader" "$OUT/flash/esptool-js.bundle.js" || { echo "esptool-js bundle looks wrong" >&2; exit 1; }
-printf '<!doctype html><meta http-equiv="refresh" content="0; url=flash/"><a href="flash/">Flash ZHAC</a>\n' > "$OUT/index.html"
 touch "$OUT/.nojekyll"
+
+# Landing page (site/index.html). The device numbers come from the generated
+# devices.json at build time, so the page never states a stale count.
+mkdir -p "$OUT/assets"
+cp "$HERE/../site/assets/"*.webp "$HERE/../images/s31-board.webp" "$HERE/../images/p4-devkit-board.webp" "$OUT/assets/"
+read -r MODELS BRANDS < <(python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))["devices"]
+print(f"{len(d):,}", len({x["vendor"] for x in d}))' "$HERE/../supported-devices/devices.json")
+sed -e "s/{{MODELS}}/$MODELS/g" -e "s/{{BRANDS}}/$BRANDS/g" "$HERE/../site/index.html" > "$OUT/index.html"
+if grep -q '{{' "$OUT/index.html"; then echo "landing page has an unfilled {{placeholder}}" >&2; exit 1; fi
 
 # Device search page (supported-devices/index.html over the generated devices.json).
 mkdir -p "$OUT/devices"

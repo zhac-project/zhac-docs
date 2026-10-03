@@ -13,7 +13,7 @@ name: pages
 on:
   push:
     branches: [master]
-    paths: ['flash/**', 'supported-devices/**', '.github/workflows/pages.yml']
+    paths: ['flash/**', 'site/**', 'images/**', 'supported-devices/**', '.github/workflows/pages.yml']
   workflow_dispatch:
   schedule:
     - cron: '17 */6 * * *'

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZHAC — your own Zigbee hub on one ESP32 board</title>
+<meta name="description" content="ZHAC is an open-source Zigbee hub for one small ESP32 board: {{MODELS}} device models, local rules and Lua scripts, Home Assistant over MQTT, network updates. Flash it from your browser.">
+<link rel="canonical" href="https://zhac.org/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://zhac.org/">
+<meta property="og:title" content="ZHAC — your own Zigbee hub on one ESP32 board">
+<meta property="og:description" content="Open-source Zigbee hub firmware for an ESP32-S31 or ESP32-P4 board. Flash it from your browser.">
+<meta property="og:image" content="https://zhac.org/assets/hub-devices.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0B2237">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&amp;display=block">
+<style>
+body { margin: 0; }
+html { scroll-behavior: smooth; }
+img { max-width: 100%; }
+</style>
+</head>
+<body>
+<div style="font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; color: #0F172A; background: #FFFFFF; -webkit-font-smoothing: antialiased">
+
+<header style="background: #0B2237">
+<nav aria-label="Main" style="max-width: 1180px; margin: 0 auto; padding: 18px 24px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px">
+<a href="#top" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #FFFFFF; flex-grow: 1">
+<span style="width: 36px; height: 36px; border-radius: 11px; background: #A1F4CA; color: #005E40; display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 22px; line-height: 1; font-variation-settings: 'FILL' 1">hub</span></span>
+<span style="font-size: 20px; font-weight: 800; letter-spacing: 0.06em">ZHAC</span>
+</a>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px; font-size: 15px; font-weight: 600">
+<a href="#features" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Features</a>
+<a href="#hardware" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Hardware</a>
+<a href="#start" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Get started</a>
+<a href="https://github.com/zhac-project/zhac-docs#readme" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Docs</a>
+<a href="https://github.com/zhac-project" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">GitHub</a>
+</div>
+<a href="flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #A1F4CA; color: #0B2237; font-weight: 800; font-size: 15px; text-decoration: none">Flash your board</a>
+</nav>
+
+<section id="top" aria-labelledby="hero-h" style="max-width: 1180px; margin: 0 auto; padding: 56px 24px 96px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 56px">
+<div style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 22px">
+<span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(161,244,202,0.14); color: #A1F4CA; font-size: 13px; font-weight: 700; letter-spacing: 0.04em">Open-source Zigbee hub</span>
+<h1 id="hero-h" style="margin: 0; color: #FFFFFF; font-size: clamp(36px, 5vw, 60px); line-height: 1.06; font-weight: 800; letter-spacing: -0.03em">Your own Zigbee hub, on one small ESP32 board</h1>
+<p style="margin: 0; color: #C9D6E2; font-size: 19px; line-height: 1.6; max-width: 560px">ZHAC turns an Espressif ESP32 board into a complete Zigbee hub. The radio, the device library, your automations and the web interface all run on the board. No Raspberry Pi, no Docker, no cloud account.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<a href="flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; background: #A1F4CA; color: #0B2237; font-weight: 800; font-size: 17px; text-decoration: none"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 22px; line-height: 1">bolt</span>Flash your board</a>
+<a href="https://github.com/zhac-project" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; border: 1.5px solid rgba(255,255,255,0.45); color: #FFFFFF; font-weight: 700; font-size: 17px; text-decoration: none">View on GitHub</a>
+</div>
+<ul style="margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 20px; color: #A9BDCF; font-size: 14px; font-weight: 600">
+<li style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; color: #A1F4CA">wifi_off</span>Works offline</li>
+<li style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; color: #A1F4CA">devices</span>{{MODELS}} device models</li>
+<li style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; color: #A1F4CA">system_update</span>Updates over the network</li>
+</ul>
+</div>
+<div style="flex: 1 1 460px; min-width: 0; position: relative; padding: 0 0 48px 0">
+<div style="border-radius: 18px; overflow: hidden; background: #FFFFFF; box-shadow: 0 24px 60px rgba(0,0,0,0.35)">
+<div style="height: 34px; background: #E9EAEF; display: flex; align-items: center; gap: 7px; padding: 0 14px"><span style="width: 11px; height: 11px; border-radius: 6px; background: #C9CEDA"></span><span style="width: 11px; height: 11px; border-radius: 6px; background: #C9CEDA"></span><span style="width: 11px; height: 11px; border-radius: 6px; background: #C9CEDA"></span><span style="margin-left: 12px; font-size: 12px; font-weight: 600; color: #5B5F67">zhac.local</span></div>
+<img src="assets/hub-devices.webp" alt="The ZHAC web interface on a real hub, listing 18 Zigbee devices from Tuya, Xiaomi, Moes, Saswell, Neo and other brands" style="display: block; width: 100%; height: auto">
+</div>
+<figure style="margin: 0; position: absolute; left: -24px; bottom: 0; width: 148px; border-radius: 16px; overflow: hidden; background: #FFFFFF; box-shadow: 0 16px 40px rgba(0,0,0,0.4)">
+<img src="assets/s31-board.webp" alt="The Espressif ESP32-S31 Function-CoreBoard" style="display: block; width: 100%; height: auto">
+<figcaption style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #0F172A; line-height: 1.3">Espressif ESP32-S31 Function-CoreBoard</figcaption>
+</figure>
+</div>
+</section>
+</header>
+
+<main>
+<section id="features" aria-labelledby="feat-h" style="padding: 96px 0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="feat-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Everything a Zigbee hub needs, on the board itself</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4A4F57">No server in a cupboard, no container to keep updated. Power and a network cable, and the hub runs.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 20px">
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid #E5E8F0; border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: #DCEBFB; color: #12639A; display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">memory</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">One board, nothing else to run</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">The Zigbee radio sits on the chip and the board has Ethernet. Plug in power and a network cable — that is the whole setup.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid #E5E8F0; border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: #DCEBFB; color: #12639A; display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">devices</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">{{MODELS}} device models from {{BRANDS}} brands</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">Definitions are ported from zigbee2mqtt's converter library and kept in step with its releases. Look up your exact model before you buy.</p>
+<a href="devices/" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: #12639A; font-weight: 700; font-size: 15px; text-decoration: none">Search devices<span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 20px; line-height: 1">arrow_forward</span></a>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid #E5E8F0; border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: #DCEBFB; color: #12639A; display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">bolt</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Automations that keep running</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">Rules and Lua scripts run on the hub, so the lights still switch when the internet — or your server — is down.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid #E5E8F0; border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: #DCEBFB; color: #12639A; display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">home</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Works with Home Assistant</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">MQTT discovery adds your devices to Home Assistant automatically, with the right controls and units.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid #E5E8F0; border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: #DCEBFB; color: #12639A; display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">system_update</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Safe updates over the network</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">Install new releases from the hub's own page. Devices and rules stay, and an update that does not start properly rolls back by itself.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid #E5E8F0; border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: #DCEBFB; color: #12639A; display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">code</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Open source</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">The firmware and device library are open source under AGPL-3.0. Read it, change it, build it yourself.</p>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="screens-h" style="padding: 96px 0; background: #F4F5FA">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="screens-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">See it running</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4A4F57">The web interface lives on the hub. Open <strong>http://zhac.local</strong> from any browser on your network.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 28px">
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="assets/hub-states.webp" alt="Live readings of an air-quality sensor: CO2, humidity, PM2.5, temperature and VOC with their units" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: #4A4F57"><strong style="color: #0F172A">Live readings, with units.</strong> An air-quality sensor reporting CO₂, PM2.5, VOC, temperature and humidity.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="assets/valve-schedule.webp" alt="A radiator thermostat's weekly heating schedule with four periods per day, editable in the browser" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: #4A4F57"><strong style="color: #0F172A">Every setting the device has.</strong> Here a radiator valve's weekly heating schedule, edited in the browser.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="assets/hub-rules.webp" alt="The rules list on a real hub, with Run now buttons and when each rule last ran" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: #4A4F57"><strong style="color: #0F172A">Rules that run on the hub.</strong> A cube gesture switches a socket, a button toggles a relay. See when each rule last ran, or run it now.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="assets/hub-lua.webp" alt="The Lua script editor on the hub, with completions and a Run shortcut" style="display: block; width: 100%; height: 360px; object-fit: cover; object-position: top left"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: #4A4F57"><strong style="color: #0F172A">Lua when rules are not enough.</strong> Write scripts in the browser, with completions, and run them on the hub.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="assets/hub-status.webp" alt="The hub's status page on a real hub: firmware, Ethernet, MQTT and cloud connected, Zigbee radio running, 18 devices, memory use" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: #4A4F57"><strong style="color: #0F172A">Know what the hub is doing.</strong> Firmware, network, radio and memory at a glance.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="assets/pairing.webp" alt="Adding a device: the hub is open for pairing and waits for a new Zigbee device" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: #4A4F57"><strong style="color: #0F172A">Pair a device in a few clicks.</strong> Open the network, press the device's pairing button, done.</figcaption>
+</figure>
+</div>
+</div>
+</section>
+
+<section id="hardware" aria-labelledby="hw-h" style="padding: 96px 0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="hw-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Pick a board</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4A4F57">Both boards run the same ZHAC firmware and connect to your router with an Ethernet cable.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 24px">
+<article style="flex: 1 1 440px; min-width: 0; box-sizing: border-box; border: 2px solid #12639A; border-radius: 24px; padding: 28px; display: flex; flex-wrap: wrap; gap: 24px">
+<img src="assets/s31-board.webp" alt="The Espressif ESP32-S31 Function-CoreBoard" style="flex: 0 0 150px; width: 150px; height: auto; border-radius: 14px; align-self: flex-start">
+<div style="flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<span style="align-self: flex-start; padding: 4px 10px; border-radius: 999px; background: #E4FAEE; color: #116C4C; font-size: 12px; font-weight: 800; letter-spacing: 0.04em">RECOMMENDED</span>
+<h3 style="margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25">Espressif ESP32-S31 Function-CoreBoard</h3>
+<p style="margin: 0; font-size: 15px; font-weight: 700; color: #4A4F57">About $25 [check price]</p>
+<ul style="margin: 0; padding: 0 0 0 20px; font-size: 16px; line-height: 1.7; color: #4A4F57">
+<li>Zigbee radio built into the chip</li>
+<li>Ethernet on the board</li>
+<li>Flashes from the browser in about two minutes</li>
+</ul>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px">
+<a href="flash/#s31" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #12639A; color: #FFFFFF; font-weight: 700; font-size: 15px; text-decoration: none">Flash this board</a>
+<a href="#buy-s31" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 22px; border: 1.5px solid #C9CEDA; color: #0F172A; font-weight: 700; font-size: 15px; text-decoration: none">Where to buy [link]</a>
+</div>
+</div>
+</article>
+<article style="flex: 1 1 440px; min-width: 0; box-sizing: border-box; border: 1px solid #E5E8F0; border-radius: 24px; padding: 28px; display: flex; flex-wrap: wrap; gap: 24px">
+<img src="assets/p4-devkit-board.webp" alt="Guition JC-ESP32P4-M3-DEV board" style="flex: 0 0 150px; width: 150px; height: 200px; box-sizing: border-box; border-radius: 14px; object-fit: contain; background: #F4F5FA">
+<div style="flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25">Guition JC-ESP32P4-M3-DEV (ESP32-P4 + C6)</h3>
+<p style="margin: 0; font-size: 15px; font-weight: 700; color: #4A4F57">About $14 [check price]</p>
+<ul style="margin: 0; padding: 0 0 0 20px; font-size: 16px; line-height: 1.7; color: #4A4F57">
+<li>ESP32-P4 runs the hub, a C6 chip is the Zigbee radio</li>
+<li>Ethernet on the board</li>
+<li>The C6 radio is installed once, from the same browser page — no adapter</li>
+</ul>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px">
+<a href="flash/#wired" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #12639A; color: #FFFFFF; font-weight: 700; font-size: 15px; text-decoration: none">Flash this board</a>
+<a href="#buy-guition" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 22px; border: 1.5px solid #C9CEDA; color: #0F172A; font-weight: 700; font-size: 15px; text-decoration: none">Where to buy [link]</a>
+</div>
+</div>
+</article>
+</div>
+</div>
+</section>
+
+<section id="start" aria-labelledby="start-h" style="padding: 96px 0; background: #F4F5FA">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="start-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">From the box to your first automation</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4A4F57">Five steps with the ESP32-S31 board. No toolchain to install.</p>
+</div>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 16px">
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E8F0">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">1</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Get the board and two cables</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">A USB-C cable that carries data (charge-only cables will not work) and an Ethernet cable to your router.</p>
+</div>
+</li>
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E8F0">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">2</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Flash it from your browser</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">Open <a href="flash/" style="color: #12639A; font-weight: 700">zhac.org/flash</a> in Chrome or Edge, pick your board and click Install. It takes about two minutes.</p>
+</div>
+</li>
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E8F0">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">3</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Plug in Ethernet and open the hub</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">Go to <strong style="color: #0F172A">http://zhac.local</strong>. Within ten minutes of switching it on, set the admin password — that keeps strangers on your network out.</p>
+</div>
+</li>
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E8F0">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">4</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Pair your first device</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">Click <strong style="color: #0F172A">Add a device</strong>, then put the sensor, plug or bulb in pairing mode. It appears in the list with its controls.</p>
+</div>
+<img src="assets/pairing.webp" alt="The Add a device screen" style="flex: 0 1 300px; width: 300px; max-width: 100%; height: auto; border-radius: 12px; border: 1px solid #E5E8F0">
+</li>
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E8F0">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">5</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Make it do something</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #4A4F57">Create a rule from a recipe, such as <em>light on with motion</em>. From then on it runs on the hub by itself.</p>
+</div>
+<img src="assets/rule-new.webp" alt="The New Rule dialog with a recipe picker" style="flex: 0 1 300px; width: 300px; max-width: 100%; height: auto; border-radius: 12px; border: 1px solid #E5E8F0">
+</li>
+</ol>
+</div>
+</section>
+
+<section aria-labelledby="flash-h" style="padding: 96px 0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="flash-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Flashing, step by step</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4A4F57">Everything happens in the browser. Nothing to install except, on Windows, sometimes a USB driver.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 20px">
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border-radius: 20px; background: #F4F5FA; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #12639A">checklist</span>Before you start</h3>
+<ul style="margin: 0; padding: 0 0 0 20px; font-size: 16px; line-height: 1.7; color: #4A4F57">
+<li>Chrome or Edge on a desktop computer — Safari and Firefox cannot talk to USB devices.</li>
+<li>A USB-C cable that carries data.</li>
+<li>On Windows, if the board does not show up: install the CP210x USB driver.</li>
+<li>Close other programs that use the serial port, like the Arduino IDE.</li>
+</ul>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border-radius: 20px; background: #F4F5FA; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #12639A">usb</span>Flash</h3>
+<ol style="margin: 0; padding: 0 0 0 20px; font-size: 16px; line-height: 1.7; color: #4A4F57">
+<li>Open <a href="flash/" style="color: #12639A; font-weight: 700">zhac.org/flash</a> and find your board.</li>
+<li>Click <strong style="color: #0F172A">Connect</strong> and choose the board's port.</li>
+<li>Click <strong style="color: #0F172A">Install</strong> and wait until it says Done.</li>
+<li>Unplug the USB cable, connect Ethernet and power.</li>
+</ol>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border-radius: 20px; background: #F4F5FA; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #12639A">update</span>Updating later</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.7; color: #4A4F57">Open the hub's <strong style="color: #0F172A">OTA</strong> page and install the newest release over the network. Devices, rules and settings stay. If the new version does not start properly, the hub goes back to the previous one by itself.</p>
+<p style="margin: 0; font-size: 16px; line-height: 1.7; color: #4A4F57">Re-flashing over USB? Leave <em>Erase the whole flash first</em> unticked to keep your data.</p>
+</div>
+</div>
+<p style="margin: 0; font-size: 16px; color: #4A4F57">Stuck? Read <a href="https://github.com/zhac-project/zhac-docs/blob/master/TROUBLESHOOTING.md" style="color: #12639A; font-weight: 700">Troubleshooting</a> or ask in <a href="https://github.com/zhac-project/zhac-platform/discussions" style="color: #12639A; font-weight: 700">Discussions</a>.</p>
+</div>
+</section>
+
+<section aria-labelledby="open-h" style="padding: 72px 0; background: #0B2237">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 32px 56px">
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h2 id="open-h" style="margin: 0; color: #FFFFFF; font-size: clamp(26px, 3vw, 34px); line-height: 1.2; font-weight: 800; letter-spacing: -0.02em">Open source, local first</h2>
+<p style="margin: 0; color: #C9D6E2; font-size: 17px; line-height: 1.7">The hub firmware and the device library are open source (AGPL-3.0) and work 100% on your own network. Nothing about your home leaves it unless you decide so.</p>
+</div>
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 800">An optional cloud, later</h3>
+<p style="margin: 0; color: #C9D6E2; font-size: 17px; line-height: 1.7">A separate ZHAC Cloud — web console, phone app and remote access — is in private testing. The hub never needs it.</p>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="cta-h" style="padding: 88px 0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px">
+<h2 id="cta-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Ready to try it?</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #4A4F57">Flash your board in about two minutes, then pair your first device.</p>
+<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px">
+<a href="flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; background: #12639A; color: #FFFFFF; font-weight: 800; font-size: 17px; text-decoration: none">Flash your board</a>
+<a href="devices/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; border: 1.5px solid #C9CEDA; color: #0F172A; font-weight: 700; font-size: 17px; text-decoration: none">Check your devices</a>
+</div>
+</div>
+</section>
+</main>
+
+<footer style="background: #F4F5FA; border-top: 1px solid #E5E8F0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 56px 24px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 32px">
+<div style="display: flex; flex-wrap: wrap; gap: 32px 64px">
+<div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 20px; font-weight: 800; letter-spacing: 0.06em">ZHAC</span>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: #4A4F57">An open-source Zigbee hub for ESP32 boards.</p>
+</div>
+<nav aria-label="Project" style="flex: 0 1 180px; display: flex; flex-direction: column; gap: 6px; font-size: 15px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #5B5F67">Project</span>
+<a href="https://github.com/zhac-project" style="color: #0F172A; text-decoration: none; padding: 4px 0">GitHub</a>
+<a href="https://github.com/zhac-project/zhac-wired-core/releases/latest" style="color: #0F172A; text-decoration: none; padding: 4px 0">Latest release</a>
+<a href="https://github.com/zhac-project/zhac-platform/discussions" style="color: #0F172A; text-decoration: none; padding: 4px 0">Discussions</a>
+<a href="https://github.com/zhac-project/zhac-platform/issues/new/choose" style="color: #0F172A; text-decoration: none; padding: 4px 0">Report a bug</a>
+</nav>
+<nav aria-label="Documentation" style="flex: 0 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 15px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #5B5F67">Docs</span>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/FIRST_20_MINUTES.md" style="color: #0F172A; text-decoration: none; padding: 4px 0">First steps</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/RULES_DSL.md" style="color: #0F172A; text-decoration: none; padding: 4px 0">Rules</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/HOME_ASSISTANT.md" style="color: #0F172A; text-decoration: none; padding: 4px 0">Home Assistant</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/TROUBLESHOOTING.md" style="color: #0F172A; text-decoration: none; padding: 4px 0">Troubleshooting</a>
+</nav>
+<nav aria-label="Tools" style="flex: 0 1 180px; display: flex; flex-direction: column; gap: 6px; font-size: 15px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #5B5F67">Tools</span>
+<a href="flash/" style="color: #0F172A; text-decoration: none; padding: 4px 0">Browser flasher</a>
+<a href="devices/" style="color: #0F172A; text-decoration: none; padding: 4px 0">Supported devices</a>
+</nav>
+</div>
+<p style="margin: 0; padding-top: 24px; border-top: 1px solid #E5E8F0; font-size: 13px; line-height: 1.7; color: #5B5F67">Device definitions are derived from zigbee-herdsman-converters (MIT) by Koen Kanters and contributors. ZHAC is not affiliated with Espressif, zigbee2mqtt or the Connectivity Standards Alliance. Zigbee is a trademark of the Connectivity Standards Alliance.</p>
+</div>
+</footer>
+</div>
+</body>
+</html>

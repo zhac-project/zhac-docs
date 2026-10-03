@@ -11,7 +11,7 @@ name: flasher
 on:
   push:
     branches: [master]
-    paths: ['flash/**', 'supported-devices/**', '.github/workflows/flasher.yml']
+    paths: ['flash/**', 'site/**', 'images/**', 'supported-devices/**', '.github/workflows/flasher.yml']
   schedule:
     - cron: '17 4 * * *'
   workflow_dispatch:
