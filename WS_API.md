@@ -205,7 +205,7 @@ The cloud relay runs the same commands as this socket, with these limits:
 
 - **Allow script changes from the cloud** (Settings → Remote; `settings.set {"remote_scripts": true|false}`; `status.get` reports `remote_scripts`) is off by default and after a storage reset. While it is off, the relay answers `script.write`, `script.run`, `script.reload` and `system.restart` with `scripts_off`. Only the hub's own page can change it: the relay answers `settings.set` carrying `remote_scripts` with `local_only`.
 - The relay passes `rule.check`, `script.part` and every rule command.
-- Every change the relay passes is written to the hub's log with the tag `cloud`, e.g. `I (812345) cloud: script.write by <account id> name=heating`.
+- Every rule change (`rule.create`, `rule.update`, `rule.enable`, `rule.delete`, `rule.run`), every script change (`script.write`, `script.delete`, `script.run`, `script.reload`) and `system.restart` that the relay passes is written to the hub's log with the tag `cloud`, before it runs, e.g. `I (812345) cloud: script.write by <account id> name=heating`; the line adds `id=<n>` or `name=<name>` when the command has one. No other command the relay passes is logged.
 - Firmware with these commands says so when it connects: `caps: ["rules.v1", "scripts.v1"]` and `remote_scripts`.
 
 ### Groups
