@@ -152,8 +152,16 @@ range is refused). Devices without the option carry neither field.
 | `rule.delete` | `api_rule_delete` | `DELETE /api/rules` |
 | `rule.enable` | `api_rule_enable` | `PUT /api/rules` |
 | `rule.update` | `api_rule_update` | `PUT /api/rules/:id` |
+| `rule.check` | — (wired build) | — |
 | `rules.status` | — (wired build) | — |
 | `rule.run` | — (wired build) | — |
+
+On the wired build:
+
+- `rule.list {"cursor": "0"}` answers one page, `{"items": [{id, enabled, trigger_type, rule_type, name, dsl}, …], "next_cursor": "<last id>"}`: rows sorted by id, after the cursor, at most 6,144 bytes of rows; the last page has no `next_cursor`. Without `cursor` it answers the bare array, as before.
+- `rule.create` answers `{"id": <new id>}`.
+- `rule.update {id, name, dsl, base}`: with `base` (the lowercase hex SHA-256 of the rule text the editor opened), the hub answers `changed` and saves nothing when the stored text is different. A rule deleted on the hub in the meantime answers `changed` too; a reload then shows it gone.
+- `rule.check {dsl}` answers `{"ok": bool, "err": "<parser message>"}` and saves nothing.
 
 `rules.status` answers `[{"id","last_fired","runs","last_skip","ago"}, …]`, one entry per active
 rule: runs since boot, the last run as epoch seconds (seconds since boot while the clock is unset),
@@ -171,12 +179,34 @@ See [RULES_DSL.md](RULES_DSL.md#rule-status-and-run-now).
 |-----|---------|-----------------|
 | `script.list` | `api_script_list` | `GET /api/scripts` |
 | `script.read` | `api_script_read` | `GET /api/scripts/:name` |
-| `script.write` | `api_script_write` | `POST /api/scripts/:name` |
+| `script.write` | `api_script_write` (wired: WebSocket too) | `POST /api/scripts/:name` |
+| `script.part` | — (wired build) | — |
+| `script.check` | — | `POST /api/scripts/:name/check` |
 | `script.delete` | `api_script_delete` | `DELETE /api/scripts/:name` |
 | `script.run` | `api_script_run` | `POST /api/scripts/:name/run` |
+| `script.reload` | — (wired build) | — |
 
 `script.run` routes through HAP message `SCRIPT_RUN_REQ = 0x58` to the
 P4, which calls `lua_engine_run_script(const char*)`.
+
+On the wired build (one request frame from the cloud must fit 8,192 bytes, so a long text travels in parts):
+
+- `script.list` items carry `mtime` (epoch seconds) when the hub's clock was set at the save.
+- `script.read {name, offset}` answers one page `{src, offset, size, fp, next_offset?}`: at most 6,144 bytes of JSON-encoded text, whole characters only; `size` and `fp` (the lowercase hex SHA-256 of the whole file) repeat on every page. Without `offset` it answers `{src}`, the whole file (up to 16,384 bytes).
+- `script.part {xfer, part, parts, src}` stages part `part` (0-based) of `parts` (2–16) of transfer `xfer` (1–16 of `[A-Za-z0-9]`), in order, and answers `{xfer, received}`. Part 0 opens the hub's one staging slot and drops any other transfer; nothing reaches flash before `script.write`. Errors: `bad_part` (another xfer, an index other than the next, a changed count), `too_large` (over 16,384 bytes), `oom`. The slot is dropped 30 s after its last use.
+- `script.write {name, src}` or `{name, xfer, size, fp}` (the staged text, whose byte count and fingerprint must match), with optional `base`: `""` = the name must be free (`exists`), a fingerprint = the stored file must still have it (`changed`). The hub checks the syntax first (`check:<line>:<message>`) and answers `{name, size, fp}`. Other errors: `bad_name`, `too_large`, `too_many` (16 scripts), `no_xfer`, `bad_part`, `write_failed`, `missing src` (neither `src` nor `xfer`), and `oom` (no memory to read a staged `xfer`). Only a successful save uses the staged text up: after any error it stays until it expires (30 s after its last use) or a new part 0 replaces it, so the sender can correct `name`, `base`, `size` or `fp` and send `script.write` again.
+- `script.check {name?, src}` or `{name?, xfer}` answers `{ok, err, line}`; a staged text stays staged. Errors: `missing src` (neither `src` nor `xfer`), `no_xfer`, `oom`.
+- `script.reload` restarts the Lua engine without a reboot (the hub page's Apply): every stored script is loaded again and `on_boot` handlers do not run again. It answers `{loaded, total}`, or `{"queued": true}` when the pass takes longer than 5 s (it still finishes), or the error `lua queue full` when the Lua task's queue has no room (ask again).
+- A REST save over 16,384 bytes is answered 413.
+
+### Remote editing from ZHAC Cloud (wired build)
+
+The cloud relay runs the same commands as this socket, with these limits:
+
+- **Allow script changes from the cloud** (Settings → Remote; `settings.set {"remote_scripts": true|false}`; `status.get` reports `remote_scripts`) is off by default and after a storage reset. While it is off, the relay answers `script.write`, `script.run`, `script.reload` and `system.restart` with `scripts_off`. Only the hub's own page can change it: the relay answers `settings.set` carrying `remote_scripts` with `local_only`.
+- The relay passes `rule.check`, `script.part` and every rule command.
+- Every change the relay passes is written to the hub's log with the tag `cloud`, e.g. `I (812345) cloud: script.write by <account id> name=heating`.
+- Firmware with these commands says so when it connects: `caps: ["rules.v1", "scripts.v1"]` and `remote_scripts`.
 
 ### Groups
 
@@ -218,6 +248,10 @@ mutex over a 2 KB file-static scratch slab.
 | `attr.bulk` | `hap_bridge.cpp` coalesced 100 ms window | `[{type:"device_update", ieee, attrs:{...}, lqi, last_seen}, ...]` |
 | `alert.added` | `hap_bridge.cpp` on new persisted alert | `{code, ieee, msg, ts}` |
 | `alert.fired` | `hap_bridge.cpp` on transient alert | `{code, ieee, msg, ts}` |
+| `script.added` / `script.updated` | wired: a script was saved (REST or WebSocket) | `{name, size, fp, mtime?}` |
+| `script.deleted` | wired: a script was deleted | `{name}` |
+| `script.error` | wired: a script failed to compile at load, reload or run, or raised an error while running; at most one per script per 10 s | `{name, line, message}` (`message` at most 120 bytes; `name` only when it is `[A-Za-z0-9_-]{1,24}`, else `""`) |
+| `hub.caps` | wired: "Allow script changes from the cloud" changed | `{caps, remote_scripts}` |
 
 ### `log.entry` — currently disabled
 
