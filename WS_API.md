@@ -145,6 +145,8 @@ default; 0 = never). The hub reports `occupancy = false` that long after the las
 `device.options.set {"ieee", "occupancy_timeout": N}` saves the user's choice (0–65535; out of
 range is refused). Devices without the option carry neither field.
 
+`device.get` on the wired build also carries `no_occupancy_since` (seconds, 0 = off), zigbee2mqtt's `no_occupancy_since` option with one interval, for any motion sensor. Once the device reports `occupancy = false` (or the hub's no motion interval does) and that many seconds pass without motion, the hub sets the device value `no_occupancy_since` to N; the next motion sets it back to 0, so an edge-triggered rule fires once per quiet period. A repeated "no motion" report does not restart a running count, and after a hub restart counting starts again at the next motion change. `device.options.set {"ieee", "no_occupancy_since": N}` saves it (0–65535; out of range is refused). `device.options.set` merges each call into the device's stored options.
+
 ### Rules
 
 | cmd | handler | REST equivalent |

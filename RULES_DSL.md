@@ -398,6 +398,20 @@ stopped if it was counting; motion stops → the timer starts; 5 minutes later w
 no motion interval (see "What changed" at the top). The Rules page's "Light on with motion"
 recipe builds these three rules.
 
+The same with the hub's **no motion since** (wired hub; set Devices → the sensor → Options →
+"No motion since (s)" to 300 first):
+
+```
+ON motion sensor#occupancy=1 DO zigbee.set hallway_light state 1 ENDON
+ON motion sensor#no_occupancy_since=300 DO zigbee.set hallway_light state 0 ENDON
+```
+
+Once the sensor has reported "no motion", the hub sets the sensor's `no_occupancy_since` to 300
+when 300 s pass without motion, and back to 0 on the next motion (zigbee2mqtt's
+`no_occupancy_since` option). No rule timer, and the value shows on the device page. Counting
+starts at the sensor's "no motion", so with a sensor that holds motion for 30 s the light goes
+off about 330 s after the last movement.
+
 ### Door contact → MQTT alert
 
 ```

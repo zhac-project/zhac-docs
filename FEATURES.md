@@ -235,6 +235,7 @@ Sole scripting runtime since 2026-04-21 (Berry removed — see `docs/plans/2026-
 | WC6 | C6 radio firmware update from the P4 | 🔲 | Not possible on the Guition board: the C6's bootloader UART and BOOT pin do not reach the P4. Flash the C6 once through its header |
 | WC7 | Wall clock from SNTP once Ethernet has an address, from a time server named in Settings, or from the browser (`time.set`) | ✅ | The boards have no RTC; "last seen" and cron rules depend on it, and cron rules wait while it is unset |
 | WC8 | Zigbee network map: the hub page's Map tab scans the mesh and shows who hears whom | ✅ | z2m-style: asks every router for its neighbour table, then draws a graph (links coloured by LQI) and a by-parent list, plus the hub's devices no router listed. Manual scan, about 1–2 s per router; nothing stored in flash |
+| WC9 | "No motion since" for every motion sensor: the hub sets `no_occupancy_since` to N seconds of quiet after the sensor's "no motion" | ✅ | z2m option `no_occupancy_since` with one interval (Device → Options); back to 0 on the next motion, so a rule fires once per quiet period, also for sensors whose own hold tops out at 30–120 s |
 
 ---
 
