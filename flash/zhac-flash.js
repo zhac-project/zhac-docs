@@ -20,6 +20,23 @@
 // build-site.sh downloads the pinned bundle next to this file.
 import { ESPLoader, Transport } from "./esptool-js.bundle.js";
 
+// The ESP32-P4 comes in silicon families that cannot run each other's images
+// (v0.x-v1.x, v3.x), so its builds carry minRevision/maxRevision (IDF's
+// REV_MIN_FULL/REV_MAX_FULL, v3.1 = 301). esptool-js names the chip
+// "ESP32-P4 (revision v3.2)"; a build without a range fits any revision.
+function chipRevision(chip) {
+  const m = /\(revision v(\d+)\.(\d+)\)/.exec(chip);
+  return m ? Number(m[1]) * 100 + Number(m[2]) : null;
+}
+function pickBuild(builds, chip) {
+  const rev = chipRevision(chip);
+  return builds.find((b) => chip.startsWith(b.chipFamily) &&
+    (b.minRevision === undefined || (rev !== null && rev >= b.minRevision && rev <= b.maxRevision)));
+}
+const vrev = (n) => `v${Math.floor(n / 100)}.${n % 100}`;
+const buildLabel = (b) => b.minRevision === undefined ? b.chipFamily
+  : `${b.chipFamily} silicon ${vrev(b.minRevision)}–${vrev(b.maxRevision)}`;
+
 const STYLE = `
   :host { display:block; margin:12px 0; }
   button { font:inherit; font-weight:600; padding:10px 18px; border-radius:8px; border:0;
@@ -84,8 +101,8 @@ class ZhacInstallButton extends HTMLElement {
       this.say("Connecting… (if nothing happens, hold BOOT, tap RESET, release BOOT, then retry)");
       const chip = await loader.main();
       this.log(`chip: ${chip}`);
-      const build = manifest.builds.find((b) => chip.startsWith(b.chipFamily));
-      if (!build) throw new Error(`This image is for ${manifest.builds.map((b) => b.chipFamily).join(" / ")}, but the connected chip is ${chip}.`);
+      const build = pickBuild(manifest.builds, chip);
+      if (!build) throw new Error(`This image is for ${manifest.builds.map(buildLabel).join(" / ")}, but the connected chip is ${chip}.`);
 
       this.say(`Downloading ${manifest.name} ${manifest.version}…`);
       const fileArray = [];

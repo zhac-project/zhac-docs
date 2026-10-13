@@ -90,9 +90,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       </figure>
     </div>
     <p class="credit">Photos: habr.com, Waveshare</p>
-    <p class="note"><strong>Check the chip first.</strong> This build runs on ESP32-P4 silicon
-       <strong>v0.x–v1.x</strong> only. Run <code>esptool --port &lt;PORT&gt; flash-id</code> and look
-       for <code>ESP32-P4 (revision v1.3)</code>. A v3.x chip will not boot it.</p>
+    <p class="note"><strong>Either silicon family.</strong> ESP32-P4 chips come as v0.x–v1.x or
+       v3.x, which cannot run each other's firmware. Both buttons below read the chip's
+       revision (shown as <code>ESP32-P4 (revision v3.2)</code> in the log) and write the matching
+       image. A v3.0 chip is not supported.</p>
     <p>Use the board's <strong>CH340</strong> USB-C port (labelled USB-TTL/UART, not the OTG
        ports) for both steps below.</p>
 
@@ -137,7 +138,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
        Flash each board separately.</p>
     <p><strong>ESP32-S3</strong> (network, web UI, MQTT):</p>
     <zhac-install-button manifest="manifest-dualchip-s3.json"></zhac-install-button>
-    <p><strong>ESP32-P4</strong> (Zigbee, rules, Lua) — silicon v0.x–v1.x only, as above:</p>
+    <p><strong>ESP32-P4</strong> (Zigbee, rules, Lua) — silicon v0.x–v1.x only (no v3.x build yet):</p>
     <zhac-install-button manifest="manifest-dualchip-p4.json"></zhac-install-button>
     <p>Right after the S3 install, the installer asks for your Wi-Fi name and password and
        hands them to the hub over the USB cable, then links you to its web UI. This needs the

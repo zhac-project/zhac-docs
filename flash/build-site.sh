@@ -42,74 +42,102 @@ if grep -q '{{' "$OUT/index.html"; then echo "landing page has an unfilled {{pla
 mkdir -p "$OUT/devices"
 cp "$HERE/../supported-devices/index.html" "$HERE/../supported-devices/devices.json" "$OUT/devices/"
 
-# publish <repo> <file-glob> <chipFamily> <manifest> <name> <improv-wait-s>
+# A build spec is <file-or-prefix>[:<minRevision>:<maxRevision>]. The range
+# (IDF's REV_MIN_FULL / REV_MAX_FULL, v3.1 = 301) is for chips whose silicon
+# families cannot run each other's images, the ESP32-P4: the flasher picks the
+# build whose range holds the connected chip's revision. A spec the release
+# lacks is left out (older releases have no v3.x files); none at all skips the
+# manifest.
+NL=$'\n'
+build_entry() {   # <chip> <spec> <parts-json>
+    local min max
+    IFS=: read -r _ min max <<<"$2"
+    if [ -n "$min" ]; then
+        printf '    { "chipFamily": "%s", "minRevision": %s, "maxRevision": %s, "parts": [%s] }' "$1" "$min" "$max" "$3"
+    else
+        printf '    { "chipFamily": "%s", "parts": [%s] }' "$1" "$3"
+    fi
+}
+write_manifest() {   # <manifest> <name> <tag> <improv-wait-s> <entries>
+    cat > "$OUT/flash/$1" <<JSON
+{
+  "name": "$2",
+  "version": "$3",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": $4,
+  "builds": [
+$5
+  ]
+}
+JSON
+}
+
+# publish <repo> <chipFamily> <manifest> <name> <improv-wait-s> <glob-spec>...
+# One merged image per build, written at offset 0.
 # improv-wait-s: how long the installer waits for Improv Wi-Fi after flashing;
 # 0 for images that do not speak it, so the dialog does not stall.
 publish() {
-    local repo=$1 glob=$2 chip=$3 manifest=$4 name=$5 improv=$6 tag dir file
+    local repo=$1 chip=$2 manifest=$3 name=$4 improv=$5 tag dir spec glob file entries=""
+    shift 5
     if ! tag=$(gh release view --repo "$ORG/$repo" --json tagName -q .tagName 2>/dev/null); then
         echo "skip $manifest: $repo has no release"; return 0
     fi
     dir="$OUT/flash/firmware/$repo"
     mkdir -p "$dir"
-    if ! gh release download "$tag" --repo "$ORG/$repo" --pattern "$glob" --dir "$dir" --clobber 2>/dev/null; then
-        echo "skip $manifest: $repo $tag has no $glob"; return 0
-    fi
-    file=$(cd "$dir" && ls $glob | head -1)
-    cat > "$OUT/flash/$manifest" <<JSON
-{
-  "name": "$name",
-  "version": "$tag",
-  "new_install_prompt_erase": true,
-  "new_install_improv_wait_time": $improv,
-  "builds": [
-    { "chipFamily": "$chip", "parts": [ { "path": "firmware/$repo/$file", "offset": 0 } ] }
-  ]
-}
-JSON
-    echo "ok   $manifest -> $repo $tag $file"
+    for spec in "$@"; do
+        glob=${spec%%:*}
+        if ! gh release download "$tag" --repo "$ORG/$repo" --pattern "$glob" --dir "$dir" --clobber 2>/dev/null; then
+            echo "     $manifest: $repo $tag has no $glob"; continue
+        fi
+        file=$(cd "$dir" && ls $glob | head -1)
+        entries+="${entries:+,$NL}$(build_entry "$chip" "$spec" " { \"path\": \"firmware/$repo/$file\", \"offset\": 0 } ")"
+    done
+    [ -n "$entries" ] || { echo "skip $manifest: $repo $tag has none of $*"; return 0; }
+    write_manifest "$manifest" "$name" "$tag" "$improv" "$entries"
+    echo "ok   $manifest -> $repo $tag"
 }
 
+# publish_parts <repo> <chipFamily> <manifest> <name> <prefix-spec>...
 # Parts, not the merged image: the merged file pads the gap between partition
 # table and otadata with 0xFF, and that gap is NVS (devices, rules, password,
 # settings) -- writing it at 0x0 wiped everything. Four regions, nothing else.
 publish_parts() {
-    local repo=$1 prefix=$2 chip=$3 manifest=$4 name=$5 tag dir f
+    local repo=$1 chip=$2 manifest=$3 name=$4 tag dir spec prefix f ok entries=""
+    shift 4
     if ! tag=$(gh release view --repo "$ORG/$repo" --json tagName -q .tagName 2>/dev/null); then
         echo "skip $manifest: $repo has no release"; return 0
     fi
     dir="$OUT/flash/firmware/$repo"
     mkdir -p "$dir"
-    for f in bootloader partition-table otadata ota; do
-        if ! gh release download "$tag" --repo "$ORG/$repo" --pattern "${prefix}-${tag}-${f}.bin" --dir "$dir" --clobber 2>/dev/null; then
-            echo "skip $manifest: $repo $tag has no ${prefix}-${tag}-${f}.bin"; return 0
-        fi
+    for spec in "$@"; do
+        prefix=${spec%%:*}; ok=1
+        for f in bootloader partition-table otadata ota; do
+            if ! gh release download "$tag" --repo "$ORG/$repo" --pattern "${prefix}-${tag}-${f}.bin" --dir "$dir" --clobber 2>/dev/null; then
+                echo "     $manifest: $repo $tag has no ${prefix}-${tag}-${f}.bin"; ok=0; break
+            fi
+        done
+        [ "$ok" = 1 ] || continue
+        entries+="${entries:+,$NL}$(build_entry "$chip" "$spec" "
+        { \"path\": \"firmware/$repo/${prefix}-${tag}-bootloader.bin\",      \"offset\": 8192 },
+        { \"path\": \"firmware/$repo/${prefix}-${tag}-partition-table.bin\", \"offset\": 49152 },
+        { \"path\": \"firmware/$repo/${prefix}-${tag}-otadata.bin\",         \"offset\": 118784 },
+        { \"path\": \"firmware/$repo/${prefix}-${tag}-ota.bin\",             \"offset\": 131072 } ")"
     done
-    cat > "$OUT/flash/$manifest" <<JSON
-{
-  "name": "$name",
-  "version": "$tag",
-  "new_install_prompt_erase": true,
-  "new_install_improv_wait_time": 0,
-  "builds": [
-    { "chipFamily": "$chip", "parts": [
-        { "path": "firmware/$repo/${prefix}-${tag}-bootloader.bin",      "offset": 8192 },
-        { "path": "firmware/$repo/${prefix}-${tag}-partition-table.bin", "offset": 49152 },
-        { "path": "firmware/$repo/${prefix}-${tag}-otadata.bin",         "offset": 118784 },
-        { "path": "firmware/$repo/${prefix}-${tag}-ota.bin",             "offset": 131072 } ] }
-  ]
+    [ -n "$entries" ] || { echo "skip $manifest: $repo $tag has none of $*"; return 0; }
+    write_manifest "$manifest" "$name" "$tag" 0 "$entries"
+    echo "ok   $manifest -> $repo $tag (4 parts per build)"
 }
-JSON
-    echo "ok   $manifest -> $repo $tag (4 parts)"
-}
-publish_parts zhac-wired-core zhac-wired-s31      ESP32-S31 manifest-wired-s31.json "ZHAC hub (ESP32-S31 Function-CoreBoard)"
-publish_parts zhac-wired-core zhac-wired-p4-rev1x ESP32-P4  manifest-wired-p4.json  "ZHAC wired (ESP32-P4, silicon v0.x-v1.x)"
+
+publish_parts zhac-wired-core ESP32-S31 manifest-wired-s31.json "ZHAC hub (ESP32-S31 Function-CoreBoard)" zhac-wired-s31
+publish_parts zhac-wired-core ESP32-P4  manifest-wired-p4.json  "ZHAC wired (ESP32-P4)" \
+    zhac-wired-p4-rev1x:0:199 zhac-wired-p4-rev3x:301:399
 # One-time C6 radio installer for a fresh Guition M3-DEV (no JP1 wiring): OTA-writes
 # ot_rcp onto the module's C6 over the SDIO pins it shares with the P4. Merged image,
 # offset 0; skipped gracefully if the release predates it (see publish()).
-publish zhac-wired-core "zhac-c6-rcp-installer-p4-rev1x-*[0-9].bin" ESP32-P4 manifest-rcp-installer-p4.json "ZHAC Zigbee radio installer (Guition P4, one-time)" 0
-publish zhac-wired-core "zhac-rcp-c6-*[0-9].bin"   ESP32-C6 manifest-rcp-c6.json      "ZHAC Zigbee radio (ESP32-C6 ot_rcp)" 0
+publish zhac-wired-core ESP32-P4 manifest-rcp-installer-p4.json "ZHAC Zigbee radio installer (Guition P4, one-time)" 0 \
+    "zhac-c6-rcp-installer-p4-rev1x-*[0-9].bin:0:199" "zhac-c6-rcp-installer-p4-rev3x-*[0-9].bin:301:399"
+publish zhac-wired-core ESP32-C6 manifest-rcp-c6.json "ZHAC Zigbee radio (ESP32-C6 ot_rcp)" 0 "zhac-rcp-c6-*[0-9].bin"
 # The S3 name must equal kImprovFirmware in zhac-net-core/main/wifi_mgr.cpp:
 # ESP Web Tools matches them to recognise an installed hub.
-publish zhac-platform   "zhac-dualchip-s3-*[0-9].bin" ESP32-S3 manifest-dualchip-s3.json "ZHAC dual-chip S3" 10
-publish zhac-platform   "zhac-dualchip-p4-*[0-9].bin" ESP32-P4 manifest-dualchip-p4.json "ZHAC dual-chip P4 (silicon v0.x-v1.x)" 0
+publish zhac-platform ESP32-S3 manifest-dualchip-s3.json "ZHAC dual-chip S3" 10 "zhac-dualchip-s3-*[0-9].bin"
+publish zhac-platform ESP32-P4 manifest-dualchip-p4.json "ZHAC dual-chip P4 (silicon v0.x-v1.x)" 0 "zhac-dualchip-p4-*[0-9].bin:0:199"
