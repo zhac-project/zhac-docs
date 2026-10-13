@@ -103,6 +103,8 @@ is `false`. An epoch before 2020 or after 2099 is an error.
 | `zigbee.permit_join` | `api_zigbee_permit_join` | `POST /api/permit_join` |
 | `zigbee.reset` | `api_zigbee_reset` | `POST /api/zigbee/reset` |
 | `zigbee.settings.set` | `api_zigbee_settings_set` | `POST /api/zigbee/settings` |
+| `net.map.scan` | wired build: starts a network-map scan, replies `{started:true}`; errors `busy`, `not_ready`, `oom` | — |
+| `net.map.get` | wired build: `{scanning, progress:{done,total,current}, map}`; `map` is `null` before the first scan | — |
 
 ### Devices
 
@@ -218,6 +220,8 @@ mutex over a 2 KB file-static scratch slab.
 | `attr.bulk` | `hap_bridge.cpp` coalesced 100 ms window | `[{type:"device_update", ieee, attrs:{...}, lqi, last_seen}, ...]` |
 | `alert.added` | `hap_bridge.cpp` on new persisted alert | `{code, ieee, msg, ts}` |
 | `alert.fired` | `hap_bridge.cpp` on transient alert | `{code, ieee, msg, ts}` |
+| `net.map.progress` | wired build, after each router answers a map scan; hub page only, never the cloud | `{done, total, current}` |
+| `net.map.done` | wired build, scan finished; the page then calls `net.map.get` | `{ts, ok, err?}` |
 
 ### `log.entry` — currently disabled
 
