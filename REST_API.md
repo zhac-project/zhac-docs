@@ -469,6 +469,9 @@ Create or overwrite a Lua script. **Auth required.**
 **Request body:** Raw Lua source text (Content-Type `text/plain`; body up to 16 KB). No JSON wrapper.
 
 **Response:** `201 Created` + `{"ok":true}`. On busy channel returns `429`; on P4 timeout returns `500`.
+On the wired build (S31, P4+C6; `200` + `{"ok":true}`, also as `PUT`): a body over 16,384 bytes is answered `413`, a body
+that does not arrive in full `408` (timeout) or `400`, and a chunked upload (`Transfer-Encoding` without `Content-Length`)
+`411`; the stored script is kept in each case.
 
 #### `POST /api/scripts`
 Bulk-upload multiple Lua scripts in a single HAP round-trip. **Auth required.**
