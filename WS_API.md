@@ -209,9 +209,10 @@ On the wired build (one request frame from the cloud must fit 8,192 bytes, so a 
 The cloud relay runs the same commands as this socket, with these limits:
 
 - **Allow script changes from the cloud** (Settings → Remote; `settings.set {"remote_scripts": true|false}`; `status.get` reports `remote_scripts`) is off by default and after a storage reset. While it is off, the relay answers `script.write`, `script.run`, `script.reload` and `system.restart` with `scripts_off`. Only the hub's own page can change it: the relay answers `settings.set` carrying `remote_scripts` with `local_only`.
+- **Log to cloud** (Settings → Remote; `settings.set {"log_to_cloud": "off" | "errors" | "warnings" | "everything"}`; `status.get` reports `log_to_cloud`; `remote.status` reports `log_sent` and `log_dropped` since the hub started) is off by default and after a storage reset. Errors sends errors; Warnings sends warnings and errors; Everything adds the information lines. Only the hub's own page can change it: the relay answers `settings.set` carrying `log_to_cloud` with `local_only`. While it is on, the hub sends `log.batch` events (below) and, once per run, `log.tail`. The cloud link's own lines (`remote_client`, `websocket_client`, `transport*`, `esp-tls*`) are never sent.
 - The relay passes `rule.check`, `script.part` and every rule command.
 - Every rule change (`rule.create`, `rule.update`, `rule.enable`, `rule.delete`, `rule.run`), every script change (`script.write`, `script.delete`, `script.run`, `script.reload`) and `system.restart` that the relay passes is written to the hub's log with the tag `cloud`, before it runs, e.g. `I (812345) cloud: script.write by <account id> name=heating`; the line adds `id=<n>` when the command carries a numeric `id`, and `name=<name>` when its `name` fits `[A-Za-z0-9_-]{1,24}` (every script name, and a rule name of that shape such as `porch_light`); any other name is left out. No other command the relay passes is logged.
-- Firmware with these commands says so when it connects: `caps: ["rules.v1", "scripts.v1"]` and `remote_scripts`.
+- Firmware with these commands says so when it connects: `caps: ["rules.v1", "scripts.v1", "logs.v1"]`, `remote_scripts` and `log_to_cloud`.
 - Every frame the hub sends to the cloud or to its own page is valid UTF-8: a byte that is not (a REST-uploaded script, a log line, a dual-chip rule text cut at 127 bytes) goes out as `?`. The hub does this where frames leave it, so the JSON keeps its shape and length.
 
 ### Groups
@@ -260,7 +261,9 @@ mutex over a 2 KB file-static scratch slab.
 | `script.deleted` | wired: a script was deleted | `{name}` |
 | `script.error` | wired: a script failed to compile at load, reload or run, or raised an error while running; at most one per script per 10 s and 17 in all per 10 s; once a minute while the hub holds its scripts | `{name, line, message}` (`message` at most 120 bytes; `name` only when it is `[A-Za-z0-9_-]{1,24}`, else `""`) |
 | `rule.added` / `rule.updated` | wired: a rule was saved, switched on or off (any door) | the row `rule.list` carries: `{id, enabled, trigger_type, rule_type, name, dsl}` |
-| `hub.caps` | wired: "Allow script changes from the cloud" changed | `{caps, remote_scripts}` |
+| `hub.caps` | wired: "Allow script changes from the cloud" or "Log to cloud" changed | `{caps, remote_scripts, log_to_cloud}` |
+| `log.batch` | wired, Log to cloud on: every 5 s, or once 6 KB waits | `{boot, seq, up, clock, dropped, lines: [[up_ms, "E"\|"W"\|"I", tag, msg], …]}`, at most 6,144 bytes; `seq` is the first line's number in this run, `clock` the hub's epoch ms or 0 when its clock is not set |
+| `log.tail` | wired, Log to cloud on: once per run, first | `{boot, prev_boot, up, clock, reason, planned, prev_clock_base, prev_sent, crash, lines: [[up_ms, level, tag, msg, seq], …]}`: why the hub restarted, a crash summary, and the previous run's lines the cloud never got |
 
 ### `log.entry` — currently disabled
 
