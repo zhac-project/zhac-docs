@@ -35,10 +35,10 @@ All mutating REST endpoints (`POST`, `PUT`, `DELETE`) and sensitive read endpoin
 
 - The token is a 32-character hex string generated from `esp_fill_random` on first boot.
 - It is stored in NVS namespace `zhac_auth`, key `token`.
-- It is printed to the serial console on first boot: `*** NEW API TOKEN (save this): <token> ***`
-- Subsequent boots log only the token length, not the value.
+- It is printed in full on the serial console (never in the log the web UI and the cloud see) only while no admin password exists, and on the one boot after a password lockout, which is how an owner with physical access recovers a lost password. Every other boot prints its last four characters only (wired hubs; the dual-chip and single-chip builds print it at every boot).
+- Changing the admin password rotates the token, which signs every other browser out; on wired hubs the first password set-up rotates it too, so the token printed before the hub was claimed stops working.
 
-The Web UI stores the token in `localStorage` (key `zhacToken`). Tokens are not rotatable without reflashing or clearing NVS.
+The Web UI stores the token in `localStorage` (key `zhac_token`).
 
 ### Unauthenticated endpoints
 

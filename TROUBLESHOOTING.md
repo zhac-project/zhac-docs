@@ -40,13 +40,19 @@ sign in with *Use API token instead*, then use **Settings → Storage error → 
 restart**. That erase is the only way forward: pair the devices again afterwards and restore
 your last backup for names, rules and scripts.
 
-**I forgot the password.** Connect a USB cable to the hub and open its serial console at
-115200 baud (the browser flasher has a *Logs* button that does this). At every boot the hub
-prints its API token. On the login page choose *Use API token instead*, paste it, then set a
-new password under Settings → Auth. Only someone with physical access to the hub can do this.
+**I forgot the password.** On the login page enter a wrong password five times, until the
+page says to wait a minute. Then connect a USB cable to the hub and open its serial console at
+115200 baud (the browser flasher has a *Logs* button that does this), and power-cycle the hub:
+the boot after a password lockout prints the hub's API token in full. On the login page choose
+*Use API token instead*, paste it, then set a new password under Settings → Auth. Only someone
+with physical access to the hub can do this. Other boots print only the token's last four
+characters, so a boot log shared for support does not carry it. (Wired hubs; the dual-chip and
+single-chip builds still print the token at every boot.)
 
-**"Wrong password" five times.** That address is locked out for the rest of the minute. Wait a
-minute; the lock is per device, so a phone and a laptop lock separately.
+**"Too many wrong passwords — wait a minute."** Five wrong passwords from one address lock that
+address out for the rest of the minute; the lock is per device, so a phone and a laptop lock
+separately. Twenty wrong passwords within a minute from any number of addresses lock the
+password for everyone for that minute. A browser that is already signed in is not affected.
 
 ## Pairing devices
 

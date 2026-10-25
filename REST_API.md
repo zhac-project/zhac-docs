@@ -29,13 +29,18 @@ wire credential; these endpoints are the exchange layer on top:
 
 | Endpoint | Auth | Body | Purpose |
 |---|---|---|---|
-| `POST /api/auth/login` | none (is the exchange) | `{"password":"…"}` | Verify password → `{"ok":true,"token":"<32hex>"}`. `401` wrong password, `409` no password set yet. |
+| `POST /api/auth/login` | none (is the exchange) | `{"password":"…"}` | Verify password → `{"ok":true,"token":"<32hex>"}`. `401` wrong password, `409` no password set yet, `429 {"error":"too_many_attempts"}` (with `Retry-After: 60`) while locked out. |
 | `POST /api/auth/setup` | none, **only while no password exists and for 10 minutes after power-on** | `{"password":"…"}` | First-boot: set the admin password (8-63 chars) and return the token. `403 {"error":"already_set"}` once set; `403 {"error":"setup_closed"}` when the window has passed (power-cycle the hub to reopen it). |
 | `POST /api/auth/password` | **Auth required** + current password | `{"current":"…","new":"…"}` | Change password. Rotates the API token (invalidates other clients) and returns the fresh one. |
 
 The password is stored as a salted iterated-SHA-256 hash in NVS (never
 plaintext). Login/setup attempts share the same per-peer lockout as token
-checks. `/api/status` reports `auth_setup_required: true` while auth is
+checks: five failures in a minute lock that address (an IPv6 peer: its /64)
+for the rest of the minute. On wired hubs, twenty wrong passwords within a
+minute from any addresses also lock the password for everyone for that minute
+(`429`); a valid token keeps working. The three routes take only
+`Content-Type: application/json` bodies on wired hubs (`415
+{"error":"json_required"}` otherwise). `/api/status` reports `auth_setup_required: true` while auth is
 enabled but no password exists — the SPA shows its one-time setup card then —
 and `auth_setup_secs_left`, the seconds the first-claim window has left (0 once
 it closed). `storage_error: true` means the whole NVS partition could not be initialised at boot; the hub
@@ -50,7 +55,10 @@ finds it on the network later, only by someone who can power-cycle it.
 A build can seed the password via `CONFIG_ZHAC_DEFAULT_PASSWORD` (keep it
 empty in anything public — a committed password is a shared credential).
 The serial-printed token remains the recovery path (lost password → sign in
-with the token, or erase NVS to re-run setup).
+with the token, or erase NVS to re-run setup). On wired hubs with a password
+set, a boot prints only the token's last four characters; the boot after a
+password lockout prints it in full (TROUBLESHOOTING.md, "I forgot the
+password").
 
 ---
 
