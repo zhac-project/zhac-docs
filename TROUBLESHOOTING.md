@@ -110,6 +110,10 @@ release only when you ask for it: pick it in the version list, which asks first,
 *Allow an older version* under *Advanced*. Older firmware may lack fixes and may not read
 everything the newer one saved; if devices are missing afterwards, update again.
 
+**"The download is not a firmware image, or it broke off."** Use the `-ota.bin` file, not the
+full-flash `zhac-wired-<board>-<tag>.bin` image, which is for the browser flasher. If it was the
+right file, the connection dropped at the start: start the update again.
+
 **"The last update was undone."** The new firmware never became healthy within ten minutes,
 so the hub went back to the previous version by itself. The reason on the OTA page says which
 check failed. *Zigbee radio not ready* after an update means the radio image needs updating

@@ -48,6 +48,9 @@ Possible `err` strings: `missing cmd`, `unknown cmd`, `bad request`,
 
 ### Size limits
 
+- Inbound frame: at most 8,192 bytes. A longer frame closes the session (the hub cannot answer a
+  request it did not read); send a long script with `POST /api/scripts/<name>` and check it with
+  `POST /api/scripts/<name>/check` (wired and single-chip hubs).
 - Request body (`args` serialised): 2 KB stack buffer.
 - Response body: 8 KB PSRAM buffer, **40 KB for `logs.get`**.
 - Envelope overhead: 1 KB additional PSRAM.
@@ -95,6 +98,12 @@ is `false`. An epoch before 2020 or after 2099 is an error.
 |-----|---------|-----------------|
 | `ota.s3` | `api_ota_s3` | `POST /api/ota` |
 | `ota.p4` | `api_ota_p4` | `POST /api/p4-ota` |
+| `ota.update` (wired) | `cmd_ota_update` | none (WS only) |
+
+`ota.update` `{"url": "https://…-ota.bin", "allow_older": false}` updates a wired hub; it answers at
+once and reports `ota.start`, `ota.progress` and `ota.complete` (target `self`). The hub installs
+only an image of its own firmware (the same `project_name`), and a release older than the running
+one only with `allow_older: true`; otherwise `ota.complete` carries `ok: false` and the reason.
 
 ### Zigbee control
 

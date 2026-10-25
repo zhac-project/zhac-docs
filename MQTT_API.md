@@ -95,6 +95,8 @@ mosquitto_sub -h broker.local -t 'zhac/devices/70B3D52B600316B5/#' -v
 - On/off values are published as `1` / `0`, numbers as written, text without quotes.
 - Button presses (`action`, e.g. `single`, `1_double`) are **not** retained, so a new subscriber does
   not replay an old press.
+- Nor is a code typed on an alarm keypad (`action_code`): it is published once with its press, and
+  the hub never logs or stores it. Older firmware did retain it; the hub clears that topic.
 
 Careful: with discovery on, `<root>/devices/<IEEE>/state` can mean two things. It is the JSON
 message above, and it is also the per-key topic of a value that happens to be called `state`
