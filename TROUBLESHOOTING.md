@@ -97,8 +97,18 @@ clock itself is always UTC; rules use the zone.
 ## Updates
 
 **"The new firmware is on trial."** After an update the hub keeps the new firmware only once
-its storage, web server and radio check out. That takes under a minute on a healthy hub. Wait;
-do not start another update meanwhile.
+its storage, web server and radio have stayed healthy for five minutes in a row. A restart or
+power cut before then goes back to the previous version. Wait; do not start another update
+meanwhile.
+
+**"The image is …, not the zhac-wired-core firmware."** The file is not the hub's own
+firmware, for example the one-time Zigbee radio installer, which goes on over USB with the
+browser flasher. Use the hub firmware's `-ota.bin` for your board.
+
+**"The image is an older release … than the one running."** A wired hub installs an older
+release only when you ask for it: pick it in the version list, which asks first, or tick
+*Allow an older version* under *Advanced*. Older firmware may lack fixes and may not read
+everything the newer one saved; if devices are missing afterwards, update again.
 
 **"The last update was undone."** The new firmware never became healthy within ten minutes,
 so the hub went back to the previous version by itself. The reason on the OTA page says which
