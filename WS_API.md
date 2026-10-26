@@ -104,6 +104,10 @@ is `false`. An epoch before 2020 or after 2099 is an error.
 once and reports `ota.start`, `ota.progress` and `ota.complete` (target `self`). The hub installs
 only an image of its own firmware (the same `project_name`), and a release older than the running
 one only with `allow_older: true`; otherwise `ota.complete` carries `ok: false` and the reason.
+A pre-release `vYYYYMMDDVV-rcN` comes just before its release (`-rc1` before `-rc2` before the
+release); a developer build (`git describe` with commits on top) is never older and calls nothing
+older. A download the server redirects again after the hub resolved its address ends the attempt:
+`ota.complete` says so and the hub restarts, with nothing written.
 
 ### Zigbee control
 
@@ -217,7 +221,7 @@ On the wired build (one request frame from the cloud must fit 8,192 bytes, so a 
 
 The cloud relay runs the same commands as this socket, with these limits:
 
-- **Allow script changes from the cloud** (Settings → Remote; `settings.set {"remote_scripts": true|false}`; `status.get` reports `remote_scripts`) is off by default and after a storage reset. While it is off, the relay answers `script.write`, `script.run`, `script.reload` and `system.restart` with `scripts_off`. Only the hub's own page can change it: the relay answers `settings.set` carrying `remote_scripts` with `local_only`.
+- **Allow script changes from the cloud** (Settings → Remote; `settings.set {"remote_scripts": true|false}`; `status.get` reports `remote_scripts`) is off by default and after a storage reset. While it is off, the relay answers `script.write`, `script.run`, `script.reload` and `system.restart` with `scripts_off`, and so a `rule.create` or `rule.update` whose text has a `script.run` action: the cloud cannot run Lua through a rule it adds either. Rules already on the hub keep running their scripts, `rule.run` included. Only the hub's own page can change it: the relay answers `settings.set` carrying `remote_scripts` with `local_only`.
 - **Log to cloud** (Settings → Remote; `settings.set {"log_to_cloud": "off" | "errors" | "warnings" | "everything"}`; `status.get` reports `log_to_cloud`; `remote.status` reports `log_sent` and `log_dropped` since the hub started) is off by default and after a storage reset. Errors sends errors; Warnings sends warnings and errors; Everything adds the information lines. Only the hub's own page can change it: the relay answers `settings.set` carrying `log_to_cloud` with `local_only`. While it is on, the hub sends `log.batch` events (below) and, once per run, `log.tail`. The cloud link's own lines (`remote_client`, `websocket_client`, `transport*`, `esp-tls*`) never enter the backlog (`log.batch`); the restart tail may include them.
 - The relay passes `rule.check`, `script.part` and every rule command.
 - Every rule change (`rule.create`, `rule.update`, `rule.enable`, `rule.delete`, `rule.run`), every script change (`script.write`, `script.delete`, `script.run`, `script.reload`) and `system.restart` that the relay passes is written to the hub's log with the tag `cloud`, before it runs, e.g. `I (812345) cloud: script.write by <account id> name=heating`; the line adds `id=<n>` when the command carries a numeric `id`, and `name=<name>` when its `name` fits `[A-Za-z0-9_-]{1,24}` (every script name, and a rule name of that shape such as `porch_light`); any other name is left out. No other command the relay passes is logged.

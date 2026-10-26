@@ -110,6 +110,12 @@ release only when you ask for it: pick it in the version list, which asks first,
 *Allow an older version* under *Advanced*. Older firmware may lack fixes and may not read
 everything the newer one saved; if devices are missing afterwards, update again.
 
+A pre-release (`v…-rc1`) counts too: one older than what runs asks first, like an older release.
+
+**"The update server redirected the download; the hub restarts."** The server answered the
+hub's check and then sent the download elsewhere, which the hub does not follow. Nothing was written;
+the hub restarts on its current firmware. Use the release's own `-ota.bin` link.
+
 **"The download is not a firmware image, or it broke off."** Use the `-ota.bin` file, not the
 full-flash `zhac-wired-<board>-<tag>.bin` image, which is for the browser flasher. If it was the
 right file, the connection dropped at the start: start the update again.
@@ -139,6 +145,19 @@ complete. Just start the update again.
 into the new firmware and, if that fails, once more into the old one. If it is still not
 reachable, connect USB and check the serial console; the browser flasher can write a full
 image, which keeps devices, rules and settings as long as you do not erase the flash.
+
+## MQTT
+
+**The broker over `mqtts://` does not connect.** The hub checks the broker's certificate against
+the usual certificate authorities, its name against the address, and, once its clock is set, its
+dates. A home broker with its own CA or a self-signed certificate passes none of the first two:
+paste the SHA-256 fingerprint of its certificate into *Settings → MQTT* (the hub then trusts that
+certificate only). `openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it. An expired
+certificate is refused once the hub knows the time: renew it.
+
+**"Unencrypted" under the broker address.** An `mqtt://` address with a user name sends it and the
+password in clear, and whoever reads them can control your devices through the broker. Turn TLS on
+in the broker and use `mqtts://`, with the fingerprint if the certificate is your own.
 
 ## Backups
 

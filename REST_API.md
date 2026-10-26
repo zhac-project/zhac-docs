@@ -89,6 +89,11 @@ Returns S3 and P4 health metrics. No auth required. The P4-side values
 are populated from the periodic HAP heartbeat (`HapHeartbeat` — 14
 fields as of 2026-04-22).
 
+On the wired and single-chip builds with sign-in on, a request without the API token
+(`X-Api-Key`) gets only what the sign-in page needs: `sku` (wired) and the `auth_*` fields. Send the
+token for the rest (firmware version, MQTT broker and topics, addresses, time server and so on). A
+request without a key is not a wrong guess and counts toward no lockout; a wrong key does.
+
 **Response:**
 ```json
 {
@@ -534,6 +539,15 @@ undone and says which check failed (storage, web server or radio). See the wired
 
 `ntp_dhcp_server` appears when the router offered a time server (DHCP option 42) and the hub is
 using it; it comes first, `ntp_server` second. Naming a server switches the offer off.
+
+`mqtt_tls_pin` (wired, single-chip) is the SHA-256 fingerprint of an `mqtts://` or `wss://`
+broker's certificate, 64 hex digits with or without colons, as
+`openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it; `""` removes it. With a pin the
+hub trusts exactly that certificate, whoever signed it and whatever name it carries: a broker with
+its own CA or a self-signed certificate. A value that is not a fingerprint is ignored. The status
+reports it as `mqtt_tls_pin`, and `mqtt_cleartext_credentials: true` when the stored broker URL sends
+a user name or password without TLS (`mqtt://` or `ws://`). The status shows the broker URL without
+its user name and password; send `broker_url` only to change it.
 
 `ntp_server` is the time server SNTP asks. Name one on your own network when the hub has no
 internet access, or send an empty string for the public default (`pool.ntp.org`). It is
