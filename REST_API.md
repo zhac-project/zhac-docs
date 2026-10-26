@@ -542,9 +542,10 @@ using it; it comes first, `ntp_server` second. Naming a server switches the offe
 
 `mqtt_tls_pin` (wired, single-chip) is the SHA-256 fingerprint of an `mqtts://` or `wss://`
 broker's certificate, 64 hex digits with or without colons, as
-`openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it; `""` removes it. With a pin the
-hub trusts exactly that certificate, whoever signed it and whatever name it carries: a broker with
-its own CA or a self-signed certificate. A value that is not a fingerprint is ignored. The status
+`openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it (its `sha256 Fingerprint=` label
+may stay); `""` removes it. With a pin the
+hub trusts exactly that certificate, whoever signed it and whatever name and dates it carries: a
+broker with its own CA or a self-signed certificate. A value that is not a fingerprint is ignored. The status
 reports it as `mqtt_tls_pin`, and `mqtt_cleartext_credentials: true` when the stored broker URL sends
 a user name or password without TLS (`mqtt://` or `ws://`). The status shows the broker URL without
 its user name and password; send `broker_url` only to change it.

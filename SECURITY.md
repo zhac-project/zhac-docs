@@ -46,14 +46,15 @@ The following endpoints intentionally require no authentication:
 
 | Endpoint | Reason |
 |----------|--------|
-| `GET /api/status` | What the sign-in page needs. With sign-in on (wired, single-chip), a request without the token gets only `sku` and the `auth_*` fields; monitoring tools send the token for the rest |
+| `GET /api/status` | What the sign-in page needs. With sign-in on (wired, single-chip), a request without the token gets only the `auth_*` fields (and `sku` on wired); monitoring tools send the token for the rest |
 | `GET /metrics` | Prometheus scrape endpoint (no secrets exposed); only active when enabled |
 | `GET /*` (static files) | Web UI assets are public |
 | WebSocket `/ws` | Token is sent as first message after connection; unauthenticated WS frames are ignored |
 
 ### Response headers
 
-Every answer of the wired hub's web server carries `X-Content-Type-Options: nosniff` and
+Every answer of the wired hub's web server handlers (not the server's own error pages, such as an unknown
+path) carries `X-Content-Type-Options: nosniff` and
 `Referrer-Policy: no-referrer` (links out of the hub page do not send its address). The web UI's
 Content-Security-Policy lets its WebSocket reach only the hub itself (`connect-src 'self'` and the
 `ws://` / `wss://` of the address the page was loaded from), plus `https://api.github.com` for the
@@ -66,8 +67,11 @@ version list.
 The hub's own TLS clients (updates, the cloud link, `mqtts://`) check the server certificate against
 IDF's CA bundle and its host name. On the wired and single-chip builds they also check the
 certificate's dates once the hub's clock is set (SNTP or the web UI); before that the dates cannot be
-judged and are left out. An MQTT broker with its own CA or a self-signed certificate is trusted by
-the SHA-256 fingerprint of its certificate (`mqtt_tls_pin`, Settings → MQTT). Settings warns when a
+judged and are left out. Whatever the clock says, a certificate that ended before the day the firmware
+was built is refused, so a clock set back does not bring it back. The clock itself comes from SNTP
+unauthenticated, which bounds what the date check is worth. An MQTT broker with its own CA or a
+self-signed certificate is trusted by the SHA-256 fingerprint of its certificate (`mqtt_tls_pin`,
+Settings → MQTT); a pinned certificate is trusted whatever its name and dates. Settings warns when a
 broker address sends its user name and password in clear (`mqtt://`).
 
 ## NVS encryption

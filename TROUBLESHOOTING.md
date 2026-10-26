@@ -113,8 +113,8 @@ everything the newer one saved; if devices are missing afterwards, update again.
 A pre-release (`v…-rc1`) counts too: one older than what runs asks first, like an older release.
 
 **"The update server redirected the download; the hub restarts."** The server answered the
-hub's check and then sent the download elsewhere, which the hub does not follow. Nothing was written;
-the hub restarts on its current firmware. Use the release's own `-ota.bin` link.
+hub's check and then sent the download elsewhere. The hub stops there: it takes nothing from the new
+address, writes nothing, and restarts on its current firmware. Use the release's own `-ota.bin` link.
 
 **"The download is not a firmware image, or it broke off."** Use the `-ota.bin` file, not the
 full-flash `zhac-wired-<board>-<tag>.bin` image, which is for the browser flasher. If it was the
@@ -152,8 +152,9 @@ image, which keeps devices, rules and settings as long as you do not erase the f
 the usual certificate authorities, its name against the address, and, once its clock is set, its
 dates. A home broker with its own CA or a self-signed certificate passes none of the first two:
 paste the SHA-256 fingerprint of its certificate into *Settings → MQTT* (the hub then trusts that
-certificate only). `openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it. An expired
-certificate is refused once the hub knows the time: renew it.
+certificate only). `openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it. A pinned
+certificate is trusted whatever its dates; any other expired certificate is refused once the hub
+knows the time, or when it ended before the hub's firmware was built: renew it.
 
 **"Unencrypted" under the broker address.** An `mqtt://` address with a user name sends it and the
 password in clear, and whoever reads them can control your devices through the broker. Turn TLS on

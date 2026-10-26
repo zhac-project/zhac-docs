@@ -541,7 +541,7 @@ end
 
 Publish to the MQTT broker via `mqtt_gw_publish`. No-op if the
 gateway isn't connected (no return value surfaces that state — use
-`GET /api/status` / the WebUI to confirm MQTT).
+`GET /api/status` with the API token, or the WebUI, to confirm MQTT).
 
 **Arguments.**
 
