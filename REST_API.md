@@ -547,7 +547,8 @@ may stay); `""` removes it. With a pin the
 hub trusts exactly that certificate, whoever signed it and whatever name and dates it carries: a
 broker with its own CA or a self-signed certificate. A value that is not a fingerprint is ignored. The status
 reports it as `mqtt_tls_pin`, and `mqtt_cleartext_credentials: true` when the stored broker URL sends
-a user name or password without TLS (`mqtt://` or `ws://`). The status shows the broker URL without
+a user name or password without TLS (`mqtt://` or `ws://`). Sending back the address the status shows keeps the stored user name and
+password; to drop them, send a different address. The status shows the broker URL without
 its user name and password; send `broker_url` only to change it.
 
 `ntp_server` is the time server SNTP asks. Name one on your own network when the hub has no

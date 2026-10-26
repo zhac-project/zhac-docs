@@ -53,8 +53,8 @@ The following endpoints intentionally require no authentication:
 
 ### Response headers
 
-Every answer of the wired hub's web server handlers (not the server's own error pages, such as an unknown
-path) carries `X-Content-Type-Options: nosniff` and
+Every answer of the wired hub's web server handlers (not the server's own error answers, such as the 405
+for a method a path does not take) carries `X-Content-Type-Options: nosniff` and
 `Referrer-Policy: no-referrer` (links out of the hub page do not send its address). The web UI's
 Content-Security-Policy lets its WebSocket reach only the hub itself (`connect-src 'self'` and the
 `ws://` / `wss://` of the address the page was loaded from), plus `https://api.github.com` for the
