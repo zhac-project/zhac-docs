@@ -610,6 +610,11 @@ Nothing else is exposed. Direct binding / unbinding, group
 multicasts, raw ZCL writes, and KV storage are **not** available from
 Lua today (§12).
 
+> **Dual-chip only.** The three `telegram_*` functions belong to the retired P4+S3 dual-chip hub, where
+> the S3 made the HTTPS call. On wired (S31, P4+C6) and single-chip hubs they do nothing and return
+> `false`; the log says the gateway is not on this hub. To reach Telegram from those hubs, use the
+> cloud's Telegram bot.
+
 ### 5.13 `zhac.telegram_settoken(token) → bool`
 
 Persist the Telegram bot token on S3. Required before `telegram_send` works.
