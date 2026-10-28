@@ -51,6 +51,8 @@ Possible `err` strings: `missing cmd`, `unknown cmd`, `bad request`,
 - Inbound frame: at most 8,192 bytes. A longer frame closes the session (the hub cannot answer a
   request it did not read); send a long script with `POST /api/scripts/<name>` and check it with
   `POST /api/scripts/<name>/check` (wired and single-chip hubs).
+- Inbound frame time: each frame must arrive within 8 seconds of its first byte being read; a
+  slower one closes the session (one frame held the hub's web server while it trickled in).
 - Request body (`args` serialised): 2 KB stack buffer.
 - Response body: 8 KB PSRAM buffer, **40 KB for `logs.get`**.
 - Envelope overhead: 1 KB additional PSRAM.
@@ -176,7 +178,7 @@ range is refused). Devices without the option carry neither field.
 On the wired build:
 
 - `rule.list {"cursor": "0"}` answers one page, `{"items": [{id, enabled, trigger_type, rule_type, name, dsl}, …], "next_cursor": "<last id>"}`: rows sorted by id, after the cursor, at most 6,144 bytes of rows; the last page has no `next_cursor`. Without `cursor` it answers the bare array, as before.
-- `rule.create` answers `{"id": <new id>}`.
+- `rule.create {name, dsl, enabled}` answers `{"id": <new id>, "enabled": <bool>}`. `enabled` (default `true`) set to `false` creates the rule Off in one step, so it never runs before it is switched on; the echo tells a caller such as the cloud that the hub knows the argument. Older firmware answers without `enabled` and creates the rule On. The single-chip build answers the same.
 - `rule.update {id, name, dsl, base}`: with `base` (the lowercase hex SHA-256 of the rule text the editor opened), the hub answers `changed` and saves nothing when the stored text is different. A rule deleted on the hub in the meantime answers `changed` too; a reload then shows it gone.
 - `rule.check {dsl}` answers `{"ok": bool, "err": "<parser message>"}` and saves nothing.
 
