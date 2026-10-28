@@ -417,10 +417,14 @@ Create a new rule. **Auth required.**
 
 **Request:**
 ```json
-{ "dsl": "on 0x001234567890ABCD.state == 1 do set 0xAABBCCDDEEFF0011.state 0" }
+{ "dsl": "on 0x001234567890ABCD.state == 1 do set 0xAABBCCDDEEFF0011.state 0", "enabled": false }
 ```
 
-**Response:** `201 Created` + created rule object.
+`enabled` is optional (absent or `null`: On). `false` creates the rule Off in one step; anything but a boolean is
+refused with 400.
+
+**Response:** `200` + `{"ok": true, "id": <new id>, "enabled": <bool>}` (wired and single-chip hubs); a rule the
+parser refuses answers 400 with its message.
 
 #### `DELETE /api/rules`
 Delete a rule by ID. **Auth required.**

@@ -51,8 +51,10 @@ Possible `err` strings: `missing cmd`, `unknown cmd`, `bad request`,
 - Inbound frame: at most 8,192 bytes. A longer frame closes the session (the hub cannot answer a
   request it did not read); send a long script with `POST /api/scripts/<name>` and check it with
   `POST /api/scripts/<name>/check` (wired and single-chip hubs).
-- Inbound frame time: each frame must arrive within 8 seconds of its first byte being read; a
-  slower one closes the session (one frame held the hub's web server while it trickled in).
+- Inbound frame time: each frame, PING and CLOSE included, must arrive within 8 seconds of the
+  start of its read (at most 11 s: the check comes before each read, which can wait 3 s); a slower
+  one closes the session (one frame held the hub's web server while it trickled in). The hub
+  answers a PING with a PONG and a CLOSE with a CLOSE.
 - Request body (`args` serialised): 2 KB stack buffer.
 - Response body: 8 KB PSRAM buffer, **40 KB for `logs.get`**.
 - Envelope overhead: 1 KB additional PSRAM.
@@ -178,7 +180,7 @@ range is refused). Devices without the option carry neither field.
 On the wired build:
 
 - `rule.list {"cursor": "0"}` answers one page, `{"items": [{id, enabled, trigger_type, rule_type, name, dsl}, …], "next_cursor": "<last id>"}`: rows sorted by id, after the cursor, at most 6,144 bytes of rows; the last page has no `next_cursor`. Without `cursor` it answers the bare array, as before.
-- `rule.create {name, dsl, enabled}` answers `{"id": <new id>, "enabled": <bool>}`. `enabled` (default `true`) set to `false` creates the rule Off in one step, so it never runs before it is switched on; the echo tells a caller such as the cloud that the hub knows the argument. Older firmware answers without `enabled` and creates the rule On. The single-chip build answers the same.
+- `rule.create {name, dsl, enabled}` answers `{"id": <new id>, "enabled": <bool>}`. `enabled` false creates the rule Off in one step, so it never runs before it is switched on; absent or `null` means On, and anything but a boolean is refused (`enabled must be true or false`). The echo, and the capability `rules.v2` below, tell a caller such as the cloud that the hub knows the argument. Older firmware answers without `enabled` and creates the rule On. The single-chip build answers the same.
 - `rule.update {id, name, dsl, base}`: with `base` (the lowercase hex SHA-256 of the rule text the editor opened), the hub answers `changed` and saves nothing when the stored text is different. A rule deleted on the hub in the meantime answers `changed` too; a reload then shows it gone.
 - `rule.check {dsl}` answers `{"ok": bool, "err": "<parser message>"}` and saves nothing.
 
@@ -227,7 +229,8 @@ The cloud relay runs the same commands as this socket, with these limits:
 - **Log to cloud** (Settings → Remote; `settings.set {"log_to_cloud": "off" | "errors" | "warnings" | "everything"}`; `status.get` reports `log_to_cloud`; `remote.status` reports `log_sent` and `log_dropped` since the hub started) is off by default and after a storage reset. Errors sends errors; Warnings sends warnings and errors; Everything adds the information lines. Only the hub's own page can change it: the relay answers `settings.set` carrying `log_to_cloud` with `local_only`. While it is on, the hub sends `log.batch` events (below) and, once per run, `log.tail`. The cloud link's own lines (`remote_client`, `websocket_client`, `transport*`, `esp-tls*`) never enter the backlog (`log.batch`); the restart tail may include them.
 - The relay passes `rule.check`, `script.part` and every rule command.
 - Every rule change (`rule.create`, `rule.update`, `rule.enable`, `rule.delete`, `rule.run`), every script change (`script.write`, `script.delete`, `script.run`, `script.reload`) and `system.restart` that the relay passes is written to the hub's log with the tag `cloud`, before it runs, e.g. `I (812345) cloud: script.write by <account id> name=heating`; the line adds `id=<n>` when the command carries a numeric `id`, and `name=<name>` when its `name` fits `[A-Za-z0-9_-]{1,24}` (every script name, and a rule name of that shape such as `porch_light`); any other name is left out. No other command the relay passes is logged.
-- Firmware with these commands says so when it connects: `caps: ["rules.v1", "scripts.v1", "logs.v1"]`, `remote_scripts` and `log_to_cloud`.
+- Firmware with these commands says so when it connects: `caps: ["rules.v1", "rules.v2", "scripts.v1", "logs.v1"]`, `remote_scripts` and `log_to_cloud`.
+  `rules.v2` (wired, since review 2026-10-28): `rule.create` takes `enabled` and echoes it.
 - Every frame the hub sends to the cloud or to its own page is valid UTF-8: a byte that is not (a REST-uploaded script, a log line, a dual-chip rule text cut at 127 bytes) goes out as `?`. The hub does this where frames leave it, so the JSON keeps its shape and length.
 
 ### Groups
