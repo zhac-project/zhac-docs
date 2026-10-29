@@ -540,9 +540,10 @@ Update settings. Every field is optional; send only what changes. **Auth require
 `verified` once the hub has kept it; `ota_rollback_reason` appears only after an update was
 undone and says which check failed (storage, web server or radio). See the wired README,
 "Updates".
-`ota_store_unconfirmed: true` appears while a kept update's move of the device store could not be marked
-final (storage full?); the hub retries every few seconds and keeps the old copy on `nvs` until then. A
-restart or another update meanwhile loses nothing.
+`ota_store_unconfirmed: true` appears while the device store's move could not be marked final (storage
+full?); the hub retries, backing off to once an hour, and keeps the old copy on `nvs` until then. A
+restart or a newer update meanwhile keeps what was saved since; an older version is refused until the
+flag is gone.
 
 `ntp_dhcp_server` appears when the router offered a time server (DHCP option 42) and the hub is
 using it; it comes first, `ntp_server` second. Naming a server switches the offer off.
