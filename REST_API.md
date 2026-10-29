@@ -541,8 +541,8 @@ Update settings. Every field is optional; send only what changes. **Auth require
 undone and says which check failed (storage, web server or radio). See the wired README,
 "Updates".
 `ota_store_unconfirmed: true` appears while a kept update's move of the device store could not be marked
-final (storage full?); the hub retries every few seconds and refuses another update meanwhile. Do not
-restart the hub until it is gone: a restart before then brings back the store from before the update.
+final (storage full?); the hub retries every few seconds and keeps the old copy on `nvs` until then. A
+restart or another update meanwhile loses nothing.
 
 `ntp_dhcp_server` appears when the router offered a time server (DHCP option 42) and the hub is
 using it; it comes first, `ntp_server` second. Naming a server switches the offer off.
