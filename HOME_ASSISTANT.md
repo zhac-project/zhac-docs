@@ -58,7 +58,7 @@ With the default root `zhac` and prefix `homeassistant`:
 | Topic | Direction | Content |
 |---|---|---|
 | `homeassistant/<component>/zhac_<ieee>_<key>/config` | ZHAC → HA | discovery config, retained |
-| `zhac/devices/<IEEE>/<key>` | ZHAC → HA | the value, retained — `1`/`0` for on/off, numbers as numbers, text as text |
+| `zhac/devices/<IEEE>/<key>` | ZHAC → HA | the value, retained (not `action` and not a keypad's `action_code`, which go out once per press) — `1`/`0` for on/off, numbers as numbers, text as text |
 | `zhac/devices/<IEEE>/<key>/set` | HA → ZHAC | a new value, same format |
 | `zhac/devices/<IEEE>/color_xy`, `…/color_hs` | both | colour pairs, `x,y` (CIE 1931) and `h,s` (0–360, 0–100), as Home Assistant's light sends and expects them |
 | `zhac/availability` | ZHAC → HA | `online`, or `offline` when the hub drops off the broker |

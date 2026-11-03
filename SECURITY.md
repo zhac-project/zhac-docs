@@ -35,10 +35,10 @@ All mutating REST endpoints (`POST`, `PUT`, `DELETE`) and sensitive read endpoin
 
 - The token is a 32-character hex string generated from `esp_fill_random` on first boot.
 - It is stored in NVS namespace `zhac_auth`, key `token`.
-- It is printed to the serial console on first boot: `*** NEW API TOKEN (save this): <token> ***`
-- Subsequent boots log only the token length, not the value.
+- It is printed in full on the serial console (never in the log the web UI and the cloud see) only while no admin password exists, and on the one boot after a password lockout, which is how an owner with physical access recovers a lost password. Every other boot prints its last four characters only (wired hubs; the dual-chip and single-chip builds print it at every boot).
+- Changing the admin password rotates the token, which signs every other browser out; on wired hubs the first password set-up rotates it too, so the token printed before the hub was claimed stops working.
 
-The Web UI stores the token in `localStorage` (key `zhacToken`). Tokens are not rotatable without reflashing or clearing NVS.
+The Web UI stores the token in `localStorage` (key `zhac_token`).
 
 ### Unauthenticated endpoints
 
@@ -46,14 +46,33 @@ The following endpoints intentionally require no authentication:
 
 | Endpoint | Reason |
 |----------|--------|
-| `GET /api/status` | Non-sensitive system health info; needed by monitoring tools |
+| `GET /api/status` | What the sign-in page needs. With sign-in on (wired, single-chip), a request without the token gets only the `auth_*` fields (and `sku` on wired); monitoring tools send the token for the rest |
 | `GET /metrics` | Prometheus scrape endpoint (no secrets exposed); only active when enabled |
 | `GET /*` (static files) | Web UI assets are public |
 | WebSocket `/ws` | Token is sent as first message after connection; unauthenticated WS frames are ignored |
 
+### Response headers
+
+Every answer of the wired hub's web server handlers (not the server's own error answers, such as the 405
+for a method a path does not take) carries `X-Content-Type-Options: nosniff` and
+`Referrer-Policy: no-referrer` (links out of the hub page do not send its address). The web UI's
+Content-Security-Policy lets its WebSocket reach only the hub itself (`connect-src 'self'` and the
+`ws://` / `wss://` of the address the page was loaded from), plus `https://api.github.com` for the
+version list.
+
 ## Transport security
 
 **Current state:** All communication is plain HTTP and unencrypted WebSocket (`ws://`). This is acceptable for local-network IoT devices where the threat model is assumed to be a trusted home network.
+
+The hub's own TLS clients (updates, the cloud link, `mqtts://`) check the server certificate against
+IDF's CA bundle and its host name. On the wired and single-chip builds they also check the
+certificate's dates once the hub's clock is set (SNTP or the web UI); before that the dates cannot be
+judged and are left out. Whatever the clock says, a certificate that ended before the day the firmware
+was built is refused, so a clock set back does not bring it back. The clock itself comes from SNTP
+unauthenticated, which bounds what the date check is worth. An MQTT broker with its own CA or a
+self-signed certificate is trusted by the SHA-256 fingerprint of its certificate (`mqtt_tls_pin`,
+Settings → MQTT); a pinned certificate is trusted whatever its name and dates. Settings warns when a
+broker address sends its user name and password in clear (`mqtt://`).
 
 ## NVS encryption
 

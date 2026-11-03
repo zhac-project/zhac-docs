@@ -40,13 +40,19 @@ sign in with *Use API token instead*, then use **Settings → Storage error → 
 restart**. That erase is the only way forward: pair the devices again afterwards and restore
 your last backup for names, rules and scripts.
 
-**I forgot the password.** Connect a USB cable to the hub and open its serial console at
-115200 baud (the browser flasher has a *Logs* button that does this). At every boot the hub
-prints its API token. On the login page choose *Use API token instead*, paste it, then set a
-new password under Settings → Auth. Only someone with physical access to the hub can do this.
+**I forgot the password.** On the login page enter a wrong password five times, until the
+page says to wait a minute. Then connect a USB cable to the hub and open its serial console at
+115200 baud (the browser flasher has a *Logs* button that does this), and power-cycle the hub:
+the boot after a password lockout prints the hub's API token in full. On the login page choose
+*Use API token instead*, paste it, then set a new password under Settings → Auth. Only someone
+with physical access to the hub can do this. Other boots print only the token's last four
+characters, so a boot log shared for support does not carry it. (Wired hubs; the dual-chip and
+single-chip builds still print the token at every boot.)
 
-**"Wrong password" five times.** That address is locked out for the rest of the minute. Wait a
-minute; the lock is per device, so a phone and a laptop lock separately.
+**"Too many wrong passwords — wait a minute."** Five wrong passwords from one address lock that
+address out for the rest of the minute; the lock is per device, so a phone and a laptop lock
+separately. Twenty wrong passwords within a minute from any number of addresses lock the
+password for everyone for that minute. A browser that is already signed in is not affected.
 
 ## Pairing devices
 
@@ -91,8 +97,28 @@ clock itself is always UTC; rules use the zone.
 ## Updates
 
 **"The new firmware is on trial."** After an update the hub keeps the new firmware only once
-its storage, web server and radio check out. That takes under a minute on a healthy hub. Wait;
-do not start another update meanwhile.
+its storage, web server and radio have stayed healthy for five minutes in a row. A restart or
+power cut before then goes back to the previous version. Wait; do not start another update
+meanwhile.
+
+**"The image is …, not the zhac-wired-core firmware."** The file is not the hub's own
+firmware, for example the one-time Zigbee radio installer, which goes on over USB with the
+browser flasher. Use the hub firmware's `-ota.bin` for your board.
+
+**"The image is an older release … than the one running."** A wired hub installs an older
+release only when you ask for it: pick it in the version list, which asks first, or tick
+*Allow an older version* under *Advanced*. Older firmware may lack fixes and may not read
+everything the newer one saved; if devices are missing afterwards, update again.
+
+A pre-release (`v…-rc1`) counts too: one older than what runs asks first, like an older release.
+
+**"The update server redirected the download; the hub restarts."** The server answered the
+hub's check and then sent the download elsewhere. The hub stops there: it takes nothing from the new
+address, writes nothing, and restarts on its current firmware. Use the release's own `-ota.bin` link.
+
+**"The download is not a firmware image, or it broke off."** Use the `-ota.bin` file, not the
+full-flash `zhac-wired-<board>-<tag>.bin` image, which is for the browser flasher. If it was the
+right file, the connection dropped at the start: start the update again.
 
 **"The last update was undone."** The new firmware never became healthy within ten minutes,
 so the hub went back to the previous version by itself. The reason on the OTA page says which
@@ -119,6 +145,20 @@ complete. Just start the update again.
 into the new firmware and, if that fails, once more into the old one. If it is still not
 reachable, connect USB and check the serial console; the browser flasher can write a full
 image, which keeps devices, rules and settings as long as you do not erase the flash.
+
+## MQTT
+
+**The broker over `mqtts://` does not connect.** The hub checks the broker's certificate against
+the usual certificate authorities, its name against the address, and, once its clock is set, its
+dates. A home broker with its own CA or a self-signed certificate passes none of the first two:
+paste the SHA-256 fingerprint of its certificate into *Settings → MQTT* (the hub then trusts that
+certificate only). `openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it. A pinned
+certificate is trusted whatever its dates; any other expired certificate is refused once the hub
+knows the time, or when it ended before the hub's firmware was built: renew it.
+
+**"Unencrypted" under the broker address.** An `mqtt://` address with a user name sends it and the
+password in clear, and whoever reads them can control your devices through the broker. Turn TLS on
+in the broker and use `mqtts://`, with the fingerprint if the certificate is your own.
 
 ## Backups
 

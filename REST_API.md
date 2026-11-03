@@ -29,13 +29,18 @@ wire credential; these endpoints are the exchange layer on top:
 
 | Endpoint | Auth | Body | Purpose |
 |---|---|---|---|
-| `POST /api/auth/login` | none (is the exchange) | `{"password":"…"}` | Verify password → `{"ok":true,"token":"<32hex>"}`. `401` wrong password, `409` no password set yet. |
+| `POST /api/auth/login` | none (is the exchange) | `{"password":"…"}` | Verify password → `{"ok":true,"token":"<32hex>"}`. `401` wrong password, `409` no password set yet, `429 {"error":"too_many_attempts"}` (with `Retry-After: 60`) while locked out. |
 | `POST /api/auth/setup` | none, **only while no password exists and for 10 minutes after power-on** | `{"password":"…"}` | First-boot: set the admin password (8-63 chars) and return the token. `403 {"error":"already_set"}` once set; `403 {"error":"setup_closed"}` when the window has passed (power-cycle the hub to reopen it). |
 | `POST /api/auth/password` | **Auth required** + current password | `{"current":"…","new":"…"}` | Change password. Rotates the API token (invalidates other clients) and returns the fresh one. |
 
 The password is stored as a salted iterated-SHA-256 hash in NVS (never
 plaintext). Login/setup attempts share the same per-peer lockout as token
-checks. `/api/status` reports `auth_setup_required: true` while auth is
+checks: five failures in a minute lock that address (an IPv6 peer: its /64)
+for the rest of the minute. On wired hubs, twenty wrong passwords within a
+minute from any addresses also lock the password for everyone for that minute
+(`429`); a valid token keeps working. The three routes take only
+`Content-Type: application/json` bodies on wired hubs (`415
+{"error":"json_required"}` otherwise). `/api/status` reports `auth_setup_required: true` while auth is
 enabled but no password exists — the SPA shows its one-time setup card then —
 and `auth_setup_secs_left`, the seconds the first-claim window has left (0 once
 it closed). `storage_error: true` means the whole NVS partition could not be initialised at boot; the hub
@@ -50,7 +55,10 @@ finds it on the network later, only by someone who can power-cycle it.
 A build can seed the password via `CONFIG_ZHAC_DEFAULT_PASSWORD` (keep it
 empty in anything public — a committed password is a shared credential).
 The serial-printed token remains the recovery path (lost password → sign in
-with the token, or erase NVS to re-run setup).
+with the token, or erase NVS to re-run setup). On wired hubs with a password
+set, a boot prints only the token's last four characters; the boot after a
+password lockout prints it in full (TROUBLESHOOTING.md, "I forgot the
+password").
 
 ---
 
@@ -80,6 +88,11 @@ integrations.
 Returns S3 and P4 health metrics. No auth required. The P4-side values
 are populated from the periodic HAP heartbeat (`HapHeartbeat` — 14
 fields as of 2026-04-22).
+
+On the wired and single-chip builds with sign-in on, a request without the API token
+(`X-Api-Key`) gets only what the sign-in page needs: `sku` (wired) and the `auth_*` fields. Send the
+token for the rest (firmware version, MQTT broker and topics, addresses, time server and so on). A
+request without a key is not a wrong guess and counts toward no lockout; a wrong key does.
 
 **Response:**
 ```json
@@ -404,10 +417,14 @@ Create a new rule. **Auth required.**
 
 **Request:**
 ```json
-{ "dsl": "on 0x001234567890ABCD.state == 1 do set 0xAABBCCDDEEFF0011.state 0" }
+{ "dsl": "on 0x001234567890ABCD.state == 1 do set 0xAABBCCDDEEFF0011.state 0", "enabled": false }
 ```
 
-**Response:** `201 Created` + created rule object.
+`enabled` is optional (absent or `null`: On). `false` creates the rule Off in one step; anything but a boolean is
+refused with 400.
+
+**Response:** `200` + `{"ok": true, "id": <new id>, "enabled": <bool>}` (wired and single-chip hubs); a rule the
+parser refuses answers 400 with its message.
 
 #### `DELETE /api/rules`
 Delete a rule by ID. **Auth required.**
@@ -523,9 +540,27 @@ Update settings. Every field is optional; send only what changes. **Auth require
 `verified` once the hub has kept it; `ota_rollback_reason` appears only after an update was
 undone and says which check failed (storage, web server or radio). See the wired README,
 "Updates".
+`ota_store_unconfirmed: true` appears while the device store's move could not be marked final (storage
+full?); the hub retries, backing off to once an hour, and keeps the old copy on `nvs` until then. A
+restart or a newer update meanwhile keeps what was saved since, as long as `nvs` reads back whole at that
+boot. If it does not, the device store stays shut for that boot (`storage_error`; restart before you
+erase anything). When the flash layer repaired the bad entry by erasing it, the next boot takes the
+store from `nvs` again, and what was saved since the update is lost. An older version is refused until
+the move is final.
 
 `ntp_dhcp_server` appears when the router offered a time server (DHCP option 42) and the hub is
 using it; it comes first, `ntp_server` second. Naming a server switches the offer off.
+
+`mqtt_tls_pin` (wired, single-chip) is the SHA-256 fingerprint of an `mqtts://` or `wss://`
+broker's certificate, 64 hex digits with or without colons, as
+`openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it (its `sha256 Fingerprint=` label
+may stay); `""` removes it. With a pin the
+hub trusts exactly that certificate, whoever signed it and whatever name and dates it carries: a
+broker with its own CA or a self-signed certificate. A value that is not a fingerprint is ignored. The status
+reports it as `mqtt_tls_pin`, and `mqtt_cleartext_credentials: true` when the stored broker URL sends
+a user name or password without TLS (`mqtt://` or `ws://`). Sending back the address the status shows keeps the stored user name and
+password; to drop them, send a different address. The status shows the broker URL without
+its user name and password; send `broker_url` only to change it.
 
 `ntp_server` is the time server SNTP asks. Name one on your own network when the hub has no
 internet access, or send an empty string for the public default (`pool.ntp.org`). It is

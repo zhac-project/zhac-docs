@@ -541,7 +541,7 @@ end
 
 Publish to the MQTT broker via `mqtt_gw_publish`. No-op if the
 gateway isn't connected (no return value surfaces that state — use
-`GET /api/status` / the WebUI to confirm MQTT).
+`GET /api/status` with the API token, or the WebUI, to confirm MQTT).
 
 **Arguments.**
 
@@ -609,6 +609,11 @@ static const luaL_Reg kZhacLib[] = {
 Nothing else is exposed. Direct binding / unbinding, group
 multicasts, raw ZCL writes, and KV storage are **not** available from
 Lua today (§12).
+
+> **Dual-chip only.** The three `telegram_*` functions belong to the retired P4+S3 dual-chip hub, where
+> the S3 made the HTTPS call. On wired (S31, P4+C6) and single-chip hubs they do nothing and return
+> `false`; the log says the gateway is not on this hub. To reach Telegram from those hubs, use the
+> cloud's Telegram bot.
 
 ### 5.13 `zhac.telegram_settoken(token) → bool`
 
