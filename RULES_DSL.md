@@ -260,6 +260,27 @@ zigbee.toggle 0x001234567890ABCD on_off
 ON kitchen switch#action="single" DO zigbee.toggle kitchen_light state ENDON
 ```
 
+### `gpio.set <pin> <value>`, `gpio.toggle <pin>`, `pwm.set <pin> <duty>`
+
+Drive a pin configured on the hub page (Settings › I/O). `pin` is the configured name or the GPIO number;
+a pin that is not configured, or configured in another mode, is refused when the rule is saved.
+
+- `gpio.set <pin> <value>`: `out` pins. `value` is `on|off|1|0|true|false|high|low`, or `%value%` / an expression (non-zero = on). `high`/`low` mean on/off; the pin's `invert` setting applies.
+- `gpio.toggle <pin>`: flip an `out` pin.
+- `pwm.set <pin> <duty>`: `pwm` pins. `duty` is 0-100 (decimal allowed) or `%value%` / an expression; clamped to 0-100.
+
+```
+gpio.set relay on
+gpio.toggle relay
+pwm.set fan 40
+```
+
+Inputs and ADC pins are triggers like any attribute of the Hub I/O device:
+
+```
+ON Hub I/O#button=1 DO gpio.toggle relay ENDON
+```
+
 ### `publish <topic> <payload>`
 
 Publish to MQTT. `topic` and `payload` are space-delimited tokens (no spaces within each);

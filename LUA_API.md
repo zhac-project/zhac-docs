@@ -654,6 +654,56 @@ zhac.telegram_send("**bold**", nil, "Markdown")
 
 The `secure()` toggle from SLS does not exist — ZHAC always uses HTTPS.
 
+### 5.16 `zhac.gpio_write(pin, v) → true | nil, err`
+
+Set an `out` pin. `v` is `0`, `1`, `true` or `false` (logical; the pin's `invert` applies). `pin` is the
+configured name or GPIO number. Only pins configured in Settings › I/O, in their configured mode, can be used.
+
+```lua
+zhac.gpio_write("relay", true)
+```
+
+### 5.17 `zhac.gpio_toggle(pin) → level | nil, err`
+
+Flip an `out` pin; returns the new level (`0` or `1`).
+
+```lua
+zhac.gpio_toggle("relay")
+```
+
+### 5.18 `zhac.gpio_read(pin) → level | nil, err`
+
+Read an `out` or `in` pin as `0` or `1` (logical; `invert` applies).
+
+```lua
+if zhac.gpio_read("button") == 1 then zhac.log("pressed") end
+```
+
+### 5.19 `zhac.pwm_write(pin, duty) → true | nil, err`
+
+Set a `pwm` pin's duty, 0-100 percent (decimals allowed).
+
+```lua
+zhac.pwm_write("fan", 37.5)
+```
+
+### 5.20 `zhac.adc_read(pin) → value, raw | nil, err`
+
+Read an `adc` pin now. `value` is millivolts where the target is calibrated (P4), otherwise the raw reading.
+
+```lua
+local mv, raw = zhac.adc_read("battery")
+```
+
+### 5.21 `zhac.ws_write(pin, colors) → true | nil, err`
+
+Write a WS2812 strip (GRB order) on a `strip` pin. `colors` is a table of `0xRRGGBB` numbers; entries past the
+configured `leds` count are ignored.
+
+```lua
+zhac.ws_write("strip", { 0xff0000, 0x00ff00, 0x0000ff })
+```
+
 ---
 
 ## 6. Sandbox
