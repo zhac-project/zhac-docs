@@ -610,51 +610,55 @@ Nothing else is exposed. Direct binding / unbinding, group
 multicasts, raw ZCL writes, and KV storage are **not** available from
 Lua today (§12).
 
-> **Dual-chip only.** The three `telegram_*` functions belong to the retired P4+S3 dual-chip hub, where
-> the S3 made the HTTPS call. On wired (S31, P4+C6) and single-chip hubs they do nothing and return
-> `false`; the log says the gateway is not on this hub. To reach Telegram from those hubs, use the
-> cloud's Telegram bot.
+> **Your own bot.** The hub posts to `api.telegram.org` itself with a bot you create with
+> [@BotFather](https://t.me/BotFather): no cloud needed, only internet access. The cloud's Telegram
+> bot is a separate thing. Messages go out one at a time from a queue of 4; the outcome (sent, or why
+> Telegram refused) is in the hub log under `tg_gw`.
 
 ### 5.13 `zhac.telegram_settoken(token) → bool`
 
-Persist the Telegram bot token on S3. Required before `telegram_send` works.
-Token comes from BotFather (`/newbot`). Stored in S3 NVS at `zhac/tg_token`,
-masked in all logs. Returns true if forwarded to S3 successfully.
+Save the bot token on the hub (NVS `zhac/tg_token`, kept across updates). Required before
+`telegram_send` works. The token is `<bot id>:<secret>` as BotFather gives it, at most 80 characters;
+anything else returns `false`. The token is never written to the log.
 
 ```lua
 zhac.telegram_settoken("1234567890:AAH...")
 ```
 
+Run it once from a throwaway script, then delete the script: a script's source is in the hub's
+backups and, on a cloud-linked hub, readable from the cloud, so the token would travel with it.
+
 ### 5.14 `zhac.telegram_setchat(chat_id_str) → bool`
 
-Persist the default chat ID. String form so negative group IDs work
-(`"-1001234567890"`). Stored at `zhac/tg_chat`. Optional — `telegram_send`
-also accepts an explicit `chat_id` per call.
+Save the default chat (NVS `zhac/tg_chat`). A numeric id as a string, so negative group ids
+work (`"-1001234567890"`), or a public channel's `@username`. Returns `false` for anything else.
+Optional: `telegram_send` also takes a chat per call.
 
 ```lua
 zhac.telegram_setchat("1234567890")
 zhac.telegram_setchat("-1001234567890")
 ```
 
+The bot can write to you only after you have sent it a message (or added it to the group).
+
 ### 5.15 `zhac.telegram_send(text [, chat_id [, parse_mode]]) → bool`
 
-Send a Telegram message. Async / fire-and-forget — return value indicates
-the HAP frame was queued, not the HTTP outcome (see S3 logs for that).
+Queue a Telegram message. Returns at once: `true` means queued, not delivered.
 
-- `text` — string, ≤ 3 KB.
-- `chat_id` — optional override of the default chat.
-- `parse_mode` — `"Markdown"`, `"MarkdownV2"`, `"HTML"`, or a full
-  query-string fragment for advanced features (e.g. `reply_markup`).
+- `text`: string. Text longer than about 3 KB (after escaping) is cut on a character boundary.
+- `chat_id`: optional, overrides the default chat.
+- `parse_mode`: optional, exactly `"Markdown"`, `"MarkdownV2"` or `"HTML"`.
+
+Returns `false` (and logs why) when no token is set, there is no chat, the chat or `parse_mode`
+is not valid, or 4 messages are already waiting.
 
 ```lua
 zhac.telegram_send("door opened")
 zhac.telegram_send("temp=" .. zhac.get_attr("0x...", "temperature"))
-zhac.telegram_send("**bold**", nil, "Markdown")
+zhac.telegram_send("*bold*", nil, "Markdown")
 ```
 
-The `secure()` toggle from SLS does not exist — ZHAC always uses HTTPS.
-
----
+The `secure()` toggle from SLS does not exist: ZHAC always uses HTTPS.
 
 ## 6. Sandbox
 
