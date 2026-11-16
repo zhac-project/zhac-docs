@@ -31,6 +31,8 @@ touch "$OUT/.nojekyll"
 # devices.json at build time, so the page never states a stale count.
 mkdir -p "$OUT/assets"
 cp "$HERE/../site/assets/"*.webp "$HERE/../images/s31-board.webp" "$HERE/../images/p4-devkit-board.webp" "$OUT/assets/"
+# At the root: browsers ask for /favicon.ico on pages without an icon link (flash/, devices/).
+cp "$HERE/../site/favicon.svg" "$HERE/../site/favicon.ico" "$OUT/"
 read -r MODELS BRANDS < <(python3 -c '
 import json, sys
 d = json.load(open(sys.argv[1]))["devices"]
