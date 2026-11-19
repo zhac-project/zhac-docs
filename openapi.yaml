@@ -343,6 +343,7 @@ paths:
         '400': { description: password must be 8-63 characters }
         '401': { description: wrong_password }
         '415': { description: json_required }
+        '429': { description: "too_many_attempts (Retry-After: 60)" }
 
   /api/net/status:
     get:

@@ -53,11 +53,14 @@ wire credential; these endpoints are the exchange layer on top:
 | `POST /api/auth/password` | **Auth required** + current password | `{"current":"…","new":"…"}` | Change password. Rotates the API token (invalidates other clients) and returns the fresh one. |
 
 The password is stored as a salted iterated-SHA-256 hash in NVS (never
-plaintext). Login/setup attempts share the same per-peer lockout as token
-checks: five failures in a minute lock that address (an IPv6 peer: its /64)
-for the rest of the minute. Twenty wrong passwords within a minute from any
-addresses also lock the password for everyone for that minute (`429`); a valid
-token keeps working. The three routes take only `Content-Type: application/json`
+plaintext). Wrong passwords (`/api/auth/login`, `/api/auth/password`) and
+wrong tokens count together per address (an IPv6 peer: its /64): five within a
+minute lock that address out until the first of them is a minute old. Meanwhile
+every route that needs the token answers it `401`, even the right token, and a
+WebSocket `auth` answers `auth failed`; login and password change answer `429`
+(`Retry-After: 60`). A request to such a route without `X-Api-Key` counts as a
+wrong token. Twenty wrong passwords within a minute from any addresses also
+lock the password for everyone (`429`); a valid token keeps working. The three routes take only `Content-Type: application/json`
 bodies (`415 {"error":"json_required"}` otherwise). `/api/status` reports
 `auth_setup_required: true` while auth is enabled but no password exists — the
 web UI shows its one-time setup card then — and `auth_setup_secs_left`, the
@@ -71,8 +74,6 @@ on the serial console for that boot, and `POST /api/auth/setup` answers
 `503 {"error":"storage_error"}`. The window bounds the "first visitor claims the hub" pattern: a hub
 that was never set up, or was reset weeks ago, cannot be claimed by whoever
 finds it on the network later, only by someone who can power-cycle it.
-A build can seed the password via `CONFIG_ZHAC_DEFAULT_PASSWORD` (keep it
-empty in anything public — a committed password is a shared credential).
 The serial-printed token remains the recovery path (lost password → sign in
 with the token, or erase NVS to re-run setup).
 
@@ -576,12 +577,12 @@ firmware.
 | HTTP | Meaning |
 |------|---------|
 | `400` | A missing or invalid field; the reason in the body |
-| `401` | Sign-in on, and no or a wrong `X-Api-Key` (`{"error":"unauthorized"}`) |
+| `401` | Sign-in on, and no or a wrong `X-Api-Key`, or the address is locked out (`{"error":"unauthorized"}`) |
 | `403` | `{"error":"cross_site"}`: sign-in off, and the request came from another site's page or through a host name that is not the hub's |
 | `404` | No such device, rule, script or collection |
 | `405` | The route does not take that method |
 | `408` / `411` / `413` / `415` | The body timed out, came chunked, is too large, or has the wrong `Content-Type` |
-| `429` | Too many wrong passwords or tokens: wait a minute (`Retry-After: 60`) |
+| `429` | Login or password change while the address, or for passwords the whole hub, is locked out: wait a minute (`Retry-After: 60`) |
 | `500` | The hub could not do it (memory, storage, radio); the reason in the body |
 | `501` | `{"error":"wifi_unsupported"}`: a Wi-Fi route on an Ethernet hub |
 | `503` | Busy or not ready; try again |

@@ -36,7 +36,7 @@ and every WebSocket command but `auth`, needs the API token (`X-Api-Key` header 
 - It is stored in NVS namespace `zhac_auth`, key `token`.
 - It is printed in full on the serial console (never in the log the web UI and the cloud see) only while no admin password exists, and on the one boot after a password lockout, which is how an owner with physical access recovers a lost password. Every other boot prints its last four characters only.
 - Changing the admin password rotates the token, which signs every other browser out; the first password set-up rotates it too, so the token printed before the hub was claimed stops working. `POST /api/token/rotate` replaces it at any time.
-- Five wrong tokens or passwords from one address within a minute lock that address out (`429`) until the first of them is a minute old; twenty wrong passwords within a minute, from any addresses, stop password sign-in for the whole hub the same way.
+- Five wrong tokens or passwords from one address within a minute lock that address out until the first of them is a minute old: meanwhile it gets `401` even with the right token (a WebSocket `auth` gets `auth failed`), and password sign-in answers `429` (`Retry-After: 60`). A request without `X-Api-Key` to a route that needs it counts as a wrong token. Twenty wrong passwords within a minute, from any addresses, stop password sign-in for the whole hub the same way.
 
 The Web UI stores the token in `localStorage` (key `zhac_token`).
 
