@@ -12,7 +12,7 @@ here needs Wi-Fi setup, a Raspberry Pi or a cloud account.
 > **Status, honestly.** The wired P4 build compiles and shares its code with the ESP32-S31
 > build, which does run on hardware — but the P4 image itself has not yet been run on a
 > Guition board by the maintainers. If a step below does not match what you see,
-> [tell us](https://github.com/zhac-project/zhac-platform/issues/new?template=bug.yml);
+> [tell us](https://github.com/zhac-project/zhac-docs/issues/new?template=bug.yml);
 > that report is exactly what is missing.
 
 ## What you need
@@ -34,7 +34,7 @@ is built for **v0.x–v1.x**.
 2. Open [espressif.github.io/esptool-js](https://espressif.github.io/esptool-js/),
    press **Connect** and pick the board's port.
 3. Read the chip line: `ESP32-P4 (revision v1.3)` means go ahead. A `v3.x` revision will
-   not boot this image — [send a board report](https://github.com/zhac-project/zhac-platform/issues/new?template=board-report.yml)
+   not boot this image — [send a board report](https://github.com/zhac-project/zhac-docs/issues/new?template=board-report.yml)
    instead. Press **Disconnect** before the next step.
 
 ## 2. Flash the hub (5 minutes)
@@ -134,7 +134,7 @@ longer has (renamed, removed) is flagged in the list.
   hub in place, web UI included; devices, rules and scripts stay.
 - **Backups** — Settings → Backup saves names, rules, scripts and collections to a file.
   Moving to a new board: pair the devices again, then restore the file.
-- **A device that does not work?** [Ask for it](https://github.com/zhac-project/zhac-platform/issues/new?template=device-request.yml)
+- **A device that does not work?** [Ask for it](https://github.com/zhac-project/zhac-docs/issues/new?template=device-request.yml)
   with the manufacturer and model its Info tab shows.
 
 ## Troubleshooting

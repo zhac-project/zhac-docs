@@ -69,9 +69,9 @@ and sign-in paths on real boards. Say in the pull request what you could and cou
 | Topic | Here | Module README |
 |-------|------|---------------|
 | "How does attribute write propagate from UI → S3 → P4 → Zigbee" | ✅ | — |
-| "What does `simple_rules::eval_trigger` do internally" | — | ✅ (zhac-net-core) |
+| "What does `simple_rules::eval_trigger` do internally" | — | ✅ (zhac-components) |
 | "WS API command list" | ✅ | — |
-| "How to configure the P4 Kconfig for ZNP vs EZSP" | — | ✅ (zhac-main-core) |
+| "How to set the Zigbee radio's UART pins on a P4 board" | — | ✅ (zhac-wired-core) |
 | "Release process + version tag scheme" | ✅ | — |
 | "Change log entry for `v2026042302`" | — | ✅ CHANGELOG.md per repo |
 

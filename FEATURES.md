@@ -1,19 +1,19 @@
 # ZHAC — Feature Status & Roadmap
 
 **Updated:** 2026-09-18  
-**Scope:** The three hub firmwares (dual-chip, wired, single-chip), the device library, rules, Lua,
+**Scope:** The hub firmware (wired) and the two archived builds (dual-chip, single-chip), the device library, rules, Lua,
 the APIs, the web UI and the browser flasher. Rows name the build when a feature is not on all
 three.
 
 ## At a glance
 
-### Three ways to build a hub
+### Builds
 
 | Build | Chips | Network | Zigbee radio | Status |
 |-------|-------|---------|--------------|--------|
-| Dual-chip (`zhac-platform`) | ESP32-S3 + ESP32-P4 | Wi-Fi | TI CC2652P, Z-Stack | Main build, runs on hardware |
-| Wired (`zhac-wired-core`) | ESP32-P4 or ESP32-S31 | Ethernet | ESP32-C6 running `ot_rcp` | S31 runs on hardware; P4 builds, first hardware run pending |
-| Single-chip (`zhac-mono-core`) | ESP32-S3 | Wi-Fi | TI CC2652P, Z-Stack | Builds; same sign-in as the other builds since 2026-09-20 (not yet run on hardware) |
+| Wired (`zhac-wired-core`) | ESP32-S31, or ESP32-P4 + ESP32-C6 | Ethernet (Wi-Fi through an extra ESP32-C5 in testing) | S31: its own 802.15.4 radio; P4: the C6 running `ot_rcp` | Runs on hardware, both boards |
+| Dual-chip (`zhac-platform`) | ESP32-S3 + ESP32-P4 | Wi-Fi | TI CC2652P, Z-Stack | Archived 2026-11; never shipped |
+| Single-chip (`zhac-mono-core`) | ESP32-S3 | Wi-Fi | TI CC2652P, Z-Stack | Archived 2026-11; never run on hardware |
 
 All three recognise the same **4,989 device definitions** from 400 manufacturers
 ([supported devices](supported-devices/README.md)) and serve the same web UI.
@@ -359,8 +359,7 @@ do kv.set <key> <value>
 | `components/simple_rules/simple_rules.cpp` | Add `"kv.set"` in `dsl_parse`, `KV_SET` case in `execute_rule`, `$kv.` in `expand_value` |
 | New `components/kv_store/` | Small NVS namespace (`kv_store`) plus `kv_store_set_int/str/get_int/str` API |
 | `components/lua_engine/src/zhac_lua_module.cpp` | Expose `zhac.kv_set_int/str`, `zhac.kv_get_int/str` entries in `kZhacLib` |
-| `firmware/zhac-net-core/main/rest_ops.cpp` | Add `GET /api/kv` and `DELETE /api/kv/{key}` endpoints |
-| `firmware/zhac-net-core/main/main.cpp` | Register new URI handlers |
+| `zhac-wired-core/main/api_kv.cpp` (new, registered like the other `api_*.cpp`) | Add `GET /api/kv` and `DELETE /api/kv/{key}` endpoints |
 
 **Effort:** ~3h | **Impact:** High — eliminates scripting boilerplate for state-tracking patterns
 

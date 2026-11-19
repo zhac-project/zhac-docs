@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Bug report
+description: Something in ZHAC does not work as it should.
+title: "[bug] "
+labels: [bug, triage]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Devices
+        2. Press Permit join
+        3. ...
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which ZHAC build?
+      options:
+        - Wired, ESP32-P4 board
+        - Wired, ESP32-S31 board
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Firmware and web UI version
+      description: Info page → **Firmware** and **Web UI**.
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      placeholder: "e.g. Guition JC-ESP32P4-M3-DEV"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The Log page, or the serial console around the problem. Remove anything private (Wi-Fi passwords, tokens).
+      render: shell

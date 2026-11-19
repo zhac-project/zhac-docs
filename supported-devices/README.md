@@ -6,7 +6,7 @@ ZHAC recognises **4,989 device definitions** from **400 manufacturers**. Countin
 
 **Is my device supported?** [Search the list](https://zhac.org/devices/) by brand, model or the IDs your device reports, or open its brand below. Once a device has joined, the hub's Devices page shows its model ID and manufacturer name.
 
-**Not listed?** A device that uses the standard Zigbee clusters for on/off, dimming, colour, battery, temperature, humidity, pressure or illuminance usually works anyway through the generic fallback. Door, motion and leak sensors need a definition. [Request a device](https://github.com/zhac-project/zhac-platform/issues/new?template=device-request.yml) with its model ID and manufacturer name.
+**Not listed?** A device that uses the standard Zigbee clusters for on/off, dimming, colour, battery, temperature, humidity, pressure or illuminance usually works anyway through the generic fallback. Door, motion and leak sensors need a definition. [Request a device](https://github.com/zhac-project/zhac-docs/issues/new?template=device-request.yml) with its model ID and manufacturer name.
 
 The definitions are ported from zigbee2mqtt's zigbee-herdsman-converters, and the model names and descriptions come from it (Copyright © Koen Kanters and contributors, MIT License).
 

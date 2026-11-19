@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 One page for the things that go wrong on a hub in a home. Each entry says what you see, why,
 and the one thing to do next. When a step says "Info" or "Log", that is a page in the hub's
-web UI. If a fix here does not work, [open a bug](https://github.com/zhac-project/zhac-platform/issues/new?template=bug.yml)
+web UI. If a fix here does not work, [open a bug](https://github.com/zhac-project/zhac-docs/issues/new?template=bug.yml)
 and paste the relevant Log lines; the Log never contains your password or API token.
 
 ## I cannot find the hub
@@ -73,7 +73,7 @@ silent for a minute, move it closer and re-pair.
 
 **"No definition for what it reports."** The device joined and works as a radio, but the hub
 does not know how to read it. It stays paired and does nothing yet. Open a
-[device request](https://github.com/zhac-project/zhac-platform/issues/new?template=device-request.yml)
+[device request](https://github.com/zhac-project/zhac-docs/issues/new?template=device-request.yml)
 with the two values the panel shows (model and manufacturer); a definition is usually a small
 change.
 

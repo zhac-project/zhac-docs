@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Device request
+description: A Zigbee device does not pair, pairs as unknown, or is missing values or controls.
+title: "[device] "
+labels: [device-request, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ZHAC's device library is ported from zigbee2mqtt. If zigbee2mqtt supports your
+        device, adding it here is usually quick. The two identifiers below are what matters.
+  - type: input
+    id: product
+    attributes:
+      label: Product name and where you bought it
+      placeholder: "e.g. Aqara Door and Window Sensor T1, AliExpress listing"
+    validations:
+      required: true
+  - type: input
+    id: manufacturer
+    attributes:
+      label: Manufacturer (as ZHAC shows it)
+      description: Devices → your device → Info tab → **Manufacturer**. For Tuya devices this looks like `_TZ3000_xxxxxxxx`.
+      placeholder: "_TZ3000_xwh1e22x"
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model (as ZHAC shows it)
+      description: Devices → your device → Info tab → **Model**, e.g. `TS0203`.
+    validations:
+      required: true
+  - type: input
+    id: z2m
+    attributes:
+      label: zigbee2mqtt device page, if there is one
+      placeholder: "https://www.zigbee2mqtt.io/devices/XXXX.html"
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: What happens in ZHAC today?
+      options:
+        - It does not pair at all
+        - It pairs but shows no values or controls
+        - Some values or controls are missing
+        - Values are wrong (for example 10× too big)
+        - Controls do nothing
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should it show or do?
+      description: The values and controls you expect, as zigbee2mqtt shows them if you know.
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which ZHAC build?
+      options:
+        - Wired, ESP32-P4 board
+        - Wired, ESP32-S31 board
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version
+      description: Info page → **Firmware**.

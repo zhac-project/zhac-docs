@@ -11,7 +11,7 @@ No custom integration, no YAML. Home Assistant keeps doing automations and dashb
 keeps the Zigbee network, and its own rules keep working if Home Assistant is down.
 
 > **Status.** Built and unit-tested; not yet run against a live Home Assistant by the
-> maintainers. Reports welcome — [open an issue](https://github.com/zhac-project/zhac-platform/issues/new?template=bug.yml).
+> maintainers. Reports welcome — [open an issue](https://github.com/zhac-project/zhac-docs/issues/new?template=bug.yml).
 
 ## Set it up (5 minutes)
 

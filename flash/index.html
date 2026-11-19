@@ -130,29 +130,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     </details>
   </section>
 
-  <section class="card" id="dual">
-    <h2>Dual-chip hub — ESP32-S3 + ESP32-P4</h2>
-    <p class="ver">checking for a release…</p>
-    <p>Two boards joined over SPI, with a CC2652P stick as the radio. Wiring is in the
-       <a href="https://github.com/zhac-project/zhac-docs#hardware-wiring">hardware guide</a>.
-       Flash each board separately.</p>
-    <p><strong>ESP32-S3</strong> (network, web UI, MQTT):</p>
-    <zhac-install-button manifest="manifest-dualchip-s3.json"></zhac-install-button>
-    <p><strong>ESP32-P4</strong> (Zigbee, rules, Lua) — silicon v0.x–v1.x only (no v3.x build yet):</p>
-    <zhac-install-button manifest="manifest-dualchip-p4.json"></zhac-install-button>
-    <p>Right after the S3 install, the installer asks for your Wi-Fi name and password and
-       hands them to the hub over the USB cable, then links you to its web UI. This needs the
-       board's UART port; on a board with two USB sockets, use the one marked UART. Reopen this
-       page and press the S3 button again later to change Wi-Fi or find the hub.</p>
-    <p>If you skip that step, the S3 opens a Wi-Fi network called <code>ZHAC-XXXX</code>; its
-       password is printed on the S3's serial console at boot. Join it and pick your home
-       network.</p>
-  </section>
-
   <footer>
     <p>Something went wrong, or you tried another board?
-       <a href="https://github.com/zhac-project/zhac-platform/issues/new/choose">Tell us</a>.
-       Source and docs: <a href="https://github.com/zhac-project/zhac-platform">github.com/zhac-project</a>.
+       <a href="https://github.com/zhac-project/zhac-docs/issues/new/choose">Tell us</a>.
+       Source and docs: <a href="https://github.com/zhac-project">github.com/zhac-project</a>.
        Flashing runs in your browser on <a href="https://github.com/espressif/esptool-js">esptool-js</a>; nothing is uploaded anywhere.</p>
   </footer>
 </main>

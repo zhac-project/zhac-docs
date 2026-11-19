@@ -4,6 +4,12 @@ All notable changes to **zhac-docs** are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Issues and Discussions move here from zhac-platform** (archived): `.github/ISSUE_TEMPLATE/` (bug, device request, board report; the dual-chip and single-chip choices dropped, the label commands now name this repo). Every "report a bug", "request a device" and Discussions link — zhac.org, the flasher, supported devices, `FIRST_20_MINUTES.md`, `TROUBLESHOOTING.md`, `HOME_ASSISTANT.md` — points here. Before the forms work: enable Discussions on this repo and create the labels (commands in `config.yml`).
+- **The browser flasher no longer offers the dual-chip images** (`flash/index.html`, `flash/build-site.sh`): that build never shipped and is archived; its releases stay on GitHub.
+- **README describes the one-board hub** (zhac-wired-core on the ESP32-S31 or the Guition P4 + C6): new architecture and repository sections, the archived repos listed as such, and the dual-chip wiring and build guide replaced by a pointer to zhac-wired-core's build guide. `FEATURES.md` lists the dual-chip and single-chip builds as archived; `CONTRIBUTING.md` and `SECURITY.md` point at the live repos.
+
 ### Added
 
 - **Zigbee device firmware update** (`REST_API.md`, `openapi.yaml`, `FEATURES.md` WC11): `POST /api/device/ota`, `GET /api/device/ota` and `POST /api/device/ota/cancel` on the wired builds: the file check, one update at a time, no older versions, the states and reason codes, and that the hub now answers devices' OTA queries ("no image" while none is loaded).

@@ -139,7 +139,3 @@ publish_parts zhac-wired-core ESP32-P4  manifest-wired-p4.json  "ZHAC wired (ESP
 publish zhac-wired-core ESP32-P4 manifest-rcp-installer-p4.json "ZHAC Zigbee radio installer (Guition P4, one-time)" 0 \
     "zhac-c6-rcp-installer-p4-rev1x-*[0-9].bin:0:199" "zhac-c6-rcp-installer-p4-rev3x-*[0-9].bin:301:399"
 publish zhac-wired-core ESP32-C6 manifest-rcp-c6.json "ZHAC Zigbee radio (ESP32-C6 ot_rcp)" 0 "zhac-rcp-c6-*[0-9].bin"
-# The S3 name must equal kImprovFirmware in zhac-net-core/main/wifi_mgr.cpp:
-# ESP Web Tools matches them to recognise an installed hub.
-publish zhac-platform ESP32-S3 manifest-dualchip-s3.json "ZHAC dual-chip S3" 10 "zhac-dualchip-s3-*[0-9].bin"
-publish zhac-platform ESP32-P4 manifest-dualchip-p4.json "ZHAC dual-chip P4 (silicon v0.x-v1.x)" 0 "zhac-dualchip-p4-*[0-9].bin:0:199"

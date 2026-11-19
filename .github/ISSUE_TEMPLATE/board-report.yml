@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Board report
+description: You ran ZHAC on a board that is not in the supported list — tell us how it went.
+title: "[board] "
+labels: [board-report]
+body:
+  - type: input
+    id: board
+    attributes:
+      label: Board name and a link to it
+    validations:
+      required: true
+  - type: textarea
+    id: chip
+    attributes:
+      label: Chip line from esptool
+      description: "Run `esptool --port <PORT> flash-id` (esptool v4: `esptool.py --port <PORT> flash_id`) and paste the output. The revision matters: ESP32-P4 v1.x and v3.x need different builds."
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: ethernet
+    attributes:
+      label: Ethernet PHY and pins, if the board has Ethernet
+      placeholder: "IP101, MDC 31, MDIO 52, REF_CLK 50, power 51"
+  - type: input
+    id: radio
+    attributes:
+      label: Zigbee radio
+      placeholder: "on-module ESP32-C6 with ot_rcp / ESP32-H2 with ot_rcp on UART1 / native (S31)"
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works?
+      options:
+        - label: Boots without resetting
+        - label: Ethernet or Wi-Fi link comes up
+        - label: The web UI loads
+        - label: The Zigbee network forms
+        - label: A device pairs and shows values
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which ZHAC build did you flash?
+      options:
+        - Wired, Ethernet only
+        - Wired with an ESP32-C5 for Wi-Fi
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Boot log
+      description: The first ~100 lines of the serial console after a reset.
+      render: shell

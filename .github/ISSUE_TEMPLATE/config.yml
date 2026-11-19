@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Issue forms for the whole ZHAC project live here, in the meta-repo.
+# The labels the forms apply must exist first; a form silently drops any
+# label the repository does not have. One-time setup:
+#
+#   gh label create device-request --color 0E8A16 --description "Support for a Zigbee device" -R zhac-project/zhac-docs
+#   gh label create board-report   --color 1D76DB --description "ZHAC on a specific board"   -R zhac-project/zhac-docs
+#   gh label create bug            --color D73A4A --description "Something does not work"      -R zhac-project/zhac-docs --force
+#   gh label create triage         --color FBCA04 --description "Not looked at yet"            -R zhac-project/zhac-docs
+#   gh label create "good first device" --color 7057FF --description "Simple device port, good first contribution" -R zhac-project/zhac-docs
+#
+# The Discussions link below works once Discussions is enabled
+# (Settings -> General -> Features -> Discussions).
+blank_issues_enabled: false
+contact_links:
+  - name: Questions, ideas and show-and-tell
+    url: https://github.com/zhac-project/zhac-docs/discussions
+    about: Ask how to do something, share your setup, or float an idea.
+  - name: Report a security problem
+    url: https://github.com/zhac-project/zhac-docs/blob/master/SECURITY.md
+    about: Please do not open a public issue for security problems.
