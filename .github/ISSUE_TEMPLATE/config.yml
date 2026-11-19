@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Issue forms for the whole ZHAC project live here, in the meta-repo.
+# Issue forms for the whole ZHAC project live here, in zhac-docs.
 # The labels the forms apply must exist first; a form silently drops any
 # label the repository does not have. One-time setup:
 #

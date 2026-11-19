@@ -144,58 +144,51 @@ Sole scripting runtime since 2026-04-21 (Berry removed — see `docs/plans/2026-
 | L16 | Curated libraries behind Kconfig: `cjson`, `lpeg`, `miniz` | ⚠️ | Hooks shipped, sources vendored per flag — default `n` |
 | L17 | Prometheus metrics (`zhac_p4_lua_*`) — heap, peak, live coroutines, errors, yields | ✅ | `metric_registry.def` |
 | L18 | ZCL_RAW capture from Lua | 🔲 | Deferred; use MQTT bridge meanwhile |
-| L19 | Direct ZDO bind/unbind / group membership from Lua | 🔲 | Use REST `/api/devices/:ieee/bind`, `/api/groups/:id/cmd` |
+| L19 | Direct ZDO bind/unbind / group membership from Lua | 🔲 | Use the Bind tab (WebSocket `device.bind`) or `POST /api/group/cmd` |
 | L20 | Persistent KV store accessible from Lua | 🔲 | Planned alongside §7.2 |
 
 ---
 
 ## 5. Communication & API
 
-### 5a. HAP Protocol (S3 ↔ P4)
+### 5a. HAP Protocol (archived)
+
+HAP linked the two chips of the dropped dual-chip design; no shipped firmware speaks it. See
+[HAP_PROTOCOL.md](HAP_PROTOCOL.md).
+
+### 5b. REST API
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| H1 | Binary framing (type, seq, flags, payload) | ✅ | `hap_protocol.h` |
-| H2 | ACK / NO_ACK frame flags | ✅ | `HAP_FLAG_NEEDS_ACK` |
-| H3 | Heartbeat (5 s interval) | ✅ | `HAP_HEARTBEAT_INTERVAL_MS` |
-| H4 | Semaphore-drain before each roundtrip | ✅ | Race fix Q6 |
-| H5 | HAP handler registry (22 message types) | ✅ | `s_hap_handlers[256]` |
-| H6 | Bulk device-event batching (10 ms window) | ✅ | `flush_bulk` task |
-
-### 5b. REST API (S3)
-
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| A1 | API token auth (`REQUIRE_AUTH`) | ✅ | NVS `zhac_auth/token`; all three builds |
-| A18 | Admin password sign-in for the web UI | ✅ | All three builds; first claim bounded to 10 min after power-on |
-| A2 | Rate limiting (`RATE_LIMIT` macro) | ✅ | `POST /permit_join`, `/wifi`, `/ota` |
-| A3 | CORS headers on all authenticated routes | ✅ | `SET_CORS_HEADERS` |
+| A1 | API token auth (`X-Api-Key`) | ✅ | NVS `zhac_auth/token`; while sign-in is on, every route but `GET /api/status` (its public part), `POST /api/auth/login` and `POST /api/auth/setup` |
+| A18 | Admin password sign-in for the web UI | ✅ | First claim bounded to 10 min after power-on |
+| A2 | Sign-in lockout | ✅ | 5 wrong tokens or passwords from one address in 60 s lock that address out (`429`); 20 wrong passwords in 60 s lock password sign-in hub-wide (`auth.cpp`) |
+| A3 | Cross-site check while sign-in is off | ✅ | Another site's `Origin`, or a `Host` that is not the hub's, gets `403 {"error":"cross_site"}`; no CORS headers |
 | A4 | `GET /api/devices` | ✅ | |
-| A5 | `GET /api/devices/{id}` + exposes | ✅ | |
-| A6 | `POST /api/devices/{id}/set` | ✅ | |
-| A7 | `GET/POST/PUT/DELETE /api/rules` | ✅ | Full CRUD |
-| A8 | `GET/POST/DELETE /api/scripts` | ✅ | Lua scripts keyed by name (see `docs/REST_API.md`) |
+| A5 | One device with its exposes | ✅ | WebSocket `device.get`; no REST route |
+| A6 | `POST /api/device/attr/set` | ✅ | Also `/api/device_state` |
+| A7 | `GET`/`POST /api/rules`, `PUT`/`DELETE /api/rules/<id>`, `POST /api/rules/<id>/enable` | ✅ | Full CRUD |
+| A8 | `GET /api/scripts`, `GET`/`PUT`/`POST`/`DELETE /api/scripts/<name>`, `…/run`, `…/check` | ✅ | Lua scripts keyed by name (see `REST_API.md`) |
 | A9 | `POST /api/settings` (broker_url, timezone, ntp_server, MQTT and Home Assistant fields) | ✅ | All fields optional |
-| A10 | `POST /api/wifi` | ✅ | |
-| A11 | `POST /api/ota` (S3 and P4 OTA) | ✅ | Chunked upload; the wired build updates from a URL instead (`ota.update`) |
-| A12 | `GET/POST /api/groups` + auth on GET | ✅ | R7 fix |
-| A13 | `POST /api/permit_join` | ✅ | |
-| A14 | Static file server (SPIFFS, SPA fallback) | ✅ | Path normalization R3 |
-| A15 | Inconsistent response format (`{"ok":true}` vs bare) | ⚠️ | improvements-report §R1 |
-| A16 | Blocking REST handlers (mutex contention) | ⚠️ | improvements-report §P4 |
-| A17 | HTTP method misuse (POST where PATCH expected) | 🔲 | improvements-report §R5 |
+| A10 | `GET /api/net/status` (Ethernet) | ✅ | The Wi-Fi routes are compatibility stubs: status reports Ethernet, the scan is empty, `POST /api/wifi/connect` answers `501` |
+| A11 | Firmware update from an `https://` URL | ✅ | WebSocket `ota.update`, sent by the OTA page; no REST route |
+| A12 | `GET`/`POST /api/groups`, `POST /api/group/get`, `…/update`, `…/delete`, `…/cmd` | ✅ | |
+| A13 | `POST /api/permit_join` | ✅ | Also `/api/zigbee/permit_join` |
+| A14 | Web UI served from the firmware image (SPA fallback) | ✅ | `spa_serve.cpp`: looked up in the packed table, no file system |
+| A15 | Inconsistent response format | ⚠️ | Sign-in and cross-site refusals are JSON; most other errors carry a plain-text reason |
+| A17 | HTTP method misuse (POST where PATCH expected) | 🔲 | e.g. `POST /api/group/update` |
 
 ### 5c. WebSocket & MQTT
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| W1 | WebSocket bridge (S3 → browser push events) | ✅ | `ws_bridge.cpp`; `device.added/updated/removed`, `attr.bulk`, `alert.*` |
-| W2 | MQTT gateway (subscribe + publish) | ✅ | `mqtt_gw`; all builds (the wired build got the real client in 2026-09) |
+| W1 | WebSocket push events to the browser | ✅ | `ws_bridge.cpp`; the events are listed in `WS_API.md` |
+| W2 | MQTT gateway (subscribe + publish) | ✅ | `mqtt_gw` |
 | W3 | MQTT message ingest → `MQTT_MSG` event | ✅ | Rules can trigger on MQTT |
-| W4 | WS command envelope `{id, cmd, args}` | ✅ | 35-entry dispatch table in `ws_bridge.cpp`; calls the same `api_*` as REST |
-| W5 | Preact SPA speaks WS only | ✅ | `www-spa/`; 12 pages; adapts to dual-chip, wired and single-chip hubs |
-| W7 | Home Assistant MQTT discovery | ✅ | `ha_bridge`; dual-chip and wired, off by default |
-| W6 | `SCRIPT_RUN_REQ` (0x58) → `lua_engine_run_script` | ✅ | SPA Run button, REST `/api/scripts/{name}/run`, WS `script.run` |
+| W4 | WS command envelope `{id, cmd, args}` | ✅ | Dispatch table in `ws_bridge.cpp`; REST and WebSocket share the code underneath |
+| W5 | Preact SPA, packed into the firmware | ✅ | `www-spa/`; WebSocket for state and commands, REST for backups, device firmware files and long scripts |
+| W7 | Home Assistant MQTT discovery | ✅ | `ha_bridge`; off by default |
+| W6 | Run a script now → `lua_engine_run_script` | ✅ | SPA Run button, REST `/api/scripts/{name}/run`, WS `script.run` |
 
 ---
 
@@ -222,7 +215,7 @@ Sole scripting runtime since 2026-04-21 (Berry removed — see `docs/plans/2026-
 | S17 | WiFi scan-and-select in Settings UI | ✅ | `GET /api/wifi/scan` + network list |
 | S18 | GPIO0 long-press WiFi credential reset | ✅ | 5s hold → erase NVS, reboot to AP |
 | S19 | MQTT auto-disable in AP mode | ✅ | Greyed out in UI, skipped in firmware |
-| S20 | Wi-Fi setup from the browser flasher (Improv Wi-Fi serial) | ✅ | Dual-chip S3, UART port |
+| S20 | Wi-Fi setup from the browser flasher (Improv Wi-Fi serial) | 🔲 | Was the dual-chip S3's; the hub is wired (Ethernet), Wi-Fi through an ESP32-C5 is in testing |
 | S21 | Browser flasher (ESP Web Tools) with release images built by CI | ✅ | `flash/`; hardware run of each image pending |
 | S22 | Backup and restore of names, rules, scripts and collections | ✅ | Web UI, every build; the Zigbee network itself is not included (wired builds: the full backup, WC10) |
 

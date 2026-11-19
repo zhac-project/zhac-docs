@@ -6,6 +6,9 @@ All notable changes to **zhac-docs** are documented in this file.
 
 ### Changed
 
+- **`SECURITY.md` describes the hub firmware, zhac-wired-core**: the threat model (the P4 ↔ C6 radio UART instead of the two-chip SPI bus), sign-in (lockout, the cross-site check, the WebSocket sign-in deadline), the attack surface (the web UI packed in the firmware, the cloud link), the hardening settings, and OTA: `https://` only, this firmware's own images, no older release unless asked, the trial with rollback, and no signature check. The S3 / P4 OTA routes and `/metrics` are gone.
+- **`FEATURES.md` §5 describes the hub's REST and WebSocket APIs**: §5a HAP is marked archived; §5b lists the routes the firmware has (sign-in lockout and the cross-site check instead of rate limits and CORS, `device.get`, `ota.update`); §5c no longer names the dual-chip builds; L19 points at the Bind tab and `POST /api/group/cmd`; S20 Improv is not on the hub.
+- **The flasher no longer calls the Waveshare ESP32-P4-NANO untested** (`flash/index.html`): the maintainers' hub has run on one since 2026-10-13. The Module-DEV-KIT stays untested.
 - **The API references describe the hub firmware, zhac-wired-core** (`REST_API.md`, `WS_API.md`,
   `LUA_API.md`, `openapi.yaml` 0.4.0): they described the archived S3 net core. Each route,
   WebSocket command and push event is now one the firmware has: the 19 documented routes it never

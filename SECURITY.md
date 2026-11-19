@@ -2,24 +2,22 @@
 
 ## Threat model
 
-ZHAC is a dual-chip Zigbee controller intended for a **trusted home
-LAN**. The baseline assumptions:
+ZHAC is a one-board Zigbee hub (zhac-wired-core, on an ESP32-S31 or an ESP32-P4 with an ESP32-C6
+radio) intended for a **trusted home LAN**. The baseline assumptions:
 
-- The device is connected to a WiFi network under the operator's
-  control. Attackers on the open internet cannot reach it unless the
-  operator deliberately port-forwards.
+- The hub is wired to a network under the operator's control. Attackers on the
+  open internet cannot reach it unless the operator deliberately port-forwards.
 - The physical device sits in a physically-trusted location (same
   category as a home router). An attacker with hands-on access to the
   board can dump flash, attach to UART, or reflash over USB — we do
   not defend against this today (flash encryption is on the backlog,
-  see §NVS / flash encryption below).
+  see [NVS encryption](#nvs-encryption) below).
 - The Zigbee mesh is protected by the network key; we do not
   additionally validate per-device payloads cryptographically beyond
   what Zigbee itself provides.
-- The SPI bus between the S3 (Wi-Fi side) and P4 (Zigbee side) is
-  treated as a **trusted in-chassis bus**. If an attacker can probe
-  or inject on this bus, they control both cores — this is a
-  deliberate design decision. Do not expose the SPI pads externally.
+- On the ESP32-P4 board, the UART between the P4 and the ESP32-C6 radio is
+  treated as a **trusted on-board link**: whoever can probe or inject on it
+  controls the radio. Do not expose those pads.
 
 What is **out** of scope:
 - Internet-exposed deployments without the operator providing their
@@ -31,14 +29,20 @@ What is **out** of scope:
 
 ### API token
 
-All mutating REST endpoints (`POST`, `PUT`, `DELETE`) and sensitive read endpoints require an API token in the `X-Api-Key` request header.
+While sign-in is on, every REST route but those in [Unauthenticated endpoints](#unauthenticated-endpoints),
+and every WebSocket command but `auth`, needs the API token (`X-Api-Key` header on REST; see [REST_API.md](REST_API.md#authentication)).
 
 - The token is a 32-character hex string generated from `esp_fill_random` on first boot.
 - It is stored in NVS namespace `zhac_auth`, key `token`.
-- It is printed in full on the serial console (never in the log the web UI and the cloud see) only while no admin password exists, and on the one boot after a password lockout, which is how an owner with physical access recovers a lost password. Every other boot prints its last four characters only (wired hubs; the dual-chip and single-chip builds print it at every boot).
-- Changing the admin password rotates the token, which signs every other browser out; on wired hubs the first password set-up rotates it too, so the token printed before the hub was claimed stops working.
+- It is printed in full on the serial console (never in the log the web UI and the cloud see) only while no admin password exists, and on the one boot after a password lockout, which is how an owner with physical access recovers a lost password. Every other boot prints its last four characters only.
+- Changing the admin password rotates the token, which signs every other browser out; the first password set-up rotates it too, so the token printed before the hub was claimed stops working. `POST /api/token/rotate` replaces it at any time.
+- Five wrong tokens or passwords from one address within a minute lock that address out (`429`) until the first of them is a minute old; twenty wrong passwords within a minute, from any addresses, stop password sign-in for the whole hub the same way.
 
 The Web UI stores the token in `localStorage` (key `zhac_token`).
+
+With sign-in off the hub needs no token, but it refuses a request whose `Origin` is another site,
+or whose `Host` is not the hub's address or its `.local` name (`403 {"error":"cross_site"}`): a
+page of another site cannot drive the hub through your browser. Any device on the LAN still can.
 
 ### Unauthenticated endpoints
 
@@ -46,14 +50,14 @@ The following endpoints intentionally require no authentication:
 
 | Endpoint | Reason |
 |----------|--------|
-| `GET /api/status` | What the sign-in page needs. With sign-in on (wired, single-chip), a request without the token gets only the `auth_*` fields (and `sku` on wired); monitoring tools send the token for the rest |
-| `GET /metrics` | Prometheus scrape endpoint (no secrets exposed); only active when enabled |
+| `GET /api/status` | What the sign-in page needs. With sign-in on, a request without the token gets only `sku` and the `auth_*` fields; monitoring tools send the token for the rest |
+| `POST /api/auth/login`, `POST /api/auth/setup` | The password exchange. Setup answers only while no password exists, and for 10 minutes after power-on |
 | `GET /*` (static files) | Web UI assets are public |
-| WebSocket `/ws` | Token is sent as first message after connection; unauthenticated WS frames are ignored |
+| WebSocket `/ws` | With sign-in on, a socket must send `auth` with the token within 5 s or it is closed; until it does, every other command is refused (`auth required`) |
 
 ### Response headers
 
-Every answer of the wired hub's web server handlers (not the server's own error answers, such as the 405
+Every answer of the hub's web server handlers (not the server's own error answers, such as the 405
 for a method a path does not take) carries `X-Content-Type-Options: nosniff` and
 `Referrer-Policy: no-referrer` (links out of the hub page do not send its address). The web UI's
 Content-Security-Policy lets its WebSocket reach only the hub itself (`connect-src 'self'` and the
@@ -65,7 +69,7 @@ version list.
 **Current state:** All communication is plain HTTP and unencrypted WebSocket (`ws://`). This is acceptable for local-network IoT devices where the threat model is assumed to be a trusted home network.
 
 The hub's own TLS clients (updates, the cloud link, `mqtts://`) check the server certificate against
-IDF's CA bundle and its host name. On the wired and single-chip builds they also check the
+IDF's CA bundle and its host name. They also check the
 certificate's dates once the hub's clock is set (SNTP or the web UI); before that the dates cannot be
 judged and are left out. Whatever the clock says, a certificate that ended before the day the firmware
 was built is refused, so a clock set back does not bring it back. The clock itself comes from SNTP
@@ -78,7 +82,7 @@ broker address sends its user name and password in clear (`mqtt://`).
 
 **Current state:** NVS is unencrypted: zhac-wired-core enables neither flash nor NVS encryption.
 
-**Planned:** `nvs_flash_secure_init` with an eFuse-burned key. This protects credentials (WiFi password, API token, MQTT broker URL) against physical flash extraction.
+**Planned:** `nvs_flash_secure_init` with an eFuse-burned key. This protects credentials (API token, MQTT broker URL with its user name and password, the cloud link's token) against physical flash extraction.
 
 ## Attack surface
 
@@ -86,18 +90,18 @@ broker address sends its user name and password in clear (`mqtt://`).
 
 | Surface | Notes |
 |---------|-------|
-| HTTP REST API | Auth token gates all mutations; static file handler uses `path_normalize()` to block directory traversal |
-| WebSocket | Only broadcasts state; inbound frames require valid token |
-| MQTT | Subscribes to `zhac/#`; publishes device state and alerts. Broker URL is configurable. No TLS yet. |
-| Prometheus `/metrics` | Disabled by default; exposes non-sensitive counters only |
+| HTTP REST API | Sign-in gates every route but those listed above; with sign-in off, the cross-site check. The web UI is served from a pack inside the firmware image: a path is looked up in its table, never on a file system |
+| WebSocket | Sign-in as above; a frame over 8 KB closes the session |
+| MQTT | Publishes device state and takes commands under its root topic. `mqtts://` checks the broker as above |
+| ZHAC Cloud link | Outbound `wss://` only, off until the owner connects it. The relay may not change the cloud settings (`remote_scripts`, `log_to_cloud`) |
 
 ### Physical
 
 | Surface | Notes |
 |---------|-------|
-| UART (serial) | Exposes ESP-IDF log output including boot messages. No shell. |
+| UART (serial) | Exposes ESP-IDF log output including boot messages; the API token in full only on the boots described above. No shell. |
 | USB flashing | Anyone with physical USB access can reflash. Standard ESP32 threat model. |
-| NVS | Unencrypted until Sprint 5. Flash extraction exposes WiFi credentials and API token. |
+| NVS | Unencrypted. Flash extraction exposes the API token, the password hash, MQTT credentials and the cloud token. |
 
 ### Firmware
 
@@ -105,53 +109,35 @@ broker address sends its user name and password in clear (`mqtt://`).
 |-----------|--------|
 | Brownout detection | Enabled via `sdkconfig.defaults` |
 | FreeRTOS stack watchpoints | Enabled |
-| Stack canaries | Enabled |
+| Stack canaries | Enabled (strong) |
 | Core dump to flash | Enabled (`CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH`) |
 | Task watchdog | 10 s timeout, triggers panic |
-| OTA SHA-256 integrity | Blocked on mbedTLS linkage in IDF v6 (see TODO in `p4_ota.cpp`) |
+| App rollback | Enabled (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`): see [OTA security](#ota-security) |
 
 ## OTA security
 
-### S3 firmware update (`POST /api/ota`)
-
-S3 OTA uses `esp_https_ota`. The endpoint requires authentication (API token) but has the following limitations:
-
-| Property | Status |
-|----------|--------|
-| Transport encryption | Available when `https://` URL is supplied, but **server identity is not verified** (`skip_cert_common_name_check = true`, no CA certificate configured) |
-| Image signing / integrity | **None** — no SHA-256 or signature check after download |
-| Rate limiting | 60 s cooldown between requests |
-
-**Threat:** A LAN-MITM attacker who can intercept the HTTP/HTTPS response for the OTA URL can serve arbitrary firmware. The authentication token prevents unauthenticated trigger of OTA, but once triggered the image itself is trusted unconditionally.
-
-**Mitigations available now:**
-- Use OTA URLs on a dedicated, isolated VLAN or point directly at a device on the same L2 segment.
-- Prefer `https://` OTA URLs — provides transport confidentiality even without server authentication.
-- Monitor serial output during OTA for unexpected source IPs.
-
-**Path to resolution:** Configure `esp_http_client_config_t.cert_pem` with a CA certificate once TLS is enabled (see `docs/FEATURE.md` — TLS). Full image signing requires Secure Boot v2 (ESP-IDF feature, separate from this project).
-
-### P4 firmware update (`POST /api/p4-ota`)
-
-P4 OTA is delivered chunk-by-chunk over the HAP SPI link from S3. Additional limitations on top of S3 OTA:
+The hub updates itself from a URL the owner gives: the WebSocket `ota.update` command, which the web
+UI's OTA page sends (the page reads the version list from GitHub and hands the hub one download URL).
 
 | Property | Status |
 |----------|--------|
-| Image integrity | **None** — no CRC32, no SHA-256 over the full image |
-| Per-chunk verification | **None** — a dropped or corrupted SPI chunk is written to flash silently |
-| SHA-256 signing | Blocked on mbedTLS linkage in IDF v6 (see `TODO` in `p4_ota.cpp`) |
+| Who may start it | The API token holder while sign-in is on |
+| Transport | `https://` only, every redirect included; the server is checked as in [Transport security](#transport-security) |
+| Which image | This firmware's own project only, and no older release unless the owner asks for one ("Allow an older version") |
+| Integrity | ESP-IDF validates the written image (`esp_ota_end`) before the hub boots it: a broken or cut-off image is refused |
+| Authenticity | **None**: no signature check, Secure Boot v2 is not enabled |
+| Trial and rollback | The new firmware runs on trial: unless its storage, web server, event dispatcher and sign-in storage, plus the device store and the Zigbee radio if they worked before the update, stay healthy for five minutes in a row within ten minutes, the hub goes back to the previous version; so does a restart before then. A lost Ethernet link does not count against it |
 
-**Threat:** A corrupt flash write (from SPI noise, flash wear, or an incomplete transfer) produces a broken P4 image. The device will attempt to boot it; if the image is invalid, P4 will crash-loop and require a serial reflash.
-
-**Planned mitigation:** CRC32 full-image accumulation in `p4_ota.cpp` (see `docs/FEATURE.md` — P4 OTA CRC32). This stops accidental corruption; it does not stop a deliberate attack.
+**Threat:** whoever may start an update can install any image that passes these checks from any
+HTTPS server: nothing proves the image came from the ZHAC project. Keep sign-in on, and take
+images from the project's releases (the OTA page's version list) or your own build.
 
 ## Known limitations
 
-1. **No token rotation** — API token cannot be changed without reflashing or NVS wipe.
-2. **No rate limiting on read endpoints** — Only `permit_join`, `wifi`, and `ota` have rate limiting.
-3. **No TLS** — All traffic is cleartext on the local network.
-4. **MQTT credentials** — MQTT broker URL (including any embedded credentials) is stored in plaintext NVS.
-5. **Prometheus endpoint has no auth** — By design for compatibility with Prometheus scrapers; disable if on an untrusted network.
+1. **No TLS on the hub's own web server** — the web UI, REST and WebSocket are plain HTTP on the local network.
+2. **Unsigned updates** — see [OTA security](#ota-security).
+3. **Credentials in unencrypted NVS** — the MQTT broker URL (with any user name and password in it) and the cloud token, see [NVS encryption](#nvs-encryption).
+4. **Sign-in off means open to the LAN** — the cross-site check stops only other sites' pages in a browser.
 
 ## Responsible disclosure
 
