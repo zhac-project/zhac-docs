@@ -27,6 +27,11 @@ components:
       type: apiKey
       in: header
       name: X-Api-Key
+      description: >-
+        Needed while sign-in is on. Five wrong keys or passwords from one address within a minute
+        lock it out: until the first of them is a minute old, every route that needs the key answers
+        429 too_many_attempts (Retry-After: 60), even to the right key. A request without the key
+        counts as a wrong one.
 
   responses:
     Reason:

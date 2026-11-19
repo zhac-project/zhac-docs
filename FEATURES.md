@@ -162,7 +162,7 @@ HAP linked the two chips of the dropped dual-chip design; no shipped firmware sp
 |---|---------|--------|-------|
 | A1 | API token auth (`X-Api-Key`) | ✅ | NVS `zhac_auth/token`; while sign-in is on, every route but `GET /api/status` (its public part), `POST /api/auth/login` and `POST /api/auth/setup` |
 | A18 | Admin password sign-in for the web UI | ✅ | First claim bounded to 10 min after power-on |
-| A2 | Sign-in lockout | ✅ | 5 wrong tokens or passwords from one address in 60 s lock that address out (`401` even to the right token, `429` on password sign-in); 20 wrong passwords in 60 s lock password sign-in hub-wide (`auth.cpp`) |
+| A2 | Sign-in lockout | ✅ | 5 wrong tokens or passwords from one address in 60 s lock that address out (`429` even to the right token, `Retry-After: 60`); 20 wrong passwords in 60 s lock password sign-in hub-wide (`auth.cpp`) |
 | A3 | Cross-site check while sign-in is off | ✅ | Another site's `Origin`, or a `Host` that is not the hub's, gets `403 {"error":"cross_site"}`; no CORS headers |
 | A4 | `GET /api/devices` | ✅ | |
 | A5 | One device with its exposes | ✅ | WebSocket `device.get`; no REST route |
