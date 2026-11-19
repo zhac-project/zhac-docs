@@ -253,8 +253,10 @@ The cloud relay runs the same commands as this socket, with these limits:
 `group.cmd` sends the command to every member of the collection. On the wired build, On, Off and
 Toggle (`{cluster:6, cmd:0|1|2}`, or `state` = `ON` / `OFF` / `TOGGLE`) go out as one ZCL groupcast
 when a native ZCL group (the device page's Groups tab) holds exactly the collection's members, at
-least two and none of them asleep, so they switch together. Otherwise, or when the hub has sent 4
-broadcasts in the last 9 seconds, each member gets its own command. The reply is the same either way.
+least two, none of them asleep, and each with the Groups and On/Off (genOnOff) server clusters on its
+endpoint, so they switch together. A Tuya data-point switch, whose on/off is a data-point write, keeps
+the collection on one command per member. Otherwise, or when the hub has sent 4 broadcasts in the
+last 9 seconds, each member gets its own command. The reply is the same either way.
 
 ---
 

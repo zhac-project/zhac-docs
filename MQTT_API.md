@@ -120,8 +120,9 @@ Assistant reads after a restart.
   hub's availability ping. The hub pings such a device after `ZHAC_PING_S` seconds without a message
   from it (10 minutes by default, like zigbee2mqtt's availability); nothing within 30 seconds and it
   is offline until its next message. A command the device did not take is checked at once: the hub
-  looks its address up again and resends the command once (to its new address when it moved); when
-  nobody answers the lookup, the device is offline right away.
+  looks its address up again and resends the command once (to its new address when it moved; not a
+  Toggle or a step, which may have run with only its acknowledgements lost, and not a command a newer
+  one has replaced); when nobody answers the lookup, the device is offline right away.
 
 Home Assistant shows a device unavailable when this topic or the hub's own says `offline`. The hub
 page shows an Offline badge, and a rule can act on it: `ON Offline#<device> DO … ENDON`.
