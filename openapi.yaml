@@ -327,7 +327,7 @@ paths:
         '200':
           description: >-
             {"state":"idle"}, or state (waiting, sending, done, failed, cancelled), ieee, manuf, image_type,
-            file_version, size, offset, pct, fits, reason (same_version, device_status, device_aborted, device_left),
+            file_version, size, offset, pct, fits, reason (same_version, device_newer, device_status, device_aborted, device_silent, device_left),
             device_status, elapsed_s, and once the device asked device_manuf, device_image_type, device_version
           content:
             application/json:

@@ -675,7 +675,8 @@ start, so a vendor prefix before it is fine, and serves the image's total size
 from there; bytes after it are ignored. It does not compare the file with the
 device's node descriptor: the device's own query decides (manufacturer code
 and image type), and the state below says when it asked for another image.
-Then the hub sends the device an Image Notify (query jitter 100) so an awake
+A device that already runs this version, or a newer one, is not sent the
+file: the hub does not install older versions. Then the hub sends the device an Image Notify (query jitter 100) so an awake
 device asks at once; a sleepy one asks when it wakes.
 
 **Response:** `200` `{"manuf": 4476, "image_type": 8449, "file_version": 587751985, "size": 245760}`.
@@ -701,9 +702,10 @@ device asks at once; a sleepy one asks when it wakes.
 
 `state`: `waiting` (for the device's query), `sending`, `done` (the device has
 the whole image and applies it at once; `reason` `same_version` when it
-already ran it), `failed` (`reason`: `device_status` with the device's
-Upgrade End status in `device_status`, `device_aborted`, `device_left`),
-`cancelled`. The `device_*` fields appear once the device asked (Query Next
+already ran it), `failed` (`reason`: `device_newer` (the device runs a newer
+version and keeps it), `device_status` with the device's Upgrade End status in
+`device_status`, `device_aborted`, `device_silent` (no block request for 10
+minutes while sending; waiting has no limit), `device_left`), `cancelled`. The `device_*` fields appear once the device asked (Query Next
 Image) and stay after the end, so they show the version it runs after its
 restart. `fits` turns `false` when the device asked for another manufacturer
 code or image type: it will never take this file.
