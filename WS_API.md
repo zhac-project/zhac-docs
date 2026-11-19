@@ -1,15 +1,17 @@
 # ZHAC WebSocket API Reference
 
-**URL:** `ws://<device-ip>/ws`
-**Transport:** single endpoint serves both the command-envelope RPC
-and the unsolicited push-event stream. Text frames only. UTF-8 JSON.
+**URL:** `ws://<hub>/ws`
+**Transport:** one endpoint carries both the command-envelope RPC and the unsolicited push
+events. Text frames only, UTF-8 JSON.
 
-The Preact SPA under `www-spa/` is the first-party consumer of this
-API and speaks WebSocket only. REST (see [`REST_API.md`](REST_API.md))
-is retained for scripts and third-party integrations; every command
-below is byte-identical to its REST equivalent because both transports
-call the same `api_*` handler in
-`zhac-net-core/main/api_handlers.cpp`.
+The web UI (`www-spa/`) is the first-party client and speaks WebSocket only; the ZHAC Cloud
+relay runs the same commands (see [Remote editing from ZHAC Cloud](#remote-editing-from-zhac-cloud)).
+REST ([`REST_API.md`](REST_API.md)) is there for scripts and other integrations. The two are
+separate handlers in the firmware: WebSocket commands in `zhac-wired-core/main/ws_bridge.cpp`,
+REST routes in `zhac-wired-core/main/api_*.cpp`. Many of them call the same code underneath (the
+device commands in `device_cmd`, settings, collections, the cloud link), but each transport reads
+its own arguments and frames its own reply: the shapes below are the WebSocket ones, a REST
+route's are in `REST_API.md`.
 
 ---
 
@@ -21,20 +23,20 @@ call the same `api_*` handler in
 { "id": 42, "cmd": "<name>", "args": { /* command-specific */ } }
 ```
 
-- `id` — any JSON value (int, string, null). Echoed verbatim on the
-  response so the client can correlate. Integers are the common case.
-- `cmd` — command name; see the dispatch table below.
-- `args` — optional object. Passed through to the handler as the
-  same body it would receive from a REST POST/PUT.
+- `id` — an unsigned 32-bit integer, echoed on the reply so the client can match the two.
+  Anything else (a string, a negative or fractional number, no `id`) is answered with `id` 0.
+- `cmd` — command name; see the tables below.
+- `args` — optional object, read by the command.
 
 ### Response — success
 
 ```json
-{ "id": 42, "ok": true, "data": { /* handler output */ } }
+{ "id": 42, "ok": true, "data": { /* command output */ } }
 ```
 
-`data` is embedded verbatim, not re-serialised — the handler writes
-JSON directly into the response buffer.
+`data` is an object or an array, depending on the command. A command with nothing to report
+answers `{"id": 42, "ok": true}`. `ping` is the one exception: `{"id", "ok": true, "pong": true,
+"uptime_s"}`, with no `data`.
 
 ### Response — error
 
@@ -42,151 +44,215 @@ JSON directly into the response buffer.
 { "id": 42, "ok": false, "err": "<reason>" }
 ```
 
-Possible `err` strings: `missing cmd`, `unknown cmd`, `bad request`,
-`not found`, `method not allowed`, `alloc failed`, `response too large`,
-`internal error`.
+`err` is a short English message. The envelope's own are `bad json` (the frame is not JSON;
+answered with `id` 0), `missing cmd`, `unknown cmd`, `auth required` and `auth failed`. Every
+other belongs to its command; common ones are `missing ieee`, `bad ieee`, `device not found` and
+`oom`.
+
+### Signing in
+
+While the hub's sign-in is on, a new socket must send `{"cmd": "auth", "args": {"token": "…"}}`
+before anything else: every other command is answered `auth required` until then, and a socket
+that has not signed in within 5 seconds is closed (a full table closes the oldest such socket to
+make room for a new one). The token rides a frame, never the URL; see
+[`REST_API.md`](REST_API.md#authentication) for the tokens. A socket opened while sign-in is off
+starts signed in, and `auth` on a signed-in socket just answers `ok`.
 
 ### Size limits
 
 - Inbound frame: at most 8,192 bytes. A longer frame closes the session (the hub cannot answer a
-  request it did not read); send a long script with `POST /api/scripts/<name>` and check it with
-  `POST /api/scripts/<name>/check` (wired and single-chip hubs).
+  request it did not read); send a long script in parts (`script.part`, below) or with
+  `POST /api/scripts/<name>`, and check it with `POST /api/scripts/<name>/check`.
 - Inbound frame time: each frame, PING and CLOSE included, must arrive within 8 seconds of the
   start of its read (at most 11 s: the check comes before each read, which can wait 3 s); a slower
   one closes the session (one frame held the hub's web server while it trickled in). The hub
   answers a PING with a PONG and a CLOSE with a CLOSE.
-- Request body (`args` serialised): 2 KB stack buffer.
-- Response body: 8 KB PSRAM buffer, **40 KB for `logs.get`**.
-- Envelope overhead: 1 KB additional PSRAM.
+- Replies: each command sizes its own. `logs.get` answers at most 32 KB of log lines; long lists
+  come in pages when asked: `device.list` and `rule.list` with `cursor`, `script.read` with
+  `offset` (below).
 
-Implementation: `dispatch_envelope` in
-`zhac-net-core/main/ws_bridge.cpp`.
+Implementation: `dispatch_envelope` in `zhac-wired-core/main/ws_bridge.cpp`; frames, sign-in and
+deadlines in `zhac-components/components/ws_server/`.
 
 ---
 
-## Command dispatch table
+## Commands
 
-The table below mirrors `kWsCmds[]` in `ws_bridge.cpp`. Each row maps
-a command name to an `api_*` handler and the equivalent REST route.
+"REST route" names the route that does the same thing over HTTP, where there is one.
 
 ### Status / system
 
-| cmd | handler | REST equivalent |
-|-----|---------|-----------------|
-| `status.get` | `api_status_get` | `GET /api/status` |
-| `time.set` | `api_time_set` | none (WS only) |
-| `alerts.get` | `api_alerts_get` | `GET /api/alerts` |
-| `logs.get` | `api_logs_get` | `GET /api/logs` |
-| `diagnostics.unhandled.get` | `api_diagnostics_unhandled_get` | `GET /api/diagnostics/unhandled` |
-| `settings.set` | `api_settings_set` | `POST /api/settings` |
+| cmd | REST route |
+|-----|------------|
+| `auth` | — (see [Signing in](#signing-in)) |
+| `ping` | — |
+| `status` / `status.get` | `GET /api/status` |
+| `time.set` | — |
+| `alerts.get` | — |
+| `logs.get` | `GET /api/logs` |
+| `diagnostics.unhandled` / `diagnostics.unhandled.get` | `GET /api/diagnostics/unhandled` |
+| `diag.tasks` | — |
+| `settings.set` | `POST /api/settings` |
+| `token.rotate` | `POST /api/token/rotate` |
+| `system.restart` | — |
+| `system.storage_reset` | — |
 
-`time.set` `{"epoch": <Unix seconds>}` hands a hub the time when it has none. No ZHAC board
-has a battery-backed clock, so a hub without internet access (no NTP) starts every boot at
-1970, and its scheduled rules wait. The hub takes the time only while its own clock is unset:
-the reply `{"set": true}` means it did, `{"set": false}` that its clock was already set and was
-left alone. `status.get` reports `clock_set`, and the web UI sends `time.set` by itself when that
-is `false`. An epoch before 2020 or after 2099 is an error.
+- `status` and `status.get` answer the snapshot `GET /api/status` returns; both fill it with the
+  same code (`api_status_fill`).
+- `time.set` `{"epoch": <Unix seconds>}` hands a hub the time when it has none. No ZHAC board
+  has a battery-backed clock, so a hub without internet access (no NTP) starts every boot at
+  1970, and its scheduled rules wait. The hub takes the time only while its own clock is unset:
+  the reply `{"set": true}` means it did, `{"set": false}` that its clock was already set and was
+  left alone. `status.get` reports `clock_set`, and the web UI sends `time.set` by itself when that
+  is `false`. An epoch before 2020 or after 2099 is an error.
+- `alerts.get` answers an empty list, `[]`: the hub keeps no alerts.
+- `logs.get` answers `{"logs": [...]}`, the hub's recent log lines.
+- `diagnostics.unhandled` answers the Zigbee messages no device definition handled (the Diag
+  page's list), filled by the same code as `GET /api/diagnostics/unhandled`.
+- `diag.tasks` answers `{"cores":2,"tasks":[{"name","core","cpu","prio","stack_free"}, …]}`: every
+  FreeRTOS task with its CPU share since the previous call (per-task 0–100, so the sum may reach
+  100 × cores), the core it is pinned to (−1 = any), priority and stack headroom; the Diag page
+  polls it every 5 s.
+- `settings.set` takes the same object as `POST /api/settings` (one code path,
+  `system_apply_settings`), at most 511 bytes of JSON here, and answers `ok` or `bad settings`.
+  What the cloud relay may not change is under [Remote editing](#remote-editing-from-zhac-cloud).
+- `token.rotate` replaces the hub's API token and answers the new one, `{"token": "…"}`.
+- `system.restart` answers, then restarts the hub.
+- `system.storage_reset` erases the device store and the settings (partitions `zhac_data` and
+  `nvs`) and restarts the hub. The Zigbee network (`zb_storage`), the coordinator's address and
+  the scripts stay.
 
-### WiFi
+### Network
 
-| cmd | handler | REST equivalent |
-|-----|---------|-----------------|
-| `wifi.status` | `api_wifi_status` | `GET /api/wifi/status` |
-| `wifi.scan` | `api_wifi_scan` | `GET /api/wifi/scan` |
-| `wifi.connect` | `api_wifi_connect` | `POST /api/wifi` |
-| `wifi.disconnect` | `api_wifi_disconnect` | `DELETE /api/wifi` |
+| cmd | REST route |
+|-----|------------|
+| `net.status` | `GET /api/net/status` |
+| `uplink.get` | — |
+| `wifi.status` | `GET /api/wifi/status` |
+| `wifi.scan` | `GET /api/wifi/scan` |
+| `wifi.connect` | `POST /api/wifi/connect` |
+| `wifi.disconnect` | `POST /api/wifi/disconnect` |
 
-### OTA
+`net.status` answers the Ethernet link: `{transport: "ethernet", link_up, has_ip, ip, netmask,
+gateway, mac, speed_mbps, duplex, hostname}`. The hub has no Wi-Fi: `wifi.status` reports
+`mode: "eth"` with an empty `ssid` and `rssi` 0, `wifi.scan` an empty `networks` list, and
+`wifi.connect` / `wifi.disconnect` the error `wifi unsupported: zhac-wired-core is Ethernet-only`.
+`uplink.get` answers `{"uplink": "none"}`. (A test build with an ESP32-C5 Wi-Fi co-processor, not
+released, answers the `wifi.*` commands from the co-processor.)
 
-| cmd | handler | REST equivalent |
-|-----|---------|-----------------|
-| `ota.s3` | `api_ota_s3` | `POST /api/ota` |
-| `ota.p4` | `api_ota_p4` | `POST /api/p4-ota` |
-| `ota.update` (wired) | `cmd_ota_update` | none (WS only) |
+### Firmware update
 
-`ota.update` `{"url": "https://…-ota.bin", "allow_older": false}` updates a wired hub; it answers at
+| cmd | REST route |
+|-----|------------|
+| `ota.update` | — |
+
+`ota.update` `{"url": "https://…-ota.bin", "allow_older": false}` updates the hub; it answers at
 once and reports `ota.start`, `ota.progress` and `ota.complete` (target `self`). The hub installs
 only an image of its own firmware (the same `project_name`), and a release older than the running
 one only with `allow_older: true`; otherwise `ota.complete` carries `ok: false` and the reason.
 A pre-release `vYYYYMMDDVV-rcN` comes just before its release (`-rc1` before `-rc2` before the
 release); a developer build (`git describe` with commits on top) is never older and calls nothing
 older. A download the server redirects again after the hub resolved its address ends the attempt:
-`ota.complete` says so and the hub restarts, with nothing written.
+`ota.complete` says so and the hub restarts, with nothing written. Zigbee devices' own firmware
+goes over REST: [Device firmware update](REST_API.md#device-firmware-update).
 
-### Zigbee control
+### Zigbee network
 
-| cmd | handler | REST equivalent |
-|-----|---------|-----------------|
-| `zigbee.permit_join` | `api_zigbee_permit_join` | `POST /api/permit_join` |
-| `zigbee.reset` | `api_zigbee_reset` | `POST /api/zigbee/reset` |
-| `zigbee.settings.set` | `api_zigbee_settings_set` | `POST /api/zigbee/settings` |
-| `net.map.scan` | wired build: starts a network-map scan, replies `{started:true}`; errors `busy`, `not_ready`, `oom` | — |
-| `net.map.get` | wired build: `{scanning, progress:{done,total,current}, map}`; `map` is `null` before the first scan | — |
+| cmd | REST route |
+|-----|------------|
+| `zigbee.permit_join` | `POST /api/permit_join` |
+| `zigbee.permit_join.status` | — |
+| `zigbee.reset` | — |
+| `zigbee.settings.set` | — |
+| `net.map.scan` | — |
+| `net.map.get` | — |
+
+- `zigbee.permit_join` takes `duration` 0–254 (255 is clamped to 254 on the radio);
+  `zigbee.permit_join.status` answers `{open, remaining_sec}`, reading the same deadline the REST
+  route sets.
+- `zigbee.reset` marks the Zigbee network for erasure at the next boot, forgets every device and
+  restarts the hub, which then forms a new network: every device has to pair again.
+- `zigbee.settings.set` always answers the error `channel and network key settings are not
+  available on this hub yet -- nothing was saved`.
+- `net.map.scan` starts a network-map scan and replies `{started: true}`; errors `busy`,
+  `not_ready`, `oom`. `net.map.get` answers `{scanning, progress: {done, total, current}, map}`;
+  `map` is `null` before the first scan.
 
 ### Devices
 
-| cmd | handler | REST equivalent |
-|-----|---------|-----------------|
-| `device.list` | `api_device_list` | `GET /api/devices` |
-| `device.get` | `api_device_get` | `GET /api/devices/:ieee` — response includes the `exposes` array (see below) |
-| `device.bind` | `api_device_bind` | `POST /api/devices/:ieee/bind` |
-| `device.delete` | `api_device_delete` | `DELETE /api/devices/:ieee` |
-| `device.rename` | `api_device_rename` | `PUT /api/devices/:ieee/attrs` (name field) |
-| `diag.tasks` | — (wired and single-chip builds) | — |
-| `device.reinterview` | `api_device_reinterview` | `POST /api/devices/:ieee/interview` |
+| cmd | REST route |
+|-----|------------|
+| `device.list` | `GET /api/devices` |
+| `device.get` | — |
+| `device.rename` | — |
+| `device.delete` | — |
+| `device.attr.set` | `POST /api/device/attr/set` |
+| `device.options.set` | `POST /api/device/options/set` |
+| `device.reinterview` | `POST /api/device/reinterview` |
+| `device.configure` | `POST /api/device/configure` |
+| `device.bind` | — |
+| `device.groups.list` / `device.groups.add` / `device.groups.remove` / `device.groups.refresh` | — |
 
-On the wired build `device.bind` and `device.groups.add` / `remove` / `refresh` answer when the device
-did, up to about 10 seconds later; the hub keeps serving other requests meanwhile. They go out one at
-a time. With one running and four waiting, another is answered at once with
-`busy -- another radio command is still running, try again`. Commands relayed from the cloud still run
-on the cloud link's own task and are not queued.
+`device.list` without arguments answers the bare array of every device: `{ieee, nwk, friendly,
+name, model, manufacturer, vendor, model_id, known, last_seen, lqi, battery, ep_count, …}`, with
+`offline: true` on a device that left its availability ping unanswered and `local: true` on the
+Hub I/O device (UIs hide its Zigbee buttons). With `{"cursor": "0"}` it answers pages,
+`{items: [...], next_cursor}`, the cursor being the last IEEE address of the page; the last page
+has no `next_cursor`. The cloud relay always gets pages.
+
+`device.get` answers one device with its endpoints, clusters, stored values and, when a device
+definition matches, an `exposes` array of `{name, type, access, unit, values}` entries, built by
+`zhac_adapter_build_exposes_json` from the definition (`PreparedDefinition`). The web UI's States
+tab uses the `access` bitmask (bit 0 = STATE, bit 1 = SET, bit 2 = GET) to render read-only
+labels, editable inputs or enum dropdowns.
+
+- `device.attr.set {ieee, key, value}` writes one value to the device (what its States tab
+  writes) and answers `ok` or the reason it could not.
+- `device.configure {ieee}` runs the device's bindings, reporting setup and first reads again,
+  as after pairing (for a device paired before its definition gained them); error `device unknown
+  or never interviewed`.
+- `device.groups.list {ieee}` answers the native ZCL groups the device is in (the device page's
+  Groups tab). `device.groups.add` / `device.groups.remove {ieee, gid, ep}` put an endpoint
+  (default 1) into group `gid` (1–65535) or take it out; `device.groups.refresh {ieee, ep}` reads
+  the device's own list again.
+- `device.bind` and `device.groups.add` / `remove` / `refresh` answer when the device did, up to
+  about 10 seconds later; the hub keeps serving other requests meanwhile. They go out one at a
+  time. With one running and four waiting, another is answered at once with
+  `busy -- another radio command is still running, try again`. Commands relayed from the cloud
+  still run on the cloud link's own task and are not queued. The Hub I/O device refuses the
+  Zigbee-only commands (`device.bind`, `device.reinterview`, `device.configure`,
+  `device.groups.add` / `remove` / `refresh`).
 
 Rename, delete and permit join share one implementation with REST (`device_cmd` in
 zhac-components): `device.rename` refuses names over 29 bytes or with quotes, backslashes or
 control characters; `device.delete` with `hard: false` (default) asks the device to leave and
-hides it, `hard: true` also wipes its stored row, shadow and converter caches;
-`zigbee.permit_join` takes `duration` 0–254 (255 is clamped to 254 on the radio) and
-`zigbee.permit_join.status` reads the same deadline the REST route set. `diag.tasks` answers
-`{"cores":2,"tasks":[{"name","core","cpu","prio","stack_free"}, …]}`: every FreeRTOS task with
-its CPU share since the previous call (per-task 0–100, so the sum may reach 100 × cores), the core
-it is pinned to (−1 = any), priority and stack headroom; the Diag page polls it every 5 s. The `rule.added` /
-`rule.updated` / `rule.deleted` pushes are emitted for every change, whichever door made it
-(WebSocket, REST, backup restore), on the wired and mono builds.
+hides it, `hard: true` also wipes its stored row, shadow and converter caches.
 
-`device.get` / `device.list` responses carry an `exposes` array with
-`{name, type, access, unit, values}` entries, built on P4 by
-`zhac_adapter_build_exposes_json` from the device's
-`PreparedDefinition`. The SPA `StatesTab` uses the `access` bitmask
-(bit 0 = STATE, bit 1 = SET, bit 2 = GET) to render read-only labels,
-editable inputs, or enum dropdowns.
+`device.get` of a motion sensor that reports motion but never "no motion" (its definition has
+zigbee2mqtt's `occupancy_timeout` option) also carries `occupancy_timeout_default` (the
+definition's default, seconds: 90, or 62 / 32 for some Aqara models) and `occupancy_timeout` (the
+interval in force: the user's choice once saved, else the default; 0 = never). The hub reports
+`occupancy = false` that long after the last motion. `device.options.set {"ieee",
+"occupancy_timeout": N}` saves the user's choice (0–65535; out of range is refused). Devices
+without the option carry neither field.
 
-On the wired build, `device.get` of a motion sensor that reports motion but never "no motion"
-(its definition has zigbee2mqtt's `occupancy_timeout` option) also carries
-`occupancy_timeout_default` (the definition's default, seconds: 90, or 62 / 32 for some Aqara
-models) and `occupancy_timeout` (the interval in force: the user's choice once saved, else the
-default; 0 = never). The hub reports `occupancy = false` that long after the last motion.
-`device.options.set {"ieee", "occupancy_timeout": N}` saves the user's choice (0–65535; out of
-range is refused). Devices without the option carry neither field.
-
-`device.get` on the wired build also carries `no_occupancy_since` (seconds, 0 = off), zigbee2mqtt's `no_occupancy_since` option with one interval, for any motion sensor. Once the device reports `occupancy = false` (or the hub's no motion interval does) and that many seconds pass without motion, the hub sets the device value `no_occupancy_since` to N; the next motion sets it back to 0, so an edge-triggered rule fires once per quiet period. A repeated "no motion" report does not restart a running count, and after a hub restart counting starts again at the next motion change. `device.options.set {"ieee", "no_occupancy_since": N}` saves it (0–65535; out of range is refused). `device.options.set` merges each call into the device's stored options.
+`device.get` also carries `no_occupancy_since` (seconds, 0 = off), zigbee2mqtt's `no_occupancy_since` option with one interval, for any motion sensor. Once the device reports `occupancy = false` (or the hub's no motion interval does) and that many seconds pass without motion, the hub sets the device value `no_occupancy_since` to N; the next motion sets it back to 0, so an edge-triggered rule fires once per quiet period. A repeated "no motion" report does not restart a running count, and after a hub restart counting starts again at the next motion change. `device.options.set {"ieee", "no_occupancy_since": N}` saves it (0–65535; out of range is refused). `device.options.set` merges each call into the device's stored options.
 
 ### Rules
 
-| cmd | handler | REST equivalent |
-|-----|---------|-----------------|
-| `rule.list` | `api_rule_list` | `GET /api/rules` |
-| `rule.create` | `api_rule_create` | `POST /api/rules` |
-| `rule.delete` | `api_rule_delete` | `DELETE /api/rules` |
-| `rule.enable` | `api_rule_enable` | `PUT /api/rules` |
-| `rule.update` | `api_rule_update` | `PUT /api/rules/:id` |
-| `rule.check` | — (wired build) | — |
-| `rules.status` | — (wired build) | — |
-| `rule.run` | — (wired build) | — |
+| cmd | REST route |
+|-----|------------|
+| `rule.list` | `GET /api/rules` |
+| `rule.create` | `POST /api/rules` |
+| `rule.update` | `PUT /api/rules/<id>` |
+| `rule.delete` | `DELETE /api/rules/<id>` |
+| `rule.enable` | `POST /api/rules/<id>/enable` |
+| `rule.check` | — |
+| `rules.status` | — |
+| `rule.run` | — |
 
-On the wired build:
-
-- `rule.list {"cursor": "0"}` answers one page, `{"items": [{id, enabled, trigger_type, rule_type, name, dsl}, …], "next_cursor": "<last id>"}`: rows sorted by id, after the cursor, at most 6,144 bytes of rows; the last page has no `next_cursor`. Without `cursor` it answers the bare array, as before.
-- `rule.create {name, dsl, enabled}` answers `{"id": <new id>, "enabled": <bool>}`. `enabled` false creates the rule Off in one step, so it never runs before it is switched on; absent or `null` means On, and anything but a boolean is refused (`enabled must be true or false`). The echo, and the capability `rules.v2` below, tell a caller such as the cloud that the hub knows the argument. Older firmware answers without `enabled` and creates the rule On. The single-chip build answers the same.
+- `rule.list {"cursor": "0"}` answers one page, `{"items": [{id, enabled, trigger_type, rule_type, name, dsl}, …], "next_cursor": "<last id>"}`: rows sorted by id, after the cursor, at most 6,144 bytes of rows; the last page has no `next_cursor`. Without `cursor` it answers the bare array.
+- `rule.create {name, dsl, enabled}` answers `{"id": <new id>, "enabled": <bool>}`. `enabled` false creates the rule Off in one step, so it never runs before it is switched on; absent or `null` means On, and anything but a boolean is refused (`enabled must be true or false`). The echo, and the capability `rules.v2` below, tell a caller such as the cloud that the hub knows the argument. Older firmware answers without `enabled` and creates the rule On.
 - `rule.update {id, name, dsl, base}`: with `base` (the lowercase hex SHA-256 of the rule text the editor opened), the hub answers `changed` and saves nothing when the stored text is different. A rule deleted on the hub in the meantime answers `changed` too; a reload then shows it gone.
 - `rule.check {dsl}` answers `{"ok": bool, "err": "<parser message>"}` and saves nothing.
 
@@ -202,21 +268,21 @@ See [RULES_DSL.md](RULES_DSL.md#rule-status-and-run-now).
 
 ### Scripts
 
-| cmd | handler | REST equivalent |
-|-----|---------|-----------------|
-| `script.list` | `api_script_list` | `GET /api/scripts` |
-| `script.read` | `api_script_read` | `GET /api/scripts/:name` |
-| `script.write` | `api_script_write` (wired: WebSocket too) | `POST /api/scripts/:name` |
-| `script.part` | — (wired build) | — |
-| `script.check` | — | `POST /api/scripts/:name/check` |
-| `script.delete` | `api_script_delete` | `DELETE /api/scripts/:name` |
-| `script.run` | `api_script_run` | `POST /api/scripts/:name/run` |
-| `script.reload` | — (wired build) | — |
+| cmd | REST route |
+|-----|------------|
+| `script.list` | `GET /api/scripts` |
+| `script.read` | `GET /api/scripts/<name>` |
+| `script.write` | `PUT` or `POST /api/scripts/<name>` |
+| `script.part` | — |
+| `script.check` | `POST /api/scripts/<name>/check` |
+| `script.delete` | `DELETE /api/scripts/<name>` |
+| `script.run` | `POST /api/scripts/<name>/run` |
+| `script.reload` | — |
 
-`script.run` routes through HAP message `SCRIPT_RUN_REQ = 0x58` to the
-P4, which calls `lua_engine_run_script(const char*)`.
+`script.run {name}` queues the script on the Lua task (`lua_engine_run_script`) and answers at
+once; error `queue saturated or missing`.
 
-On the wired build (one request frame from the cloud must fit 8,192 bytes, so a long text travels in parts):
+One request frame from the cloud must fit 8,192 bytes, so a long text travels in parts:
 
 - `script.list` items carry `mtime` (epoch seconds) when the hub's clock was set at the save.
 - `script.read {name, offset}` answers one page `{src, offset, size, fp, next_offset?}`: at most 6,144 bytes of JSON-encoded text, whole characters only; `size` and `fp` (the lowercase hex SHA-256 of the whole file) repeat on every page. Without `offset` it answers `{src}`, the whole file (up to 16,384 bytes).
@@ -227,7 +293,21 @@ On the wired build (one request frame from the cloud must fit 8,192 bytes, so a 
 - A REST save over 16,384 bytes is answered 413, and a chunked one (`Transfer-Encoding` without `Content-Length`, which the hub's HTTP server cannot read) 411; the stored script is kept either way.
 - If the hub restarted twice in a row while its scripts were starting (a load at boot or Apply, or the minute after it), it holds them: the next boot does not start them, a rule's `script.run` action is skipped, `script.run` (and REST `POST /api/scripts/<name>/run`, 500) answers `scripts are held: the hub restarted twice while scripts were starting; Apply starts them again`, `status.get` and every `status.tick` carry `scripts_held` (the script that was loading at the last crash, `""` when unknown; a tick without it means the hold ended), and `script.error` repeats the reason once a minute. A `script.reload` that completes, or a clean boot, ends the hold.
 
-### Remote editing from ZHAC Cloud (wired build)
+### Cloud link
+
+| cmd | REST route |
+|-----|------------|
+| `remote.status` | `GET /api/remote/status` |
+| `remote.connect` | `POST /api/remote/connect` |
+| `remote.disconnect` | `POST /api/remote/disconnect` |
+
+`remote.status` answers the link's state: `{enabled, state, connected_since, last_event_at,
+rtt_ms, tx_drops, auth_fails, log_sent, log_dropped}`. `remote.connect {url, token, device_id}`
+stores the cloud's address and the hub's token and connects (`url + token required`; an empty
+`device_id` keeps the stored one). `remote.disconnect` drops the link; with `{"forget": true}` it
+also erases the stored address and token.
+
+### Remote editing from ZHAC Cloud
 
 The cloud relay runs the same commands as this socket, with these limits:
 
@@ -236,22 +316,28 @@ The cloud relay runs the same commands as this socket, with these limits:
 - The relay passes `rule.check`, `script.part` and every rule command.
 - Every rule change (`rule.create`, `rule.update`, `rule.enable`, `rule.delete`, `rule.run`), every script change (`script.write`, `script.delete`, `script.run`, `script.reload`) and `system.restart` that the relay passes is written to the hub's log with the tag `cloud`, before it runs, e.g. `I (812345) cloud: script.write by <account id> name=heating`; the line adds `id=<n>` when the command carries a numeric `id`, and `name=<name>` when its `name` fits `[A-Za-z0-9_-]{1,24}` (every script name, and a rule name of that shape such as `porch_light`); any other name is left out. No other command the relay passes is logged.
 - Firmware with these commands says so when it connects: `caps: ["rules.v1", "rules.v2", "scripts.v1", "logs.v1"]`, `remote_scripts` and `log_to_cloud`.
-  `rules.v2` (wired, since review 2026-10-28): `rule.create` takes `enabled` and echoes it.
-- Every frame the hub sends to the cloud or to its own page is valid UTF-8: a byte that is not (a REST-uploaded script, a log line, a dual-chip rule text cut at 127 bytes) goes out as `?`. The hub does this where frames leave it, so the JSON keeps its shape and length.
+  `rules.v2` (since review 2026-10-28): `rule.create` takes `enabled` and echoes it.
+- Every frame the hub sends to the cloud or to its own page is valid UTF-8: a byte that is not (a REST-uploaded script, a log line) goes out as `?`. The hub does this where frames leave it, so the JSON keeps its shape and length.
 
-### Groups
+### Collections and native groups
 
-| cmd | handler | REST equivalent |
-|-----|---------|-----------------|
-| `group.list` | `api_group_list` | `GET /api/groups` |
-| `group.create` | `api_group_create` | `POST /api/groups` |
-| `group.get` | `api_group_get` | `GET /api/groups/:id` |
-| `group.update` | `api_group_update` | `PUT /api/groups/:id` |
-| `group.delete` | `api_group_delete` | `DELETE /api/groups/:id` |
-| `group.cmd` | `api_group_cmd` | `POST /api/groups/:id/cmd` |
+| cmd | REST route |
+|-----|------------|
+| `group.list` | `GET /api/groups` |
+| `group.create` | `POST /api/groups` |
+| `group.get` | `POST /api/group/get` |
+| `group.update` | `POST /api/group/update` |
+| `group.delete` | `POST /api/group/delete` |
+| `group.cmd` | `POST /api/group/cmd` |
+| `groups.all` | — |
 
-`group.cmd` sends the command to every member of the collection. On the wired build, On, Off and
-Toggle (`{cluster:6, cmd:0|1|2}`, or `state` = `ON` / `OFF` / `TOGGLE`) go out as one ZCL groupcast
+`group.*` are the hub's collections; each command and its REST route run the same code
+(`zhac-wired-core/main/api_groups.cpp`), so they take and answer the same JSON. `groups.all`
+answers every native ZCL group the hub knows, with its member devices (the global Groups tab);
+see `device.groups.*` above for one device's groups.
+
+`group.cmd` sends the command to every member of the collection. On, Off and Toggle
+(`{cluster:6, cmd:0|1|2}`, or `key` `state` with `val` `ON` / `OFF` / `TOGGLE`) go out as one ZCL groupcast
 when a native ZCL group (the device page's Groups tab) holds exactly the collection's members, at
 least two, none of them asleep, and each with the Groups and On/Off (genOnOff) server clusters on its
 endpoint, so they switch together. A Tuya data-point switch, whose on/off is a data-point write, keeps
@@ -262,8 +348,7 @@ last 9 seconds, each member gets its own command. The reply is the same either w
 
 ## Push events
 
-Events are broadcast unsolicited to every connected client using the
-envelope:
+Events are broadcast unsolicited to every signed-in socket using the envelope:
 
 ```json
 { "event": "<name>", "data": <payload> }
@@ -272,65 +357,65 @@ envelope:
 `data` is a JSON value of any shape — object, array, number, string.
 No `id` field, no correlation — events are fire-and-forget.
 
-Implementation: `ws_event_broadcast(name, payload_json, payload_len)`
-in `zhac-net-core/main/ws_bridge.cpp`, fan-out protected by a
-mutex over a 2 KB file-static scratch slab.
+Implementation: `push_event` in `zhac-wired-core/main/ws_bridge.cpp`. Each event is built in its
+own PSRAM buffer and goes to every signed-in socket (`ws_server_broadcast`) and, while the cloud
+link is up, to the cloud, which gets the bare payload.
 
 ### Event catalogue
 
-| event | emitted from | payload |
-|-------|--------------|---------|
-| `device.added` | `hap_bridge.cpp` on `DEVICE_JOINED` | `{ieee, ...device summary}` |
-| `device.updated` | `hap_bridge.cpp` on identity / state change | `{ieee, ...device summary}` |
-| `device.removed` | `hap_bridge.cpp` on `DEVICE_DELETED` | `{ieee}` |
-| `device.list.snapshot` | `hap_bridge.cpp` after HAP resync | `[{...}, ...]` — full device array |
-| `attr.bulk` | `hap_bridge.cpp` coalesced 100 ms window | `[{type:"device_update", ieee, attrs:{...}, lqi, last_seen}, ...]` |
-| `alert.added` | `hap_bridge.cpp` on new persisted alert | `{code, ieee, msg, ts}` |
-| `alert.fired` | `hap_bridge.cpp` on transient alert | `{code, ieee, msg, ts}` |
-| `net.map.progress` | wired build, after each router answers a map scan; hub page only, never the cloud | `{done, total, current}` |
-| `net.map.done` | wired build, scan finished; the page then calls `net.map.get` | `{ts, ok, err?}` |
-| `script.added` / `script.updated` | wired: a script was saved (REST or WebSocket) | `{name, size, fp, mtime?}` |
-| `script.deleted` | wired: a script was deleted | `{name}` |
-| `script.error` | wired: a script failed to compile at load, reload or run, or raised an error while running; at most one per script per 10 s and 17 in all per 10 s; once a minute while the hub holds its scripts | `{name, line, message}` (`message` at most 120 bytes; `name` only when it is `[A-Za-z0-9_-]{1,24}`, else `""`) |
-| `rule.added` / `rule.updated` | wired: a rule was saved, switched on or off (any door) | the row `rule.list` carries: `{id, enabled, trigger_type, rule_type, name, dsl}` |
-| `hub.caps` | wired: "Allow script changes from the cloud" or "Log to cloud" changed | `{caps, remote_scripts, log_to_cloud}` |
-| `log.batch` | wired, Log to cloud on: every 5 s, or once 6 KB waits | `{boot, seq, up, clock, dropped, lines: [[up_ms, "E"\|"W"\|"I", tag, msg], …]}`, at most 6,144 bytes; `seq` is the first line's number in this run, `clock` the hub's epoch ms or 0 when its clock is not set |
-| `log.tail` | wired, Log to cloud on: once per run, first | `{boot, prev_boot, up, clock, reason, planned, prev_clock_base, prev_sent, crash, lines: [[up_ms, level, tag, msg, seq], …]}`: why the hub restarted, a crash summary, and the previous run's lines the cloud never got |
+| event | when | payload |
+|-------|------|---------|
+| `attr.changed` | a device reported a value | `{ieee, key, value, nwk, ep, cluster, attr_id, ts?}`: `ts` in epoch seconds, absent while the hub's clock is unset |
+| `attr.bulk` | a device answered again after a silence, or left its availability ping unanswered | `[{ieee, last_seen?, offline, attrs: {}}]` |
+| `device.added` | a device joined | `{ieee, friendly, name}` |
+| `device.removed` | a device left the network | `{ieee}` |
+| `group.added` / `group.updated` | a collection was created or changed | the collection, as `group.get` answers it |
+| `group.deleted` | a collection was deleted | `{id}` |
+| `rule.added` / `rule.updated` | a rule was saved, switched on or off | the row `rule.list` carries: `{id, enabled, trigger_type, rule_type, name, dsl}` |
+| `rule.deleted` | a rule was deleted | `{id}` |
+| `script.added` / `script.updated` | a script was saved (REST or WebSocket) | `{name, size, fp, mtime?}` |
+| `script.deleted` | a script was deleted | `{name}` |
+| `script.error` | a script failed to compile at load, reload or run, or raised an error while running; at most one per script per 10 s and 17 in all per 10 s; once a minute while the hub holds its scripts | `{name, line, message}` (`message` at most 120 bytes; `name` only when it is `[A-Za-z0-9_-]{1,24}`, else `""`) |
+| `status.tick` | every 10 s | `{local_time, fw_version, ip, mac, link_up, link_speed, link_duplex, mqtt_connected, ws_clients, scripts_held?, …}`: the Info page's live values |
+| `ota.start` / `ota.progress` / `ota.complete` | a firmware update (`ota.update`) started, advanced or ended | see `ota.update` |
+| `net.map.progress` | after each router answers a map scan; hub page only, never the cloud | `{done, total, current}` |
+| `net.map.done` | the scan finished; the page then calls `net.map.get` | `{ts, ok, err?}` |
+| `hub.caps` | "Allow script changes from the cloud" or "Log to cloud" changed | `{caps, remote_scripts, log_to_cloud}` |
+| `log.batch` | Log to cloud on: every 5 s, or once 6 KB waits; to the cloud only | `{boot, seq, up, clock, dropped, lines: [[up_ms, "E"\|"W"\|"I", tag, msg], …]}`, at most 6,144 bytes; `seq` is the first line's number in this run, `clock` the hub's epoch ms or 0 when its clock is not set |
+| `log.tail` | Log to cloud on: once per run, first; to the cloud only | `{boot, prev_boot, up, clock, reason, planned, prev_clock_base, prev_sent, crash, lines: [[up_ms, level, tag, msg, seq], …]}`: why the hub restarted, a crash summary, and the previous run's lines the cloud never got |
 
-### `log.entry` — currently disabled
+The `rule.*` pushes are sent for every change, whichever door made it (WebSocket, REST, the
+cloud, a backup restore), and the `script.*` ones for every save and delete, REST included. The
+`group.*` ones follow the WebSocket commands only (the cloud's included): a collection changed
+over REST is not pushed.
 
-The log ring (`zhac-net-core/main/log_ring.cpp`) is capable of
-emitting a `log.entry` event per log line, but `s_ws_enabled` is
-force-initialised to `false`. Per-line broadcast caused httpd
-back-pressure and a feedback storm through `log_vprintf_hook`
-during bootstrap. The SPA Logs page polls `logs.get` every 5 s as
-a stopgap. Re-enabling needs a dedicated TaskLogStream — see
-[`TODO.md`](TODO.md) "Follow-ups from 2026-04-22".
+### Log lines
+
+The web UI's Log page polls `logs.get` every 5 s. A push per log line exists but is off: settings
+`log_ws_enabled: true` with `log_ws_level` (`E`, `W` or `I`; `settings.set` or
+`POST /api/settings`) turns it on until the hub restarts. Every line at that level or worse then
+goes to every socket as a bare frame, not an event envelope:
+`{"type": "log", "level": "W", "entry": {…}}`. Per-line pushes once stalled the hub's web server
+under boot load, which is why the page polls.
 
 ---
 
 ## Connection lifecycle
 
-1. Client opens `ws://<host>/ws`. `ws_server` handles the HTTP
-   upgrade.
-2. `WsRxCallback(int fd, payload, len)` is invoked for every text
-   frame; non-JSON frames are rejected with `err: "bad request"`.
-3. `ws_server_reply(fd, ...)` sends the envelope back on the
-   originating socket. Push events go to every connected socket.
-4. LRU purge (`cfg.lru_purge_enable = true` in `ws_server_init`)
-   evicts the oldest idle socket when `max_open_sockets` is hit —
-   keeps mobile browsers with 6 speculative connections from
-   exhausting `accept()`.
-
-Authentication: the bearer token accepted on REST also gates `/ws`;
-see [`REST_API.md`](REST_API.md) "Authentication" and the open
-follow-up in [`TODO.md`](TODO.md) for the planned session cookie.
+1. The client opens `ws://<hub>/ws`; `ws_server` (zhac-components) handles the HTTP upgrade.
+2. While sign-in is on, the first frame must be `auth` ([Signing in](#signing-in)).
+3. Only text frames are read. Each is parsed as JSON and dispatched; a frame that is not JSON is
+   answered `bad json` with `id` 0.
+4. Replies go to the socket that asked (`ws_server_reply`); events go to every signed-in socket.
+5. The hub's web server holds at most 9 sockets, HTTP and WebSocket together; when a new one
+   arrives and none is free, the one idle longest is closed. Mobile browsers open several
+   speculative connections, and this keeps them from locking the hub page out.
 
 ---
 
 ## See also
 
-- [`REST_API.md`](REST_API.md) — per-endpoint request / response shapes (same schema on both transports).
-- [`LUA_API.md`](LUA_API.md) §8–§9 — Scripts REST + WS surface.
-- `zhac-net-core/main/ws_bridge.cpp` — dispatcher source of truth.
-- `zhac-net-core/main/api_handlers.{h,cpp}` — every `api_*` called by the table above.
+- [`REST_API.md`](REST_API.md) — the REST routes, with their own request and reply shapes.
+- [`LUA_API.md`](LUA_API.md) §8–§9 — scripts over REST and WebSocket.
+- `zhac-wired-core/main/ws_bridge.cpp` — the command dispatcher (`dispatch_envelope`) and the event pushes.
+- `zhac-components/components/ws_server/` — the socket server: frames, sign-in, deadlines.

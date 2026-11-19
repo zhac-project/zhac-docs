@@ -3,16 +3,23 @@
 openapi: 3.0.3
 info:
   title: ZHAC REST API
-  version: 0.3.1
+  version: 0.4.0
   description: |
-    REST API for the ZHAC ESP32 Zigbee hub.
-    All mutating endpoints and sensitive reads require `X-Api-Key` header.
+    REST API of the ZHAC hub firmware (zhac-wired-core). REST_API.md is the reference text;
+    this file follows it.
+
+    While sign-in is on, every route except `GET /api/status`, `POST /api/auth/login` and
+    `POST /api/auth/setup` needs the `X-Api-Key` header (401 `unauthorized` without it).
+    With sign-in off no token is needed, but a request from another site's page, or through
+    a host name that is not the hub's, is refused (403 `cross_site`).
 servers:
   - url: http://{host}
     variables:
       host:
         default: zhac.local
         description: Device IP or mDNS hostname
+security:
+  - ApiKey: []
 
 components:
   securitySchemes:
@@ -20,6 +27,30 @@ components:
       type: apiKey
       in: header
       name: X-Api-Key
+
+  responses:
+    Reason:
+      description: Refused; the reason in the body (for example `missing ieee`)
+      content:
+        text/plain:
+          schema: { type: string }
+    CrossSite:
+      description: Sign-in off, and the request came from another site's page (`cross_site`)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  parameters:
+    RuleId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1, maximum: 65535 }
+    ScriptName:
+      name: name
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,24}$' }
 
   schemas:
     Ok:
@@ -33,191 +64,918 @@ components:
       properties:
         error: { type: string }
 
+    Token:
+      type: object
+      properties:
+        ok:    { type: boolean }
+        token: { type: string, description: 32 hex digits }
+
+    Password:
+      type: object
+      required: [password]
+      properties:
+        password: { type: string, minLength: 8, maxLength: 63 }
+
+    IeeeBody:
+      type: object
+      required: [ieee]
+      properties:
+        ieee: { type: string, example: "0x00158D0001020304" }
+
+    IdBody:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer }
+
+    Settings:
+      type: object
+      description: Every field optional; send only what changes.
+      properties:
+        broker_url:              { type: string, example: "mqtt://192.168.1.10:1883" }
+        mqtt_enabled:            { type: boolean }
+        mqtt_client_id:          { type: string }
+        mqtt_root_topic:         { type: string }
+        mqtt_tls_pin:            { type: string, description: "SHA-256 fingerprint of the broker's certificate (64 hex digits); empty removes it" }
+        ha_discovery:            { type: boolean }
+        ha_prefix:               { type: string }
+        ntp_server:              { type: string, maxLength: 63, description: "Empty for pool.ntp.org" }
+        timezone:                { type: string, example: "CET-1CEST,M3.5.0,M10.5.0/3" }
+        auth_enabled:            { type: boolean }
+        ap_disabled:             { type: boolean }
+        metrics_enabled:         { type: boolean }
+        metrics_mqtt_enabled:    { type: boolean }
+        metrics_mqtt_interval_s: { type: integer }
+        log_mqtt_enabled:        { type: boolean, description: Until the next restart }
+        log_mqtt_level:          { type: string, enum: [E, W, I, D, V] }
+        log_ws_enabled:          { type: boolean, description: Until the next restart }
+        log_ws_level:            { type: string, enum: [E, W, I, D, V] }
+        remote_scripts:          { type: boolean }
+        log_to_cloud:            { type: boolean }
+
     Device:
       type: object
       properties:
-        ieee:      { type: string, example: "0x00158D0001234567" }
-        nwk:       { type: integer, example: 12345 }
-        name:      { type: string, example: "Living Room Bulb" }
-        vendor:    { type: string, example: "Philips" }
-        model:     { type: string, example: "LCA001" }
-        type:      { type: string, enum: [bulb, plug, sensor, relay, button, cube] }
-        ps:        { type: string, enum: [mains, battery, dc] }
-        lqi:       { type: integer, minimum: 0, maximum: 255 }
-        last_seen: { type: integer, description: Seconds since last message }
-        eps:       { type: array, items: { type: integer } }
-        clusters:  { type: array, items: { type: array, items: { type: integer } } }
-        attrs:     { type: object, additionalProperties: true }
-        exposes:   { type: array, items: { type: object } }
-        bindings:  { type: array, items: { type: object } }
+        ieee:         { type: string, example: "0x00158D0001020304" }
+        nwk:          { type: integer, example: 4660 }
+        friendly:     { type: string, example: front_door }
+        model:        { type: string, description: "From the matched definition, else the device's own string" }
+        vendor:       { type: string }
+        manufacturer: { type: string }
+        model_id:     { type: string }
+        last_seen:    { type: integer, description: "Unix time of the last frame; 0 while unknown" }
+        lqi:          { type: integer, minimum: 0, maximum: 255 }
+        battery:      { type: integer, description: Percent }
+        power_source: { type: integer, description: ZCL Basic power source }
+        ep_count:     { type: integer }
+        endpoints:    { type: array, items: { type: integer } }
+        attrs:        { type: object, additionalProperties: true }
 
-    Rule:
-      type: object
-      properties:
-        id:     { type: integer }
-        name:   { type: string }
-        dsl:    { type: string }
-        active: { type: boolean }
-
-    Script:
-      type: object
-      description: Lua script metadata (file in /scripts/<name>.lua on P4 SPIFFS).
-      properties:
-        name: { type: string, example: "motion", description: "Script filename without extension; [a-z][a-z0-9_-]{0,23}" }
-        size: { type: integer, description: "Source size in bytes" }
-
-    Group:
+    Collection:
       type: object
       properties:
         id:      { type: integer }
         name:    { type: string }
-        members: { type: array, items: { type: object, properties: { ieee: { type: string }, ep: { type: integer } } } }
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              ieee: { type: string }
+              ep:   { type: integer, default: 1 }
 
-    Alert:
+    Rule:
       type: object
       properties:
-        code:  { type: integer }
-        ieee:  { type: string }
-        msg:   { type: string }
-        ts:    { type: integer, description: Unix timestamp }
+        id:           { type: integer, minimum: 1, maximum: 65535 }
+        enabled:      { type: boolean }
+        trigger_type: { type: integer }
+        rule_type:    { type: integer }
+        name:         { type: string }
+        dsl:          { type: string }
+
+    Script:
+      type: object
+      properties:
+        name: { type: string, example: motion }
+        size: { type: integer, description: Source size in bytes }
+
+    IoState:
+      type: object
+      properties:
+        target:   { type: string, example: esp32p4 }
+        adc_unit: { type: string }
+        max:      { type: integer }
+        allowed:  { type: array, items: { type: integer } }
+        adc_pins: { type: array, items: { type: integer } }
+        pins:     { type: array, items: { type: object, additionalProperties: true } }
 
 paths:
   /api/status:
     get:
-      summary: System status
+      summary: The hub's state
+      description: |
+        With sign-in on, a request without the token gets only `sku` and the `auth_*` fields.
+        The WebSocket `status` command answers the same object. REST_API.md lists every field.
       operationId: getStatus
+      security: [{}, { ApiKey: [] }]
       responses:
         '200':
-          description: S3 and P4 status
+          description: The status object
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  sku:                  { type: string, example: wired }
+                  fw_version:           { type: string }
+                  uptime_s:             { type: integer }
+                  ip:                   { type: string }
+                  hostname:             { type: string }
+                  zigbee_ok:            { type: boolean }
+                  device_count:         { type: integer }
+                  ota_state:            { type: string, description: "pending while a new firmware is on trial; verified once kept" }
+                  auth_enabled:         { type: boolean }
+                  auth_setup_required:  { type: boolean }
+                  auth_setup_secs_left: { type: integer }
+                  auth_storage_error:   { type: boolean }
+                  storage_error:        { type: boolean }
+                  full_backup:          { type: boolean }
+                  device_ota:           { type: boolean }
+        '403': { $ref: '#/components/responses/CrossSite' }
+        '500': { $ref: '#/components/responses/Reason' }
+
+  /api/settings:
+    post:
+      summary: Update settings
+      description: The WebSocket `settings.set` takes the same object.
+      operationId: postSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Settings' }
+      responses:
+        '200':
+          description: Applied at once, no restart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400': { $ref: '#/components/responses/Reason' }
+
+  /api/token/rotate:
+    post:
+      summary: Replace the API token
+      description: Also at `POST /api/system/token/rotate`.
+      operationId: postTokenRotate
+      responses:
+        '200':
+          description: The new token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Token' }
+        '500': { $ref: '#/components/responses/Reason' }
+
+  /api/logs:
+    get:
+      summary: Recent log lines, oldest first
+      operationId: getLogs
+      responses:
+        '200':
+          description: Each line prefixed with its time in milliseconds
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  heap:            { type: integer }
-                  psram_free:      { type: integer }
-                  psram_total:     { type: integer }
-                  uptime:          { type: integer }
-                  ip:              { type: string }
-                  mac:             { type: string }
-                  wifi:            { type: boolean }
-                  mqtt_connected:  { type: boolean }
-                  ws_clients:      { type: integer }
-                  synced:          { type: boolean }
-                  metrics_enabled: { type: boolean }
-                  p4:
-                    type: object
-                    properties:
-                      devices:     { type: integer }
-                      uptime:      { type: integer }
-                      fw:          { type: string }
-                      psram_free:  { type: integer }
-                      psram_total: { type: integer }
-                      cpu_pct:     { type: integer }
-                      zigbee_ok:   { type: boolean }
-                      synced:      { type: boolean }
+                  logs: { type: array, items: { type: string } }
+        '500': { $ref: '#/components/responses/Reason' }
 
-  /metrics:
+  /api/diagnostics/unhandled:
     get:
-      summary: Prometheus metrics
-      operationId: getMetrics
-      description: Returns metrics in Prometheus text format. Returns 404 if metrics are disabled.
+      summary: Zigbee messages no device definition handled
+      operationId: getUnhandled
       responses:
         '200':
-          description: Prometheus text exposition format (text/plain; version=0.0.4)
+          description: One entry per device, cluster and attribute or command
           content:
-            text/plain:
-              schema: { type: string }
-        '404':
-          description: Metrics disabled
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ieee:    { type: string }
+                        cluster: { type: integer }
+                        id:      { type: integer, description: Attribute or command id }
+                        cs:      { type: boolean, description: A cluster-specific command }
+                        count:   { type: integer }
+                        age_s:   { type: integer, description: Seconds since the last one }
 
-  /api/alerts:
-    get:
-      summary: Alert log
-      operationId: getAlerts
-      security: [{ ApiKey: [] }]
+  /api/auth/login:
+    post:
+      summary: Exchange the admin password for the API token
+      operationId: postAuthLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Password' }
       responses:
         '200':
-          description: Array of recent alerts (up to 32)
+          description: The token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Token' }
+        '401': { description: wrong_password }
+        '409': { description: No password set yet }
+        '415': { description: json_required }
+        '429': { description: "too_many_attempts (Retry-After: 60)" }
+
+  /api/auth/setup:
+    post:
+      summary: Set the first admin password and get the token
+      description: Open only while no password exists, and for 10 minutes after power-on.
+      operationId: postAuthSetup
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Password' }
+      responses:
+        '200':
+          description: The token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Token' }
+        '400': { description: password must be 8-63 characters }
+        '403': { description: already_set or setup_closed (power-cycle the hub to reopen the window) }
+        '415': { description: json_required }
+        '503': { description: storage_error }
+
+  /api/auth/password:
+    post:
+      summary: Change the admin password
+      description: Rotates the API token, which signs other clients out, and returns the new one.
+      operationId: postAuthPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current, new]
+              properties:
+                current: { type: string }
+                new:     { type: string, minLength: 8, maxLength: 63 }
+      responses:
+        '200':
+          description: The new token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Token' }
+        '400': { description: password must be 8-63 characters }
+        '401': { description: wrong_password }
+        '415': { description: json_required }
+
+  /api/net/status:
+    get:
+      summary: The Ethernet link and address
+      operationId: getNetStatus
+      responses:
+        '200':
+          description: Link state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transport:  { type: string, enum: [ethernet] }
+                  link_up:    { type: boolean }
+                  has_ip:     { type: boolean }
+                  ip:         { type: string }
+                  netmask:    { type: string }
+                  gateway:    { type: string }
+                  mac:        { type: string }
+                  speed_mbps: { type: integer }
+                  duplex:     { type: string, enum: [full, half] }
+                  hostname:   { type: string }
+
+  /api/wifi/status:
+    get:
+      summary: A compatibility answer for older clients; the hub is Ethernet-only
+      description: Also at `GET /api/wifi`.
+      operationId: getWifiStatus
+      responses:
+        '200':
+          description: "`mode` is `eth`; the SSID fields are empty"
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+
+  /api/wifi/scan:
+    get:
+      summary: Always an empty list
+      operationId: getWifiScan
+      responses:
+        '200':
+          description: No networks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  networks: { type: array, items: { type: object }, maxItems: 0 }
+
+  /api/wifi/connect:
+    post:
+      summary: Not supported; configure the network on your router
+      description: The same answer at `POST /api/wifi/disconnect` and `POST /api/wifi`.
+      operationId: postWifiConnect
+      responses:
+        '501':
+          description: wifi_unsupported
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/devices:
+    get:
+      summary: Every device
+      description: Also at `GET /api/device/list`.
+      operationId: getDevices
+      responses:
+        '200':
+          description: One object per device
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Alert' }
+                items: { $ref: '#/components/schemas/Device' }
 
-  /api/settings:
+  /api/device/attr/set:
     post:
-      summary: Update system settings
-      operationId: postSettings
-      security: [{ ApiKey: [] }]
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                broker_url:      { type: string, example: "mqtt://192.168.1.10:1883" }
-                timezone:        { type: string, example: "Europe/Berlin" }
-                metrics_enabled: { type: boolean }
-      responses:
-        '200':
-          description: Settings updated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/wifi:
-    post:
-      summary: Update WiFi credentials (triggers reboot)
-      operationId: postWifi
-      security: [{ ApiKey: [] }]
+      summary: Write one value to a device
+      description: |
+        Also at `POST /api/device_state`. `value` may be a boolean, an integer, a decimal (the
+        device's converter scales it) or a string (an enum option).
+      operationId: postDeviceAttrSet
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [ssid]
+              required: [ieee, key, value]
               properties:
-                ssid: { type: string }
-                pass: { type: string }
+                ieee:  { type: string }
+                key:   { type: string, example: state }
+                value: { description: "A boolean, number or string" }
       responses:
         '200':
-          description: Credentials saved, device will reboot
+          description: Sent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400': { $ref: '#/components/responses/Reason' }
+        '404': { $ref: '#/components/responses/Reason' }
+        '500': { $ref: '#/components/responses/Reason' }
+
+  /api/device/options/set:
+    post:
+      summary: Save device options, merged into what is stored
+      description: Also at `POST /api/device/options`. The options are `occupancy_timeout` and `no_occupancy_since`.
+      operationId: postDeviceOptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ieee]
+              additionalProperties: true
+              properties:
+                ieee: { type: string }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400': { $ref: '#/components/responses/Reason' }
+        '500': { $ref: '#/components/responses/Reason' }
+
+  /api/device/reinterview:
+    post:
+      summary: Interview a device again, then run its bindings, reporting setup and first reads
+      operationId: postDeviceReinterview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IeeeBody' }
+      responses:
+        '200':
+          description: "`ok` false with `err` `unknown or sleepy` for a device the hub does not know or that sleeps"
           content:
             application/json:
               schema:
-                allOf:
-                  - { $ref: '#/components/schemas/Ok' }
-                  - type: object
-                    properties:
-                      reboot: { type: boolean, example: true }
+                type: object
+                properties:
+                  ok:  { type: boolean }
+                  err: { type: string }
+        '400': { $ref: '#/components/responses/Reason' }
+
+  /api/device/configure:
+    post:
+      summary: Run a device's bindings, reporting setup and first reads again
+      operationId: postDeviceConfigure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IeeeBody' }
+      responses:
+        '200':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:     { type: boolean }
+                  queued: { type: boolean }
+        '400': { $ref: '#/components/responses/Reason' }
+        '404': { description: Unknown or never interviewed }
 
   /api/permit_join:
     post:
-      summary: Open or close permit-join window
+      summary: Open the Zigbee network for new devices
+      description: Also at `POST /api/zigbee/permit_join`.
       operationId: postPermitJoin
-      security: [{ ApiKey: [] }]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [duration]
               properties:
-                duration: { type: integer, description: "Seconds (0 = close)", example: 60 }
+                duration: { type: integer, minimum: 0, maximum: 254, description: "Seconds; 0 closes it", example: 254 }
       responses:
         '200':
-          description: Command queued
+          description: Open for that long
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:       { type: boolean }
+                  duration: { type: integer }
+        '400': { $ref: '#/components/responses/Reason' }
+        '500': { $ref: '#/components/responses/Reason' }
+
+  /api/groups:
+    get:
+      summary: Every collection of devices
+      operationId: getGroups
+      responses:
+        '200':
+          description: The collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups: { type: array, items: { $ref: '#/components/schemas/Collection' } }
+    post:
+      summary: Create a collection
+      operationId: postGroups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:    { type: string }
+                members: { type: array, items: { type: object, properties: { ieee: { type: string }, ep: { type: integer, default: 1 } } } }
+      responses:
+        '200':
+          description: The new collection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        '500': { description: create failed }
+
+  /api/group/get:
+    post:
+      summary: One collection
+      operationId: postGroupGet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IdBody' }
+      responses:
+        '200':
+          description: The collection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        '404': { description: no such group }
+
+  /api/group/update:
+    post:
+      summary: Rename a collection or replace its members; a field left out stays
+      operationId: postGroupUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:      { type: integer }
+                name:    { type: string }
+                members: { type: array, items: { type: object, properties: { ieee: { type: string }, ep: { type: integer } } } }
+      responses:
+        '200':
+          description: The collection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        '404': { description: no such group }
+
+  /api/group/delete:
+    post:
+      summary: Delete a collection
+      operationId: postGroupDelete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IdBody' }
+      responses:
+        '200':
+          description: "`ok` false when there is no such collection"
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Ok' }
-        '429':
-          description: Rate limited (5 s cooldown)
+
+  /api/group/cmd:
+    post:
+      summary: Send a command to every member
+      description: |
+        `{"id":1,"val":"ON"}` (`key` defaults to `state`), `{"id":1,"cluster":6,"cmd":1}`
+        (On/Off: 0 Off, 1 On, 2 Toggle; cluster 3 command 0 is Identify), or any value with `key`.
+      operationId: postGroupCmd
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:      { type: integer }
+                cluster: { type: integer }
+                cmd:     { type: integer }
+                key:     { type: string, default: state }
+                val:     { description: "A boolean, number or string" }
+      responses:
+        '200':
+          description: "`sent` and `failed` count members; `ok` false with `err` when refused"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:     { type: boolean }
+                  sent:   { type: integer }
+                  failed: { type: integer }
+                  err:    { type: string }
+
+  /api/rules:
+    get:
+      summary: Every rule
+      operationId: getRules
+      responses:
+        '200':
+          description: The rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Rule' }
+    post:
+      summary: Create a rule
+      operationId: postRules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dsl]
+              properties:
+                name:    { type: string }
+                dsl:     { type: string, example: "ON front_door#contact=0 DO zigbee.set lamp state 1 ENDON" }
+                enabled: { type: boolean, nullable: true, description: "Absent or null: On" }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:      { type: boolean }
+                  id:      { type: integer }
+                  enabled: { type: boolean }
+        '400': { description: "missing dsl, enabled must be true or false, or the parser's refusal as {ok: false, err}" }
+
+  /api/rules/{id}:
+    parameters:
+      - $ref: '#/components/parameters/RuleId'
+    put:
+      summary: Replace a rule's name and text
+      operationId: putRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dsl]
+              properties:
+                name: { type: string }
+                dsl:  { type: string }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400': { description: "bad id, or the parser's refusal" }
+    delete:
+      summary: Delete a rule
+      operationId: deleteRule
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '404': { description: rule not found }
+
+  /api/rules/{id}/enable:
+    parameters:
+      - $ref: '#/components/parameters/RuleId'
+    post:
+      summary: Switch a rule on or off
+      operationId: postRuleEnable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: Switched
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '404': { description: rule not found }
+
+  /api/scripts:
+    get:
+      summary: Every Lua script
+      operationId: getScripts
+      responses:
+        '200':
+          description: Name and size of each
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Script' }
+
+  /api/scripts/{name}:
+    parameters:
+      - $ref: '#/components/parameters/ScriptName'
+    get:
+      summary: A script's source
+      operationId: getScript
+      responses:
+        '200':
+          description: The source
+          content:
+            text/plain:
+              schema: { type: string }
+        '400': { description: bad name }
+        '404': { description: not found }
+    put:
+      summary: Create or overwrite a script; the body is the raw Lua source
+      operationId: putScript
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema: { type: string, maxLength: 16384 }
+      responses:
+        '200':
+          description: Stored; Apply on the Scripts page (or a restart) loads it
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400': { description: bad name, or the body did not arrive in full }
+        '408': { description: The body timed out }
+        '411': { description: A chunked upload (send Content-Length) }
+        '413': { description: Over 16384 bytes }
+        '500': { description: write failed }
+    post:
+      summary: The same as PUT
+      operationId: postScript
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema: { type: string, maxLength: 16384 }
+      responses:
+        '200':
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+    delete:
+      summary: Delete a script
+      operationId: deleteScript
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '404': { description: not found }
+
+  /api/scripts/{name}/run:
+    parameters:
+      - $ref: '#/components/parameters/ScriptName'
+    post:
+      summary: Queue a run of the script on the Lua task
+      operationId: postScriptRun
+      responses:
+        '200':
+          description: Queued; runtime errors go to the log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:     { type: boolean }
+                  queued: { type: boolean }
+        '500': { description: "queue saturated or missing, or scripts are held" }
+
+  /api/scripts/{name}/check:
+    parameters:
+      - $ref: '#/components/parameters/ScriptName'
+    post:
+      summary: Check a source without saving it; the body is the source
+      operationId: postScriptCheck
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema: { type: string, maxLength: 16384 }
+      responses:
+        '200':
+          description: The parser's verdict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  err:  { type: string }
+                  line: { type: integer }
+
+  /api/io:
+    get:
+      summary: The hub board's own pins (GPIO.md)
+      operationId: getIo
+      responses:
+        '200':
+          description: The pins the board allows, the analog ones, and each configured pin with its value
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IoState' }
+    put:
+      summary: Replace the pin configuration
+      operationId: putIo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pins]
+              properties:
+                pins: { type: array, items: { type: object, additionalProperties: true } }
+      responses:
+        '200':
+          description: The new state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IoState' }
+        '400':
+          description: A configuration the hub refuses, or a body of 4 KB or more
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/remote/status:
+    get:
+      summary: The link to ZHAC Cloud
+      operationId: getRemoteStatus
+      responses:
+        '200':
+          description: Link state; the token is never in the reply
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:         { type: boolean }
+                  state:           { type: string }
+                  connected_since: { type: integer }
+                  last_event_at:   { type: integer }
+                  rtt_ms:          { type: integer }
+                  tx_drops:        { type: integer }
+                  auth_fails:      { type: integer }
+                  log_sent:        { type: integer }
+                  log_dropped:     { type: integer }
+
+  /api/remote/connect:
+    post:
+      summary: Store the cloud's address and the hub's token, and connect
+      operationId: postRemoteConnect
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, token]
+              properties:
+                url:       { type: string, example: "wss://cloud.example/hub" }
+                token:     { type: string }
+                device_id: { type: string, description: Empty keeps the stored one }
+      responses:
+        '200':
+          description: Connecting
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400': { description: url + token required }
+
+  /api/remote/disconnect:
+    post:
+      summary: Drop the link; forget also erases the stored address and token
+      operationId: postRemoteDisconnect
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                forget: { type: boolean }
+      responses:
+        '200':
+          description: Dropped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:     { type: boolean }
+                  forget: { type: boolean }
 
   /api/backup/full:
     post:
-      summary: Download a full backup of the hub, encrypted with the given password (wired builds)
+      summary: Download a full backup of the hub, encrypted with the given password
       operationId: postBackupFull
       security: [{ ApiKey: [] }]
       requestBody:
@@ -247,7 +1005,7 @@ paths:
 
   /api/backup/restore:
     post:
-      summary: Restore a full backup onto this hub, then restart (wired builds)
+      summary: Restore a full backup onto this hub, then restart
       description: >-
         Body = the password's length in bytes (u16, little-endian), the password (UTF-8), then the file. Checked
         before anything is written; staged in the idle firmware slot and written over the storage at the next boot.
@@ -280,7 +1038,7 @@ paths:
 
   /api/device/ota:
     post:
-      summary: Update one Zigbee device's firmware with an uploaded OTA file (wired builds)
+      summary: Update one Zigbee device's firmware with an uploaded OTA file
       description: >-
         The hub checks the file (OTA header from the start; vendor prefixes and trailing bytes allowed), holds it in
         memory, serves it through its OTA Upgrade server to this device only and sends it an Image Notify. One update
@@ -320,7 +1078,7 @@ paths:
         '503':
           description: radio_busy, no_memory
     get:
-      summary: The device firmware update the hub runs (wired builds)
+      summary: The device firmware update the hub runs
       operationId: getDeviceOta
       security: [{ ApiKey: [] }]
       responses:
@@ -335,7 +1093,7 @@ paths:
 
   /api/device/ota/cancel:
     post:
-      summary: Stop the device firmware update; the device keeps its firmware (wired builds)
+      summary: Stop the device firmware update; the device keeps its firmware
       operationId: postDeviceOtaCancel
       security: [{ ApiKey: [] }]
       responses:
@@ -344,470 +1102,3 @@ paths:
           content:
             application/json:
               schema: { type: object }
-
-  /api/ota:
-    post:
-      summary: Start S3 OTA update
-      operationId: postOta
-      security: [{ ApiKey: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [url]
-              properties:
-                url: { type: string, example: "http://server/s3.bin" }
-      responses:
-        '202':
-          description: OTA queued
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-        '429':
-          description: Rate limited (60 s cooldown)
-
-  /api/p4-ota:
-    post:
-      summary: Start P4 OTA update
-      operationId: postP4Ota
-      security: [{ ApiKey: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [url]
-              properties:
-                url: { type: string, example: "http://server/p4.bin" }
-      responses:
-        '202':
-          description: OTA queued
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/devices:
-    get:
-      summary: List all Zigbee devices
-      operationId: getDevices
-      responses:
-        '200':
-          description: Device array
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/Device' }
-
-  /api/devices/{ieee}:
-    get:
-      summary: Get device detail
-      operationId: getDevice
-      parameters:
-        - { name: ieee, in: path, required: true, schema: { type: string } }
-      responses:
-        '200':
-          description: Device detail with attrs, exposes, bindings
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Device' }
-    put:
-      summary: Update device friendly name
-      operationId: putDevice
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: ieee, in: path, required: true, schema: { type: string } }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
-      responses:
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-    delete:
-      summary: Remove device from network
-      operationId: deleteDevice
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: ieee, in: path, required: true, schema: { type: string } }
-      responses:
-        '200':
-          description: Removed
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/devices/{ieee}/interview:
-    post:
-      summary: Re-interview device
-      operationId: postInterview
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: ieee, in: path, required: true, schema: { type: string } }
-      responses:
-        '200':
-          description: Interview queued
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/devices/{ieee}/bind:
-    post:
-      summary: Create a ZDO bind entry
-      operationId: postBind
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: ieee, in: path, required: true, schema: { type: string } }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [src_ep, cluster, dst_ieee, dst_ep]
-              properties:
-                src_ep:   { type: integer }
-                cluster:  { type: integer }
-                dst_ieee: { type: string }
-                dst_ep:   { type: integer }
-      responses:
-        '200':
-          description: Bind requested
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/devices/{ieee}/unbind:
-    post:
-      summary: Remove a ZDO bind entry
-      operationId: postUnbind
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: ieee, in: path, required: true, schema: { type: string } }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [src_ep, cluster, dst_ieee, dst_ep]
-              properties:
-                src_ep:   { type: integer }
-                cluster:  { type: integer }
-                dst_ieee: { type: string }
-                dst_ep:   { type: integer }
-      responses:
-        '200':
-          description: Unbind requested
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/rules:
-    get:
-      summary: List all rules
-      operationId: getRules
-      security: [{ ApiKey: [] }]
-      responses:
-        '200':
-          description: Rule array
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  rules: { type: array, items: { $ref: '#/components/schemas/Rule' } }
-    post:
-      summary: Create a new rule
-      operationId: postRule
-      security: [{ ApiKey: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, dsl]
-              properties:
-                name: { type: string }
-                dsl:  { type: string }
-      responses:
-        '200':
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-    put:
-      summary: Update an existing rule
-      operationId: putRule
-      security: [{ ApiKey: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [id]
-              properties:
-                id:   { type: integer }
-                name: { type: string }
-                dsl:  { type: string }
-      responses:
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-    delete:
-      summary: Delete a rule
-      operationId: deleteRule
-      security: [{ ApiKey: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [id]
-              properties:
-                id: { type: integer }
-      responses:
-        '200':
-          description: Deleted
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/rules/{id}:
-    put:
-      summary: Update rule by URI id
-      operationId: putRuleById
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name: { type: string }
-                dsl:  { type: string }
-      responses:
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/scripts:
-    get:
-      summary: List all Lua scripts
-      operationId: getScripts
-      security: [{ ApiKey: [] }]
-      responses:
-        '200':
-          description: Script list (may be empty if the P4 script cache is not yet available)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  scripts: { type: array, items: { $ref: '#/components/schemas/Script' } }
-    post:
-      summary: Bulk write Lua scripts
-      operationId: postScriptsBulk
-      security: [{ ApiKey: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                type: object
-                required: [name, src]
-                properties:
-                  name: { type: string, example: "motion", description: "Script filename; [a-z][a-z0-9_-]{0,23}" }
-                  src:  { type: string, description: "Lua 5.5 source text; up to 16384 bytes" }
-      responses:
-        '201':
-          description: Bulk result
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok:      { type: boolean }
-                  written: { type: integer }
-                  failed:  { type: integer }
-        '429':
-          description: HAP channel busy — retry the full batch
-
-  /api/scripts/{name}:
-    get:
-      summary: Read Lua script source
-      operationId: getScript
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: name, in: path, required: true, schema: { type: string, pattern: "^[a-z][a-z0-9_-]{0,23}$" } }
-      responses:
-        '200':
-          description: Lua source text + name
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name: { type: string }
-                  src:  { type: string }
-        '400': { description: Invalid script name }
-        '500': { description: P4 timeout }
-    post:
-      summary: Write Lua script source
-      operationId: postScript
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: name, in: path, required: true, schema: { type: string, pattern: "^[a-z][a-z0-9_-]{0,23}$" } }
-      requestBody:
-        required: true
-        description: Raw Lua source text (<=16384 bytes); no JSON wrapper.
-        content:
-          text/plain:
-            schema: { type: string }
-      responses:
-        '201':
-          description: Saved
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-        '429': { description: HAP channel busy }
-        '500': { description: P4 timeout or encode failure }
-    delete:
-      summary: Delete Lua script (idempotent)
-      operationId: deleteScript
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: name, in: path, required: true, schema: { type: string, pattern: "^[a-z][a-z0-9_-]{0,23}$" } }
-      responses:
-        '200':
-          description: Deleted (also returned if the script did not exist)
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/groups:
-    get:
-      summary: List all groups
-      operationId: getGroups
-      security: [{ ApiKey: [] }]
-      responses:
-        '200':
-          description: Group list
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  groups: { type: array, items: { $ref: '#/components/schemas/Group' } }
-    post:
-      summary: Create a new group
-      operationId: postGroup
-      security: [{ ApiKey: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
-      responses:
-        '200':
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/groups/{id}:
-    get:
-      summary: Get group detail
-      operationId: getGroup
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '200':
-          description: Group detail
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Group' }
-    put:
-      summary: Update group (members)
-      operationId: putGroup
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                members: { type: array, items: { type: object } }
-      responses:
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-    delete:
-      summary: Delete group
-      operationId: deleteGroup
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      responses:
-        '200':
-          description: Deleted
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
-
-  /api/groups/{id}/cmd:
-    post:
-      summary: Send ZCL command to all group members
-      operationId: postGroupCmd
-      security: [{ ApiKey: [] }]
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [key, val]
-              properties:
-                key: { type: string, example: "state" }
-                val: { type: integer, example: 1 }
-      responses:
-        '200':
-          description: Command sent
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }

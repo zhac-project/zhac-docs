@@ -1,17 +1,34 @@
 # ZHAC REST API Reference
 
-**Base URL:** `http://<device-ip>/api`  
-**Content-Type:** `application/json` (all requests and responses)
+**Base URL:** `http://<hub>/api`
+**Content-Type:** `application/json`, unless a route says otherwise.
+
+REST is there for scripts and other integrations; the web UI and the ZHAC Cloud relay use the
+WebSocket API ([`WS_API.md`](WS_API.md)). The routes live in `zhac-wired-core/main/api_*.cpp`,
+with sign-in in `auth.cpp`, the full backup in `backup.cpp` and device firmware updates in
+`device_ota.cpp`. Many of them call the same code as the WebSocket commands, but each transport
+reads its own arguments and frames its own reply: the shapes on this page are REST's own.
+
+A refused request answers an HTTP status with a short reason: `{"error": "<code>"}` from the
+sign-in layer, the backup and device-update routes, plain text (`missing ieee`) from the others.
+See [Error responses](#error-responses).
 
 ---
 
 ## Authentication
 
-Protected endpoints require the header:
+While sign-in is on, every route except `GET /api/status`, `POST /api/auth/login` and
+`POST /api/auth/setup` needs the header:
 
 ```
 X-Api-Key: <token>
 ```
+
+Without it, or with a wrong one, the hub answers `401 {"error":"unauthorized"}`. With sign-in
+off the routes need no token, but they answer only the hub's own page and clients that are not
+web pages: a request whose `Origin` is another site, or whose `Host` is not the hub's IP address
+or its `.local` name, is refused `403 {"error":"cross_site"}`, so a page of another site cannot
+drive the hub through your browser. `GET /api/status` follows the same rule.
 
 The token is a 32-character hex string generated on first boot and printed to the serial console:
 
@@ -19,11 +36,13 @@ The token is a 32-character hex string generated on first boot and printed to th
 W (1234) main: *** NEW API TOKEN (save this): a1b2c3d4e5f6... ***
 ```
 
-The token persists in NVS across reboots. Endpoints marked **Auth required** return `401` if the header is missing or wrong.
+The token persists in NVS across reboots. With a password set, a boot prints only the token's
+last four characters; the boot after a password lockout prints it in full (TROUBLESHOOTING.md,
+"I forgot the password").
 
-### Password login (WebUI flow)
+### Password login (web UI flow)
 
-Humans don't handle 32-hex tokens well, so the WebUI authenticates with an
+Humans don't handle 32-hex tokens well, so the web UI authenticates with an
 **admin password** and exchanges it for the token. The token remains the only
 wire credential; these endpoints are the exchange layer on top:
 
@@ -36,15 +55,15 @@ wire credential; these endpoints are the exchange layer on top:
 The password is stored as a salted iterated-SHA-256 hash in NVS (never
 plaintext). Login/setup attempts share the same per-peer lockout as token
 checks: five failures in a minute lock that address (an IPv6 peer: its /64)
-for the rest of the minute. On wired hubs, twenty wrong passwords within a
-minute from any addresses also lock the password for everyone for that minute
-(`429`); a valid token keeps working. The three routes take only
-`Content-Type: application/json` bodies on wired hubs (`415
-{"error":"json_required"}` otherwise). `/api/status` reports `auth_setup_required: true` while auth is
-enabled but no password exists — the SPA shows its one-time setup card then —
-and `auth_setup_secs_left`, the seconds the first-claim window has left (0 once
-it closed). `storage_error: true` means the whole NVS partition could not be initialised at boot; the hub
-runs locked and empty, erases nothing by itself, and the WebSocket command
+for the rest of the minute. Twenty wrong passwords within a minute from any
+addresses also lock the password for everyone for that minute (`429`); a valid
+token keeps working. The three routes take only `Content-Type: application/json`
+bodies (`415 {"error":"json_required"}` otherwise). `/api/status` reports
+`auth_setup_required: true` while auth is enabled but no password exists — the
+web UI shows its one-time setup card then — and `auth_setup_secs_left`, the
+seconds the first-claim window has left (0 once it closed). `storage_error: true`
+means the whole NVS partition could not be initialised at boot; the hub runs
+locked and empty, erases nothing by itself, and the WebSocket command
 `system.storage_reset` (no REST twin) erases it and restarts on the owner's request.
 `auth_storage_error: true` means the hub could not open its sign-in
 storage at boot and locked itself: sign-in is on, the only credential is the token printed
@@ -55,503 +74,65 @@ finds it on the network later, only by someone who can power-cycle it.
 A build can seed the password via `CONFIG_ZHAC_DEFAULT_PASSWORD` (keep it
 empty in anything public — a committed password is a shared credential).
 The serial-printed token remains the recovery path (lost password → sign in
-with the token, or erase NVS to re-run setup). On wired hubs with a password
-set, a boot prints only the token's last four characters; the boot after a
-password lockout prints it in full (TROUBLESHOOTING.md, "I forgot the
-password").
+with the token, or erase NVS to re-run setup).
 
 ---
 
-## Relationship to the WebSocket API and the SPA
-
-Every endpoint below is a thin wrapper over a shared
-transport-agnostic handler in
-`zhac-net-core/main/api_handlers.cpp` (the `api_*` family). The
-same handler is called from the WebSocket envelope dispatcher
-(`zhac-net-core/main/ws_bridge.cpp`, 35-entry table), so request
-and response bodies are byte-identical on the two transports.
-
-The first-party web UI (`www-spa/`, Preact SPA) speaks **WebSocket
-only** using the envelope
-`{id, cmd, args}` ↔ `{id, ok, data|err}` — see
-[`WS_API.md`](WS_API.md) for the command list and push-event
-catalogue. The REST surface is intended for scripts / third-party
-integrations.
-
----
-
-## Endpoints
-
-### System
+## System
 
 #### `GET /api/status`
-Returns S3 and P4 health metrics. No auth required. The P4-side values
-are populated from the periodic HAP heartbeat (`HapHeartbeat` — 14
-fields as of 2026-04-22).
 
-On the wired and single-chip builds with sign-in on, a request without the API token
-(`X-Api-Key`) gets only what the sign-in page needs: `sku` (wired) and the `auth_*` fields. Send the
-token for the rest (firmware version, MQTT broker and topics, addresses, time server and so on). A
-request without a key is not a wrong guess and counts toward no lockout; a wrong key does.
-
-**Response:**
-```json
-{
-  "heap":        123456,
-  "heap_min":    100000,
-  "int_free":     48000,
-  "int_min":      32000,
-  "int_blk":      16000,
-  "psram_free": 4000000,
-  "psram_min":  3800000,
-  "psram_blk":  2000000,
-  "psram_total":8000000,
-  "stack_hwm":     1024,
-  "uptime":        3600,
-  "cpu_c0":          12,
-  "cpu_c1":           4,
-  "ip":    "192.168.1.100",
-  "mac":   "AA:BB:CC:DD:EE:FF",
-  "wifi":           true,
-  "mqtt_connected": true,
-  "ws_clients":        2,
-  "synced":         true,
-  "metrics_enabled":false,
-  "auth_enabled":   true,
-  "api_token":      "",
-  "p4": {
-    "devices":         12,
-    "uptime":        3598,
-    "fw":          "1.0.0",
-    "heap":        123456,
-    "heap_min":    100000,
-    "int_free":     48000,
-    "int_min":      32000,
-    "int_blk":      16000,
-    "psram_free": 2000000,
-    "psram_min":  1800000,
-    "psram_blk":   900000,
-    "psram_total":4000000,
-    "stack_hwm":      512,
-    "cpu_c0":           9,
-    "cpu_c1":           3,
-    "proto_mask":       1,
-    "synced":        true
-  }
-}
-```
-
-| Field | Meaning |
-|-------|---------|
-| `heap` / `heap_min` | Current and all-time-low free bytes across the full default heap |
-| `int_free` / `int_min` / `int_blk` | Internal-RAM free / low-water / largest free block |
-| `psram_free` / `psram_min` / `psram_blk` / `psram_total` | PSRAM equivalents |
-| `stack_hwm` | Smallest high-water-mark remaining across the chip's task table, in bytes |
-| `cpu_c0` / `cpu_c1` | Per-core CPU utilisation, percent |
-| `proto_mask` (P4 only) | Bitmask of live `DeviceBackend`s; bit 0 = Zigbee |
-| `api_token` | Echoes the token only when auth is disabled (first-boot helper) |
-
-#### `GET /api/alerts`
-Returns recent system alerts (battery low, script crash, rule errors). **Auth required.**
-
-**Response:** Array, oldest first:
-```json
-[
-  {
-    "code": 1,
-    "ieee": "0x001234567890ABCD",
-    "msg": "battery low: 15%",
-    "ts": 1712345678
-  }
-]
-```
-
-Alert codes: `1` = battery low, `2` = script crash, `3` = rule error.
-
----
-
-### WiFi
-
-#### `GET /api/wifi/status`
-Returns current WiFi mode and connection info. **No auth required** (must work in AP mode before token is known).
-
-**Response (AP mode):**
-```json
-{"mode": "ap", "ssid": "ZHAC-A1B2", "ip": "192.168.4.1", "sta_ssid": null, "rssi": null}
-```
-
-**Response (STA mode):**
-```json
-{"mode": "sta", "ssid": "MyNetwork", "ip": "192.168.1.100", "rssi": -42}
-```
-
-#### `GET /api/wifi/scan`
-Scans for nearby WiFi networks. **Auth required.** Rate limited: 1 scan per 10 seconds.
-
-**Response:**
-```json
-{
-  "networks": [
-    {"ssid": "MyNetwork", "rssi": -45, "auth": "wpa2"},
-    {"ssid": "Neighbor", "rssi": -72, "auth": "wpa2"},
-    {"ssid": "OpenNet", "rssi": -80, "auth": "open"}
-  ]
-}
-```
-
-Auth types: `open`, `wep`, `wpa`, `wpa2`, `wpa3`, `enterprise`.
-
-#### `POST /api/wifi`
-Save WiFi credentials and reboot into STA mode. **Auth required.** Rate limited: 1 per 30 seconds.
-
-**Body:** `{"ssid": "MyNetwork", "pass": "secret"}`
-
-**Response:** `{"ok": true}` — device reboots after 1 second.
-
-#### `DELETE /api/wifi`
-Erase WiFi credentials and reboot into AP mode. **Auth required.**
-
-**Response:** `{"ok": true}` — device reboots after 500ms.
-
----
-
-### Devices
-
-#### `GET /api/devices`
-Returns all devices from P4 (all protocols). No auth required.
-
-**Response:** Raw P4 JSON — array of device objects:
-```json
-[
-  {
-    "ieee": "0x001234567890ABCD",
-    "proto": "zb",
-    "nwk": "0x1234",
-    "name": "Living Room Bulb",
-    "eps": [1, 2],
-    "clusters": { "1": [6, 8, 768] },
-    "exposes": [
-      { "type": "binary", "name": "state", "access": 7 },
-      { "type": "numeric", "name": "brightness", "min": 0, "max": 254, "access": 7 }
-    ]
-  }
-]
-```
-
-#### `GET /api/devices/:ieee`
-Returns a single device. `:ieee` = `0x001234567890ABCD`. No auth required.
-
-**Response:** Same shape as one item from `GET /api/devices`.
-
-**Errors:** `500` on P4 timeout.
-
-#### `PUT /api/devices/:ieee/attrs`
-
-`value` may be a boolean, an integer, a decimal (`21.5` — the device's converter scales it;
-a thermostat setpoint goes out as 2150, a Tuya datapoint with divisor 10 as 215; a converter
-that only takes integers refuses it with "no zhc converter") or a string (an enum option).
-The same rule applies to the WebSocket `device.attr.set` and to the wired REST
-`/api/device/state`.
-Send a ZCL attribute write or command to a device. **Auth required.**
-
-**`name`:** 1–29 bytes, no quotes, backslashes or control characters (the device list is
-built with `snprintf`; one quote would break it). Refused with
-`name must be 1-29 characters without quotes, backslashes or control characters`. A rename
-reloads the rule engine's name table on every core.
-
-**Request:**
-```json
-{
-  "key": "state",
-  "val": 1,
-  "ep": 1,
-  "cluster": 0,
-  "attr": 0
-}
-```
-
-- `key` — required. Well-known keys: `state`, `brightness`, `color_temp`, `hue`, `saturation`.
-- `val` — required. Integer value.
-- `ep`, `cluster`, `attr` — optional, default `0`. P4 resolves cluster/attr from `key` when `0`.
-
-**Response:**
-```json
-{ "ok": true }
-```
-
-**Errors:** `500` on P4 timeout (3 s).
-
-#### `DELETE /api/devices/:ieee`
-Remove a device. **Auth required.** Body `{"hard": false}` (default) asks the device to leave
-and hides it; its name is kept, so a rejoin restores it. `{"hard": true}` also wipes the
-stored row, the shadow and the converter caches. Same contract on every core (`device_cmd`).
-
-**Response:** `{"ok": true}` or `{"ok": false}` on P4 timeout (5 s).
-
-#### `GET /api/devices/:ieee/options`
-Read per-device options blob from S3 NVS. No auth required.
-
-**Response:** Free-form JSON object (returns `{}` if none saved).
-
-#### `POST /api/devices/:ieee/options`
-Save per-device options blob to S3 NVS. **Auth required.**
-
-**Request:** Any JSON object — replaces the stored blob entirely.
-
-**Response:** `{"ok": true}`
-
-> **Sub-route dispatch:** `POST /api/devices/*/bind`,
-> `/unbind`, and `/interview` are all served by a single wildcard
-> handler (`handle_post_device_subroute` in `rest_devices.cpp`) that
-> parses the suffix and delegates — ESP-IDF httpd only supports the
-> trailing-segment `*` wildcard, so separate registrations can't
-> coexist with `/api/devices/*`.
-
-#### `POST /api/devices/:ieee/bind`
-Issue a ZDO bind request. **Auth required.**
-
-**Request:**
-```json
-{
-  "src_ep": 1,
-  "cluster": 6,
-  "dst_ieee": "0x00124B0009D12345",
-  "dst_ep": 1
-}
-```
-
-**Response:** `{"ok": true}` — confirmed by BIND_ACK from P4 (5 s timeout).
-
-#### `POST /api/devices/:ieee/unbind`
-Same as `/bind` but removes the binding. **Auth required.**
-
-#### `POST /api/devices/:ieee/interview`
-Trigger a fresh interview on the target device (useful after a
-stalled join or when the ZHC definition has been updated).
-**Auth required.**
-
-**Response:** `{"ok": true}` when the interview task has accepted
-the request; the interview itself runs asynchronously and emits
-`device.updated` events as identity / support state changes.
-
----
-
-### Groups
-
-#### `GET /api/groups`
-Returns all groups. No auth required.
-
-**Response:**
-```json
-{
-  "groups": [
-    {
-      "id": 1,
-      "name": "Living Room",
-      "members": [
-        { "ieee": "0x001234567890ABCD", "ep": 1 }
-      ]
-    }
-  ]
-}
-```
-
-#### `POST /api/groups`
-Create a group. **Auth required.**
-
-**Request:**
-```json
-{
-  "name": "Living Room",
-  "members": [
-    { "ieee": "0x001234567890ABCD", "ep": 1 }
-  ]
-}
-```
-
-**Response:** Created group object (same shape as one item from `GET /api/groups`).
-
-#### `GET /api/groups/:id`
-Returns a single group by numeric ID. No auth required.
-
-**Errors:** `404` if not found.
-
-#### `PUT /api/groups/:id`
-Update group name and/or members. **Auth required.**
-
-**Request:** Same shape as `POST /api/groups` — fields are optional; omitting `name` or `members` leaves them unchanged.
-
-**Response:** Updated group object.
-
-#### `DELETE /api/groups/:id`
-Delete a group. **Auth required.**
-
-**Response:** `{"ok": true}` or `{"ok": false}`.
-
-#### `POST /api/groups/:id/cmd`
-Fan-out a command to all group members. **Auth required.**
-
-**Request:**
-```json
-{ "key": "state", "val": 1 }
-```
-
-**Response:**
-```json
-{ "ok": true, "sent": 3 }
-```
-
-`sent` = number of members the command was dispatched to.
-
----
-
-### Rules
-
-#### `GET /api/rules`
-Returns all automation rules from P4. No auth required.
-
-**Response:** P4 JSON — array of rule objects.
-
-#### `POST /api/rules`
-Create a new rule. **Auth required.**
-
-**Request:**
-```json
-{ "dsl": "on 0x001234567890ABCD.state == 1 do set 0xAABBCCDDEEFF0011.state 0", "enabled": false }
-```
-
-`enabled` is optional (absent or `null`: On). `false` creates the rule Off in one step; anything but a boolean is
-refused with 400.
-
-**Response:** `200` + `{"ok": true, "id": <new id>, "enabled": <bool>}` (wired and single-chip hubs); a rule the
-parser refuses answers 400 with its message.
-
-#### `DELETE /api/rules`
-Delete a rule by ID. **Auth required.**
-
-**Request:**
-```json
-{ "id": 3 }
-```
-
-**Response:** P4 acknowledgement JSON.
-
-#### `PUT /api/rules`
-Toggle a rule enabled/disabled. **Auth required.**
-
-**Request:**
-```json
-{ "id": 3, "enabled": false }
-```
-
-**Response:** P4 acknowledgement JSON.
-
-#### `PUT /api/rules/:id`
-Replace rule DSL source. **Auth required.**
-
-**Request body:** Raw DSL string (plain text, not JSON).
-
-**Response:** `{"ok": true}` or `{"ok": false}`.
-
----
-
-### Scripts (Lua)
-
-Lua scripts are stored on the P4 SPIFFS partition at `/scripts/<name>.lua`. See `docs/LUA_API.md` for the scripting API reference.
-
-Name validation: `[a-z][a-z0-9_-]{0,23}` (up to 24 characters, lowercase alphanumeric + `_` + `-`).
-Source cap: 16 KB per script. Soft limit: 16 distinct files.
-
-#### `GET /api/scripts`
-List all Lua scripts. **Auth required.** Returns an empty list if the P4 script cache isn't initialised yet — failed `SCRIPT_LIST_REQ` round-trips do not fail the endpoint.
-
-**Response:**
-```json
-{ "scripts": [ { "name": "motion", "size": 256 } ] }
-```
-
-#### `GET /api/scripts/:name`
-Get one Lua script's source. **Auth required.**
-
-**Response:**
-```json
-{ "name": "motion", "src": "zhac.log('hi')\n" }
-```
-
-**Errors:** `400` on invalid name, `500` on P4 timeout.
-
-#### `POST /api/scripts/:name`
-Create or overwrite a Lua script. **Auth required.**
-
-**Request body:** Raw Lua source text (Content-Type `text/plain`; body up to 16 KB). No JSON wrapper.
-
-**Response:** `201 Created` + `{"ok":true}`. On busy channel returns `429`; on P4 timeout returns `500`.
-On the wired build (S31, P4+C6; `200` + `{"ok":true}`, also as `PUT`): a body over 16,384 bytes is answered `413`, a body
-that does not arrive in full `408` (timeout) or `400`, and a chunked upload (`Transfer-Encoding` without `Content-Length`)
-`411`; the stored script is kept in each case.
-
-#### `POST /api/scripts`
-Bulk-upload multiple Lua scripts in a single HAP round-trip. **Auth required.**
-
-**Request:**
-```json
-[
-  { "name": "motion",   "src": "..." },
-  { "name": "schedule", "src": "..." }
-]
-```
-
-**Response:**
-```json
-{ "ok": true, "written": 2, "failed": 0 }
-```
-
-A busy channel returns `429` for the entire batch; callers must retry the full array.
-
-#### `DELETE /api/scripts/:name`
-Delete a Lua script. **Auth required.**
-
-**Response:** `{"ok": true}`. Deleting a non-existent script is idempotent and returns success.
-
----
-
-### Network & System Config
-
-#### `POST /api/wifi`
-Update WiFi credentials and reboot. **Auth required.**
-
-**Request:**
-```json
-{ "ssid": "MyNetwork", "pass": "secret" }
-```
-
-**Response:** `{"status": "ok", "reboot": true}` — device reboots ~1 s later.
+The hub's state. With sign-in on, a request without the API token gets only what the sign-in
+page needs: `sku` (`"wired"`) and the `auth_*` fields. Send the token for the rest. A request
+without a key is not a wrong guess and counts toward no lockout; a wrong key does. The
+WebSocket `status` command answers the same object (`api_status_fill`).
+
+| Group | Fields |
+|-------|--------|
+| Firmware | `fw_version`, `fw`, `target`, `revision`, `cores`, `uptime`, `uptime_s`, `reset_reason`, `last_crash`, `safe_mode` |
+| Memory, CPU | `heap`, `heap_min`, `int_free`, `int_min`, `int_blk`, `psram_free`, `psram_min`, `psram_blk`, `psram_total`, `heap_internal_free`, `heap_internal_min`, `heap_internal_blk`, `heap_total_free`, `psram_size`, `stack_hwm`, `stack_hwm_task`, `cpu_c0`, `cpu_c1` |
+| Network | `ip`, `mac`, `ip6`, `ip6_ll`, `ip6_global`, `has_ip6`, `hostname`, `link_up`, `link_speed`, `link_duplex`, `net_transport`, `net_link_up`, `net_speed`, `net_duplex`, `wifi`, `wifi_mode`, `wifi_hosted`, `ap_disabled` |
+| Zigbee | `zigbee_present`, `zigbee_ok`, `radio_error`, `device_count`, `synced` |
+| MQTT | `mqtt_connected`, `mqtt_active`, `mqtt_root_topic`, `mqtt_tls_pin`, `mqtt_cleartext_credentials`, `log_mqtt_enabled`, `metrics_enabled`, `metrics_mqtt_enabled`, `metrics_mqtt_interval_s` |
+| Time | `local_time`, `clock_set`, `timezone`, `ntp_server`, `ntp_dhcp_server` |
+| Updates, storage | `ota`, `ota_state`, `ota_rollback_reason`, `ota_store_unconfirmed`, `restart`, `storage_error` |
+| Sign-in | `auth_enabled`, `auth_setup_required`, `auth_setup_secs_left`, `auth_storage_error` |
+| Features | `full_backup`, `device_ota`, `remote_available`, `remote_state`, `remote_scripts`, `log_to_cloud`, `log_ws_enabled`, `scripts_held`, `ws_clients` |
+
+- `ota_state` is `pending` while a freshly updated firmware is on trial and `verified` once the
+  hub has kept it; `ota_rollback_reason` appears only after an update was undone and says which
+  check failed (storage, web server or radio). See the zhac-wired-core README, "Updates".
+- `ota_store_unconfirmed: true` appears while the device store's move could not be marked final
+  (storage full?); the hub retries, backing off to once an hour, and keeps the old copy on `nvs`
+  until then. A restart or a newer update meanwhile keeps what was saved since, as long as `nvs`
+  reads back whole at that boot. If it does not, the device store stays shut for that boot
+  (`storage_error`; restart before you erase anything). When the flash layer repaired the bad
+  entry by erasing it, the next boot takes the store from `nvs` again, and what was saved since
+  the update is lost. An older version is refused until the move is final.
+- `ntp_dhcp_server` appears when the router offered a time server (DHCP option 42) and the hub is
+  using it; it comes first, `ntp_server` second. Naming a server switches the offer off.
+- `scripts_held` appears while the hub holds its scripts after two restarts in a row during their
+  start; see [`WS_API.md`](WS_API.md#scripts).
 
 #### `POST /api/settings`
-Update settings. Every field is optional; send only what changes. **Auth required.**
 
-**Request:**
+Update settings. Every field is optional; send only what changes. **Auth required.** The
+WebSocket `settings.set` takes the same object (one code path, `system_apply_settings`).
+
 ```json
 { "broker_url": "mqtt://192.168.1.10:1883", "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
   "ntp_server": "192.168.1.1" }
 ```
 
-`ota_state` (wired build) is `pending` while a freshly updated firmware is on trial and
-`verified` once the hub has kept it; `ota_rollback_reason` appears only after an update was
-undone and says which check failed (storage, web server or radio). See the wired README,
-"Updates".
-`ota_store_unconfirmed: true` appears while the device store's move could not be marked final (storage
-full?); the hub retries, backing off to once an hour, and keeps the old copy on `nvs` until then. A
-restart or a newer update meanwhile keeps what was saved since, as long as `nvs` reads back whole at that
-boot. If it does not, the device store stays shut for that boot (`storage_error`; restart before you
-erase anything). When the flash layer repaired the bad entry by erasing it, the next boot takes the
-store from `nvs` again, and what was saved since the update is lost. An older version is refused until
-the move is final.
+Fields: `broker_url`, `mqtt_enabled`, `mqtt_client_id`, `mqtt_root_topic`, `mqtt_tls_pin`,
+`ha_discovery`, `ha_prefix` (MQTT and Home Assistant discovery, kept in NVS); `ntp_server`,
+`timezone`; `auth_enabled`, `ap_disabled`; `metrics_enabled`, `metrics_mqtt_enabled`,
+`metrics_mqtt_interval_s`; `log_mqtt_enabled` / `log_mqtt_level` and `log_ws_enabled` /
+`log_ws_level` (log lines to MQTT and to the hub's sockets until the next restart; the level is
+the least severe one sent, `E`, `W`, `I`, `D` or `V`); `remote_scripts`, `log_to_cloud` (the cloud link; the relay may not change these, see
+[`WS_API.md`](WS_API.md#remote-editing-from-zhac-cloud)).
 
-`ntp_dhcp_server` appears when the router offered a time server (DHCP option 42) and the hub is
-using it; it comes first, `ntp_server` second. Naming a server switches the offer off.
-
-`mqtt_tls_pin` (wired, single-chip) is the SHA-256 fingerprint of an `mqtts://` or `wss://`
+`mqtt_tls_pin` is the SHA-256 fingerprint of an `mqtts://` or `wss://`
 broker's certificate, 64 hex digits with or without colons, as
 `openssl x509 -noout -fingerprint -sha256 -in broker.crt` prints it (its `sha256 Fingerprint=` label
 may stay); `""` removes it. With a pin the
@@ -567,35 +148,307 @@ internet access, or send an empty string for the public default (`pool.ntp.org`)
 persisted and applied at once, and `GET /api/status` reports it as `ntp_server` alongside
 `clock_set`. A host with spaces, quotes or over 63 characters is rejected.
 
-**Response:** `{"ok": true}` — takes effect immediately without reboot.
+**Response:** `{"ok": true}` — takes effect immediately without reboot. A body that does not
+parse, or a setting that could not be saved, answers `400 bad settings`.
+
+#### `POST /api/token/rotate`
+
+Replace the API token. **Auth required.** Also at `POST /api/system/token/rotate`.
+
+**Response:** `{"ok": true, "token": "<32hex>"}`; `500 nvs` when it could not be saved.
+
+#### `GET /api/logs`
+
+The hub's recent log lines, oldest first, each prefixed with its time in milliseconds.
+**Auth required.**
+
+**Response:** `{"logs": ["<ms> <line>", …]}`.
+
+#### `GET /api/diagnostics/unhandled`
+
+The Zigbee messages no device definition handled (the Diag page's list). **Auth required.**
+
+**Response:** `{"entries": [{"ieee", "cluster", "id", "cs", "count", "age_s"}, …]}`: `id` is the
+attribute or command id, `cs` whether it was a cluster-specific command, `age_s` the seconds since
+the last one.
+
+The hub's own firmware update has no REST route: use the WebSocket `ota.update` command, or the
+web UI's OTA page.
 
 ---
 
-### OTA (Firmware Update)
+## Network
 
-#### `POST /api/ota`
-Trigger S3 OTA update. **Auth required.**
+The hub is Ethernet-only.
 
-**Request:**
-```json
-{ "url": "http://192.168.1.5:8080/zhac-net-core.bin" }
-```
+#### `GET /api/net/status`
 
-**Response:** `202 Accepted` + `{"status": "queued"}` — download runs in background task.
+**Auth required.** `{"transport": "ethernet", "link_up", "has_ip", "ip", "netmask", "gateway",
+"mac", "speed_mbps", "duplex", "hostname"}`.
 
-#### `POST /api/p4-ota`
-Trigger P4 OTA update over HAP. **Auth required.**
+#### `GET /api/wifi/status`
 
-**Request:**
-```json
-{ "url": "http://192.168.1.5:8080/p4_core.bin" }
-```
+Also `GET /api/wifi`. **Auth required.** A compatibility answer for older clients:
+`{"mode": "eth", "ssid": "", "ip", "rssi": 0, "sta_configured", "sta_connected", "sta_ssid": "",
+"sta_ip", "sta_rssi": 0, "ap_ssid": ""}`.
 
-**Response:** `202 Accepted` + `{"status": "queued"}`.
+#### `GET /api/wifi/scan`
+
+**Auth required.** `{"networks": []}`, always empty.
+
+#### `POST /api/wifi/connect`
+
+Also `POST /api/wifi/disconnect` and `POST /api/wifi`. **Auth required.** Always
+`501 {"error": "wifi_unsupported", "detail": "…"}`: configure the network on your router.
 
 ---
 
-### Full backup (wired builds)
+## Devices
+
+Renaming, removing and binding a device, and its native ZCL groups, are WebSocket commands
+(`device.rename`, `device.delete`, `device.bind`, `device.groups.*`); so is one device's full
+record (`device.get`).
+
+#### `GET /api/devices`
+
+Every device. Also `GET /api/device/list`. **Auth required.**
+
+**Response:** an array, one object per device:
+
+```json
+[
+  {
+    "ieee": "0x00158D0001020304", "nwk": 4660, "friendly": "front_door",
+    "model": "MCCGQ11LM", "vendor": "Aqara", "manufacturer": "LUMI",
+    "model_id": "lumi.sensor_magnet.aq2", "last_seen": 1731940000,
+    "lqi": 180, "battery": 90, "power_source": 3, "ep_count": 1,
+    "endpoints": [ … ],
+    "attrs": { "contact": 1, "battery": 90, "voltage": 3005 }
+  }
+]
+```
+
+`model` and `vendor` come from the matched device definition (the device's own strings when none
+matched); `attrs` are the stored values, decimals as numbers.
+
+#### `POST /api/device/attr/set`
+
+Write one value to a device. Also `POST /api/device_state`. **Auth required.**
+
+```json
+{ "ieee": "0x00158D0001020304", "key": "state", "value": 1 }
+```
+
+`value` may be a boolean, an integer, a decimal (`21.5` — the device's converter scales it;
+a thermostat setpoint goes out as 2150, a Tuya datapoint with divisor 10 as 215; a converter
+that only takes integers refuses it with "no zhc converter") or a string (an enum option).
+The same rule applies to the WebSocket `device.attr.set`.
+
+**Response:** `{"ok": true}`. **Errors:** `400` (`missing ieee or key`, `bad ieee`, a value the
+converter refuses), `404` no such device, `500` the command could not be sent.
+
+#### `POST /api/device/options/set`
+
+Save device options; merged into what is stored. Also `POST /api/device/options`. **Auth required.**
+
+```json
+{ "ieee": "0x00158D0001020304", "occupancy_timeout": 120 }
+```
+
+The options are `occupancy_timeout` and `no_occupancy_since`; see the WebSocket
+[`device.get`](WS_API.md#devices). **Response:** `{"ok": true}`; `500 options apply failed`.
+
+#### `POST /api/device/reinterview`
+
+Interview a device again (its endpoints, clusters and Basic attributes), then run its bindings,
+reporting setup and first reads, as when it joined. **Auth required.** Body `{"ieee": "0x…"}`.
+
+**Response:** `{"ok": true}`, or `{"ok": false, "err": "unknown or sleepy"}` for a device the hub
+does not know or that sleeps (wake it first).
+
+#### `POST /api/device/configure`
+
+Run a device's bindings, reporting setup and first reads again, as after pairing: for a device
+paired before its definition gained them. **Auth required.** Body `{"ieee": "0x…"}`.
+
+**Response:** `{"ok": true, "queued": true}`; `404` when the device is unknown or was never
+interviewed.
+
+#### `POST /api/permit_join`
+
+Open the Zigbee network for new devices. Also `POST /api/zigbee/permit_join`. **Auth required.**
+
+```json
+{ "duration": 254 }
+```
+
+`duration` — seconds, 0–254, required. `254` is the longest window (about four minutes); `0`
+closes it.
+
+**Response:** `{"ok": true, "duration": 254}`. **Errors:** `400 duration 0-254`,
+`500 permit_join failed`.
+
+---
+
+## Collections
+
+The hub's collections of devices (the web UI's Groups page). The routes run the same code as the
+WebSocket `group.*` commands (`zhac-wired-core/main/api_groups.cpp`), so they take and answer the
+same JSON. A change made here is not pushed to open pages ([`WS_API.md`](WS_API.md#event-catalogue)).
+**Auth required** on all.
+
+A collection: `{"id": 1, "name": "Living Room", "members": [{"ieee": "0x…", "ep": 1}]}`.
+
+#### `GET /api/groups`
+
+**Response:** `{"groups": [ <collection>, … ]}`.
+
+#### `POST /api/groups`
+
+Create one: `{"name": "Living Room", "members": [{"ieee": "0x…", "ep": 1}]}` (`ep` defaults to 1).
+**Response:** the new collection; `500 create failed`.
+
+#### `POST /api/group/get`
+
+`{"id": 1}` → the collection; `404 no such group`.
+
+#### `POST /api/group/update`
+
+`{"id": 1, "name": "…", "members": […]}`; a field left out stays. **Response:** the collection;
+`404 no such group`.
+
+#### `POST /api/group/delete`
+
+`{"id": 1}` → `{"ok": true}`, or `{"ok": false}` when there is no such collection.
+
+#### `POST /api/group/cmd`
+
+Send a command to every member: `{"id": 1, "val": "ON"}` (`key` defaults to `state`; `ON`, `OFF`,
+`TOGGLE`), `{"id": 1, "cluster": 6, "cmd": 1}` (On/Off cluster: 0 Off, 1 On, 2 Toggle; cluster 3
+command 0 is Identify), or any value, `{"id": 1, "key": "brightness", "val": 128}`.
+
+**Response:** `{"ok": true, "sent": <members>, "failed": <members>}`, or `{"ok": false, "err":
+"…"}` (`not found`, `unsupported group command`, `val must be a boolean, number or string`). How
+On, Off and Toggle reach the members (one groupcast or one command each):
+[`WS_API.md`](WS_API.md#collections-and-native-groups).
+
+---
+
+## Rules
+
+**Auth required** on all. A rule's `id` is 1–65535 (`400 bad id` otherwise).
+
+#### `GET /api/rules`
+
+**Response:** an array of `{"id", "enabled", "trigger_type", "rule_type", "name", "dsl"}`.
+
+#### `POST /api/rules`
+
+```json
+{ "name": "door_light", "dsl": "ON front_door#contact=0 DO zigbee.set lamp state 1 ENDON", "enabled": false }
+```
+
+`enabled` is optional (absent or `null`: On). `false` creates the rule Off in one step; anything
+but a boolean is refused (`400 enabled must be true or false`). See [RULES_DSL.md](RULES_DSL.md).
+
+**Response:** `{"ok": true, "id": <new id>, "enabled": <bool>}`. A rule the parser refuses answers
+`400 {"ok": false, "err": "<parser message>"}`; no `dsl`, `400 missing dsl`.
+
+#### `PUT /api/rules/<id>`
+
+Replace a rule's name and text: `{"name": "…", "dsl": "…"}`. **Response:** `{"ok": true}`; the
+parser's refusal as above.
+
+#### `DELETE /api/rules/<id>`
+
+**Response:** `{"ok": true}`; `404 rule not found`.
+
+#### `POST /api/rules/<id>/enable`
+
+Switch a rule on or off: `{"enabled": false}`. **Response:** `{"ok": true}`; `404 rule not found`.
+
+---
+
+## Scripts (Lua)
+
+See [LUA_API.md](LUA_API.md) for the scripting API. **Auth required** on all. Names: up to 24
+letters, digits, `_` or `-`. Source: at most 16,384 bytes per script, 16 scripts.
+
+#### `GET /api/scripts`
+
+**Response:** `[{"name": "motion", "size": 256}, …]`.
+
+#### `GET /api/scripts/<name>`
+
+**Response:** the source, `text/plain`. **Errors:** `400 bad name`, `404 not found`.
+
+#### `PUT /api/scripts/<name>`
+
+Create or overwrite a script; `POST /api/scripts/<name>` does the same. The body is the raw Lua
+source, no JSON wrapper.
+
+**Response:** `{"ok": true}`. A body over 16,384 bytes is answered `413`, one that does not arrive
+in full `408` (timeout) or `400`, and a chunked upload (`Transfer-Encoding` without
+`Content-Length`) `411`; the stored script is kept in each case. `500 write failed` when it could
+not be stored.
+
+#### `DELETE /api/scripts/<name>`
+
+**Response:** `{"ok": true}`; `404 not found`.
+
+#### `POST /api/scripts/<name>/run`
+
+Queue the script on the Lua task. **Response:** `{"ok": true, "queued": true}`; `500` when the
+queue is full or there is no such script (`queue saturated or missing`), or while the hub holds
+its scripts (`scripts are held: …`).
+
+#### `POST /api/scripts/<name>/check`
+
+Check a source without saving it; the body is the source. **Response:** `{"ok": bool, "err":
+"<message>", "line": <n>}`.
+
+---
+
+## Hub pins
+
+The pins of the hub's own board, used by rules and Lua: see [GPIO.md](GPIO.md). **Auth required.**
+
+#### `GET /api/io`
+
+**Response:** `{"target", "adc_unit", "max", "allowed": […], "adc_pins": […], "pins": […]}`: the
+pins the board allows, those that can read analog values, and each configured pin with its
+current `value` and `err`.
+
+#### `PUT /api/io`
+
+Replace the pin configuration: `{"pins": [ … ]}`, under 4 KB. **Response:** the state above;
+`400 {"error": "<why>"}` for a configuration the hub refuses.
+
+---
+
+## Cloud link
+
+The hub's link to ZHAC Cloud. **Auth required.**
+
+#### `GET /api/remote/status`
+
+**Response:** `{"enabled", "state", "connected_since", "last_event_at", "rtt_ms", "tx_drops",
+"auth_fails", "log_sent", "log_dropped"}`.
+
+#### `POST /api/remote/connect`
+
+Store the cloud's address and the hub's token, and connect:
+`{"url": "wss://…", "token": "…", "device_id": "…"}`. An empty `device_id` keeps the stored one.
+**Response:** `{"ok": true}`; `400` with the reason (`url + token required`).
+
+#### `POST /api/remote/disconnect`
+
+Drop the link; `{"forget": true}` also erases the stored address and token.
+**Response:** `{"ok": true, "forget": <bool>}`.
+
+---
+
+## Full backup
 
 The whole hub as one file: the Zigbee network with its keys, devices, rules,
 scripts, settings and sign-in (partitions `nvs`, `zb_storage`, `zhac_data`,
@@ -606,7 +459,7 @@ in plain HTTP, like the hub's sign-in: anyone who captures both can open the
 file. Use a password you use nowhere else, on a network you trust.
 `GET /api/status` reports `"full_backup": true` on firmware
 that has these routes. Both run for seconds, during which the hub's other web
-requests wait. `tools/zhac_backup.py` (wired repository) reads, decrypts and
+requests wait. `tools/zhac_backup.py` (zhac-wired-core repository) reads, decrypts and
 makes the same files on a computer; `decrypt` also prints the `esptool`
 command that writes the partitions back over USB.
 
@@ -654,7 +507,7 @@ checked), `409 update_running`, `415 octet_stream_required`, `500 no_space`,
 
 ---
 
-### Device firmware update (wired builds)
+## Device firmware update
 
 Updates one Zigbee device's firmware with an OTA file you upload: the hub
 checks the file, holds it in memory and serves it through the OTA Upgrade
@@ -665,7 +518,7 @@ device's download then fails and it keeps its firmware. With no file loaded
 the hub answers every device's query with "no image available".
 `GET /api/status` reports `"device_ota": true` on firmware that has these
 routes. The upload holds the hub's other web requests for the seconds it
-takes.
+takes. **Auth required** on all three routes.
 
 #### `POST /api/device/ota?ieee=0x00158D0001020304`
 
@@ -718,48 +571,17 @@ firmware.
 
 ---
 
-### Permit Join
-
-#### `POST /api/permit_join`
-Open the Zigbee network for new device joins. **Auth required.**
-
-**Request:**
-```json
-{ "duration": 254 }
-```
-
-`duration` — seconds (0–254). `254` is the longest window (about four minutes); `0` closes it.
-The Zigbee value `255` (open forever) is refused here and clamped to 254 on the radio core.
-Default: `254`.
-
-**Response:** `{"ok": true}` — fire-and-forget, no join confirmation.
-
----
-
-## WebSocket
-
-**URL:** `ws://<device-ip>/ws`
-
-The `/ws` endpoint serves two roles:
-
-1. **Command envelope** — `{id, cmd, args}` ↔ `{id, ok, data|err}`.
-   Every command calls the same `api_*` handler as the REST
-   endpoint above; response bodies are byte-identical.
-2. **Push events** — `{"event":"<name>","data":<payload>}` frames
-   broadcast unsolicited when the underlying state changes
-   (`device.added`, `device.updated`, `device.removed`,
-   `attr.bulk`, `alert.added`, `alert.fired`).
-
-Full envelope format, the 35-entry command table, and the
-push-event catalogue live in **[`WS_API.md`](WS_API.md)**.
-
----
-
-## Error Responses
+## Error responses
 
 | HTTP | Meaning |
 |------|---------|
-| `400` | Bad request — missing or invalid field; message in body |
-| `401` | Missing or wrong `X-Api-Key` |
-| `404` | Resource not found |
-| `500` | P4 timeout (5 s) or internal error |
+| `400` | A missing or invalid field; the reason in the body |
+| `401` | Sign-in on, and no or a wrong `X-Api-Key` (`{"error":"unauthorized"}`) |
+| `403` | `{"error":"cross_site"}`: sign-in off, and the request came from another site's page or through a host name that is not the hub's |
+| `404` | No such device, rule, script or collection |
+| `405` | The route does not take that method |
+| `408` / `411` / `413` / `415` | The body timed out, came chunked, is too large, or has the wrong `Content-Type` |
+| `429` | Too many wrong passwords or tokens: wait a minute (`Retry-After: 60`) |
+| `500` | The hub could not do it (memory, storage, radio); the reason in the body |
+| `501` | `{"error":"wifi_unsupported"}`: a Wi-Fi route on an Ethernet hub |
+| `503` | Busy or not ready; try again |

@@ -2,13 +2,14 @@
 
 This document describes the Lua scripting runtime shipped with ZHAC
 firmware. It supersedes the retired Berry API reference — the Berry
-engine was removed on 2026-04-21 (see `CHANGELOG.md` and
-`docs/plans/2026-04-21-lua-engine-plan.md`) and Lua is now the only
-scripting runtime.
+engine was removed on 2026-04-21 (see `CHANGELOG.md`) and Lua is now
+the only scripting runtime.
 
 Source of truth: every function and behaviour below is grounded in
-`components/lua_engine/` and the P4/S3 firmware handlers. When a
-feature is scoped but not wired, that's called out explicitly.
+`zhac-components/components/lua_engine/` (zhac-components) and the hub firmware's
+handlers: `zhac-wired-core/main/api_scripts.cpp` for REST,
+`zhac-wired-core/main/ws_bridge.cpp` for WebSocket. When a feature is
+scoped but not wired, that's called out explicitly.
 
 ---
 
@@ -34,12 +35,12 @@ feature is scoped but not wired, that's called out explicitly.
 The Lua engine is a sandboxed scripting runtime that lets you attach
 custom logic to Zigbee attribute changes, cron schedules, MQTT
 messages, firmware boot, and rule-dispatched script calls. It runs on
-the P4 core next to the rules engine and the device shadow, with a
+the hub next to the rules engine and the device shadow, with a
 one-way link into them via the `zhac.*` module.
 
 **Version.** PUC-Lua 5.5 (vendored via the
 `georgik/lua ^5.5.0~7` ESP-IDF managed component — see
-`firmware/p4_core/main/idf_component.yml`).
+`zhac-components/components/lua_engine/idf_component.yml`).
 
 **Guarantees.**
 
@@ -47,16 +48,16 @@ one-way link into them via the `zhac.*` module.
   entries removed, filesystem loaders (`dofile`, `loadfile`,
   `package.path/cpath/loadlib/searchpath`) disabled. Bytecode load is
   blocked — all `require`/`load` paths use `mode="t"` (text only).
-  See §6. Implementation: `components/lua_engine/src/lua_sandbox.c`.
+  See §6. Implementation: `zhac-components/components/lua_engine/src/lua_sandbox.c`.
 - **Cooperative scheduling.** All Lua execution runs on one FreeRTOS
-  task (`TaskLua`, priority 4, a 32 KB stack on the wired and P4 builds). Scripts yield
+  task (`TaskLua`, priority 4, a 32 KB stack). Scripts yield
   via `zhac.sleep(ms)`; no preemption. Implementation:
-  `components/lua_engine/src/lua_scheduler.cpp`.
+  `zhac-components/components/lua_engine/src/lua_scheduler.cpp`.
 - **Hard memory budget.** Default 4 MB total Lua heap (tunable via
   `CONFIG_LUA_ENGINE_HEAP_KB`). Allocations above the cap fail — Lua
   raises `not enough memory` and unwinds safely. Small (<512 B)
   allocations try internal RAM first; larger go straight to PSRAM.
-  See `components/lua_engine/src/lua_alloc.c`.
+  See `zhac-components/components/lua_engine/src/lua_alloc.c`.
 - **No global timeout.** A script that doesn't yield can monopolise
   `TaskLua` indefinitely. There is currently no watchdog kill on
   long-running scripts — this is called out in §12.
@@ -66,14 +67,11 @@ one-way link into them via the `zhac.*` module.
 - **Text-only sources.** Scripts are stored as UTF-8 Lua source on
   SPIFFS and compiled on load. Bytecode caches are not used.
 
-**Where it runs.** P4 core only. The S3 side proxies REST calls to P4
-over HAP but does not host the VM.
-
 **Storage.** SPIFFS partition labelled `scripts`, mounted at
 `/scripts`. Filenames are `<name>.lua`. Writes are atomic (`tmp`
 file + rename). Mount is lazy and idempotent — the first call to any
 `lua_script_cache_*` function mounts + format-on-empty.
-Implementation: `components/lua_engine/src/lua_script_cache.cpp`.
+Implementation: `zhac-components/components/lua_engine/src/lua_script_cache.cpp`.
 
 ---
 
@@ -84,16 +82,13 @@ A script's journey, from upload to execution:
 ```
 Browser / curl
        │
-       ▼  POST /api/scripts/<name>     (raw Lua text)
-S3 REST handler (firmware/zhac-net-core/main/rest_rules.cpp)
-       │  SCRIPT_WRITE HAP frame
-       ▼
-P4 hap_dispatch (firmware/p4_core/main/hap_dispatch.cpp)
+       ▼  PUT or POST /api/scripts/<name>   (raw Lua text)
+zhac-wired-core/main/api_scripts.cpp   (WebSocket script.write: ws_bridge.cpp)
        │  lua_script_cache_write(name, src)
        ▼
 SPIFFS /scripts/<name>.lua   (atomic tmp+rename)
        │
-       ▼  lua_engine_load_all() on boot
+       ▼  lua_engine_load_all() on boot, lua_engine_reload() on Apply
        │  luaL_loadbufferx(..., mode="t")
        │  lua_scheduler_spawn(L)
        ▼
@@ -103,11 +98,11 @@ Top-level coroutine runs; registers on_* handlers
 ### Naming and size rules
 
 - **Filename pattern.** `[a-zA-Z0-9_-]{1,24}` — enforced by
-  `is_valid_name` in `lua_script_cache.cpp`. The WebUI further
+  `name_ok` in `lua_script_cache.cpp`. The WebUI further
   restricts new-script creation to lowercase-leading
   `^[a-z][a-z0-9_-]{0,23}$`. Extensions are added internally; do
   not include `.lua` in the name.
-- **Max source size.** 16 KB per file (`LUA_SCRIPT_MAX_SRC`). Writes
+- **Max source size.** 16 KB per file (`LUA_SCRIPT_SRC_MAX`). Writes
   that exceed this are rejected.
 - **Soft max file count.** 16 distinct scripts
   (`LUA_SCRIPT_MAX` = 16). The cache's list APIs iterate at most this
@@ -116,8 +111,10 @@ Top-level coroutine runs; registers on_* handlers
 
 ### Storage invariants
 
-- **Atomic write.** `lua_script_cache_write` writes to
-  `/scripts/<name>.tmp`, fsync, then renames over `/scripts/<name>.lua`.
+- **Atomic write.** `lua_script_cache_write` writes
+  `/scripts/<name>.tmp`, then swaps it in for `/scripts/<name>.lua`,
+  keeping the old file as `<name>.bak` until the swap is done. A save
+  cut short by a power loss is sorted out at the next mount.
 - **Lazy mount.** The first read / write / list call registers the
   SPIFFS VFS. Subsequent calls are no-ops.
 - **Format on empty.** `format_if_mount_failed = true` in the VFS
@@ -126,26 +123,28 @@ Top-level coroutine runs; registers on_* handlers
 
 ### Upload channels
 
-- **REST.** `POST /api/scripts/<name>` with raw Lua body. See §8.
-- **Bulk REST.** `POST /api/scripts` with JSON
-  `[{"name":"...","src":"..."}, ...]`.
+- **REST.** `PUT /api/scripts/<name>` (or `POST`) with the raw Lua
+  body. See §8.
+- **WebSocket.** `script.write`; `script.part` for a source longer
+  than one frame. See §8.
 - **WebUI Scripts tab.** See §9.
-- **HAP.** `SCRIPT_WRITE` frames directly over the S3↔P4 link. See
-  `HapMsgType::SCRIPT_WRITE` in `firmware/p4_core/main/hap_dispatch.cpp`.
 
 ### Delete
 
-- **REST.** `DELETE /api/scripts/<name>` — idempotent.
-- **HAP.** `SCRIPT_DELETE`. Source file is removed from SPIFFS. Any
+- **REST.** `DELETE /api/scripts/<name>`; `404` when there is no
+  such script. WebSocket: `script.delete`.
+- The source file is removed from SPIFFS. Any
   coroutine already running from that source continues to completion;
   registered `on_*` handlers referenced by registry refs survive
-  until the master state is rebuilt (i.e. reboot).
+  until the master state is rebuilt (Apply on the Scripts page, or a
+  restart).
 
 ### Rename
 
 Not a first-class operation. Workflow: read the source, write it
 under the new name, delete the old one. Callers may simply issue
-`POST /api/scripts/<new>` followed by `DELETE /api/scripts/<old>`.
+`PUT /api/scripts/<new>` followed by `DELETE /api/scripts/<old>`,
+then Apply (§8).
 
 ---
 
@@ -225,7 +224,7 @@ uint32_t lua_engine_error_count(void);
 uint32_t lua_engine_yield_count(void);
 ```
 
-See `components/lua_engine/include/lua_engine.h`.
+See `zhac-components/components/lua_engine/include/lua_engine.h`.
 
 ---
 
@@ -282,7 +281,7 @@ end
 The wildcard trigger is documented in `docs/RULES_DSL.md#wildcard-any-attribute-on-a-device`.
 
 Registration: `ActionType::SCRIPT` (value 6) in
-`components/simple_rules/include/simple_rules.h`, dispatched via
+`zhac-components/components/simple_rules/include/simple_rules.h`, dispatched via
 `simple_rules_set_script_hook(hook)`. The Lua engine wires the hook
 at init in `lua_engine_rules_hook.cpp`.
 
@@ -371,7 +370,7 @@ payload up to 1 KB (a JSON body fits; longer ones are cut short) — see
 ### 4.5 `zhac.on_boot(fn)`
 
 Register `fn` for a one-shot firing at firmware boot. Dispatched via
-EventBus `CTRL_BOOT` during P4 init.
+EventBus `CTRL_BOOT` while the hub starts.
 
 **Signature.**
 
@@ -424,7 +423,7 @@ handler with the unpacked payload fields.
 ## 5. `zhac.*` module reference
 
 Every function exported by `kZhacLib` in
-`components/lua_engine/src/zhac_lua_module.cpp`. The module is
+`zhac-components/components/lua_engine/src/zhac_lua_module.cpp`. The module is
 preloaded via `luaL_requiref(L, "zhac", luaopen_zhac, 1)` in the
 sandbox init, so `zhac` is a live global **and** available via
 `require "zhac"`. Use either style.
@@ -557,7 +556,7 @@ gateway isn't connected (no return value surfaces that state — use
 
 ### 5.7 `zhac.event(name)`
 
-Publish a `RULE_EVENT` on the P4 internal EventBus. This fires every
+Publish a `RULE_EVENT` on the hub's internal EventBus. This fires every
 simple rule with an `ON Event#<name>` trigger and every Lua handler
 registered via `zhac.on_cron` (cron triggers use RULE_EVENT under the
 hood — arbitrary `zhac.event` emissions don't reach `on_cron`
@@ -717,7 +716,7 @@ zhac.ws_write("strip", { 0xff0000, 0x00ff00, 0x0000ff })
 ## 6. Sandbox
 
 Applied once per master state by `lua_engine_sandbox_apply` in
-`components/lua_engine/src/lua_sandbox.c`. Runs after
+`zhac-components/components/lua_engine/src/lua_sandbox.c`. Runs after
 `luaL_openlibs` and before any user code.
 
 ### 6.1 Nil'd (fully removed)
@@ -773,7 +772,7 @@ bytecode.
 ### 6.6 Why
 
 The sandbox exists because scripts run in the same process as the
-Zigbee stack, rule engine, HAP protocol handler, and metrics engine.
+Zigbee stack, rule engine, web server and metrics engine.
 A script that could shell out or mmap arbitrary files could brick the
 device, and because scripts are editable over REST with a single
 token, the attack surface extends wherever the token reaches. Keeping
@@ -784,7 +783,7 @@ blast radius bounded to "script uses its PSRAM budget then OOMs".
 
 ## 7. Storage and size limits
 
-Implementation: `components/lua_engine/src/lua_script_cache.cpp`.
+Implementation: `zhac-components/components/lua_engine/src/lua_script_cache.cpp`.
 
 | Limit | Value | Source |
 |-------|-------|--------|
@@ -792,8 +791,8 @@ Implementation: `components/lua_engine/src/lua_script_cache.cpp`.
 | Partition label | `scripts` | `PARTITION_LABEL` |
 | Max open files | 8 | `esp_vfs_spiffs_conf_t.max_files` |
 | Max name length | 24 characters (excl. NUL) | `LUA_SCRIPT_NAME_MAX` |
-| Name charset | `[a-zA-Z0-9_-]` | `is_valid_name` |
-| Max source size per script | 16 KB | `LUA_SCRIPT_MAX_SRC` in `hap_dispatch` and the 16 KB buffer in `load_one_script` |
+| Name charset | `[a-zA-Z0-9_-]` | `name_ok` |
+| Max source size per script | 16 KB | `LUA_SCRIPT_SRC_MAX` in `lua_engine_scripts.h` |
 | Soft file count cap | 16 | `LUA_SCRIPT_MAX` |
 
 Beyond the soft file cap, additional `.lua` files on the partition
@@ -804,122 +803,62 @@ boot — the list API stops iterating after 16.
 
 ## 8. REST endpoints
 
-All endpoints are served by the S3 core and proxied to P4 over HAP.
-Handlers in `firmware/zhac-net-core/main/rest_rules.cpp`. All require the
-`X-Api-Key` token (`REQUIRE_AUTH`).
+The routes live in `zhac-wired-core/main/api_scripts.cpp`, the WebSocket
+commands in `zhac-wired-core/main/ws_bridge.cpp`. Both need the API token
+while sign-in is on. Status codes and reply shapes:
+[REST_API.md](REST_API.md#scripts-lua) and [WS_API.md](WS_API.md#scripts).
 
-See `docs/REST_API.md` for the full API surface; the section below
-focuses on script endpoints only.
+| What | REST | WebSocket |
+|------|------|-----------|
+| List | `GET /api/scripts` → `[{"name","size"}]` | `script.list` |
+| Read | `GET /api/scripts/<name>` → the source, `text/plain` | `script.read` |
+| Save | `PUT /api/scripts/<name>` (or `POST`), body = the raw source, up to 16 KB | `script.write`; `script.part` for a source longer than one frame |
+| Delete | `DELETE /api/scripts/<name>` | `script.delete` |
+| Run now | `POST /api/scripts/<name>/run` | `script.run` |
+| Check the syntax | `POST /api/scripts/<name>/check`, body = the source | `script.check` |
+| Reload every script | — | `script.reload` (the Scripts page's Apply) |
 
-### 8.1 `GET /api/scripts`
+Saving stores the file; it does not restart the script. **Apply** (or a
+restart) brings up a fresh Lua state with every stored script, so the
+handlers an old version registered are gone.
 
-List all scripts.
-
-**Response:**
-
-```json
-{
-  "scripts": [
-    { "name": "motion",   "size": 256 },
-    { "name": "schedule", "size": 431 }
-  ]
-}
-```
-
-If the P4 SCRIPT_LIST_REQ round-trip times out, the endpoint returns
-`{"scripts":[]}` (empty list) rather than an error — the Scripts page
-renders cleanly even before the script cache is initialised.
-
-### 8.2 `GET /api/scripts/{name}`
-
-Read one script.
-
-**Response:**
-
-```json
-{ "name": "motion", "src": "zhac.log('hi')\n" }
-```
-
-**Errors.** `400` on invalid name; `500` on P4 timeout.
-
-### 8.3 `POST /api/scripts/{name}`
-
-Create or overwrite a script.
-
-**Request body:** raw Lua source text, up to 16 KB. Content-Type
-`text/plain`. There is **no** JSON wrapper.
-
-**Response:** `201 Created` + `{"ok":true}`. `429` when the HAP
-channel is busy; `500` on P4 timeout or encode failure.
-
-### 8.4 `POST /api/scripts`
-
-Bulk save.
-
-**Request:**
-
-```json
-[
-  { "name": "motion",   "src": "..." },
-  { "name": "schedule", "src": "..." }
-]
-```
-
-**Response:** `{"ok":true,"written":N,"failed":M}`. A busy channel
-returns `429` for the whole batch — callers must retry the full
-array; partial writes are not observable.
-
-### 8.5 `DELETE /api/scripts/{name}`
-
-Delete. Idempotent — returns `{"ok":true}` even if the script did
-not exist.
-
-### 8.6 `POST /api/scripts/{name}/run`
-
-Fire-and-forget: synchronously enqueues `<name>` onto the Lua
-scheduler and returns. **Auth required.**
-
-Backed by the `SCRIPT_RUN_REQ = 0x58` HAP message — the S3 handler
-(`api_script_run`) frames the name, the P4 handler
-(`handle_script_run_req`) calls the public
-`lua_engine_run_script(const char*)` API in
-`components/lua_engine/include/lua_engine_scripts.h`. The same path
-backs the SPA "Run" button and the WS `script.run` command.
-
-**Response:** `{"ok":true}` when the enqueue succeeds; runtime
-errors surface through the log pipeline (see §3.3), not the HTTP
-response.
+**Run now** queues a fresh run of the script on the Lua scheduler, with an
+empty trigger context (`lua_engine_run_script`). It answers once the run is
+queued; runtime errors go to the log (§3.3), not to the reply. While the hub
+holds its scripts after two restarts in a row during their start, it refuses
+(`scripts are held`).
 
 ---
 
 ## 9. WebUI
 
 The Scripts tab lives at `#scripts` in the Preact SPA
-(`www-spa/src/pages/Scripts.jsx`). The UI speaks WebSocket only —
-every action maps to a command in the `api_*` registry.
+(`www-spa/src/pages/Scripts.jsx`).
 
-1. **List** — the page calls WS cmd `script.list`, renders a
-   three-column table (name, size, actions).
+1. **List** — the page lists the scripts with `script.list` and renders
+   a three-column table (name, size, actions).
 2. **Create** — the **+ New Script** toolbar button opens a modal
-   with a name input and a Lua source `<textarea>` (gutter-numbered
-   via `CodeEditor`). Name validation regex:
-   `^[a-z][a-z0-9_-]{0,23}$`. Save issues `script.write`.
-3. **Edit** — **Edit** button issues `script.read`, fills the modal,
-   saves via `script.write`.
+   with a name input and the Lua editor. Name validation regex:
+   `^[a-z][a-z0-9_-]{0,23}$`. **Save** sends the source over REST
+   (`POST /api/scripts/<name>`): a long script does not fit one
+   WebSocket frame.
+3. **Edit** — **Edit** reads the source with `script.read`, fills the
+   modal, and saves as above.
 4. **Delete** — **Del** prompts then calls `script.delete`.
-5. **Run** — **Run** button calls `script.run`, fire-and-forget.
+5. **Run** — **Run** calls `script.run`, fire-and-forget.
+6. **Apply** — reloads every stored script (`script.reload`), no restart.
 
-No in-browser syntax highlighting today (TODO). Runtime errors
-surface through the S3 log ring; the SPA Logs page polls
-`logs.get` every 5 s to display them (the live `log.entry` WS
-event is currently disabled by default — see §11).
+The editor is CodeMirror 6 (`www-spa/src/components/LuaEditor.jsx`): Lua
+highlighting, completions for the `zhac.*` module, and a syntax check as
+you type (`script.check`; REST `…/check` for a long source). Runtime errors
+go to the hub's log; the Log page polls `logs.get` every 5 s to show them.
 
 ---
 
 ## 10. Examples
 
-All four examples are paste-ready — save under `/scripts/<name>.lua`
-and restart (or re-upload to pick up on the next `load_all` cycle).
+All four examples are paste-ready — save each as a script (it is
+stored as `/scripts/<name>.lua`), then press Apply on the Scripts page.
 
 ### 10.1 Attr-change → MQTT publish
 
@@ -1197,8 +1136,8 @@ Symptom: boot log shows `compile 'motion': ...parse error near ...`.
 The script isn't spawned. Cause: Lua syntax error in the source.
 
 Fix: fix the syntax. The error message and line number come from
-Lua's own parser. Re-upload the script; next reboot (or immediate
-HAP-triggered re-spawn via `script.run`) picks up the fix.
+Lua's own parser. Save the fixed script and press Apply on the
+Scripts page (or restart the hub).
 
 ### `zhac.sleep: timer pool exhausted`
 
@@ -1236,7 +1175,7 @@ stray space or the wrong case, they silently hash-mismatch.
 
 ### SPIFFS full when writing a new script
 
-Symptom: `POST /api/scripts/<name>` returns 500 with
+Symptom: `PUT /api/scripts/<name>` answers `500 write failed` with
 `lua_script: mount 'scripts' failed: ESP_ERR_INVALID_STATE` in the
 log, or the write succeeds but the file is 0 bytes.
 
@@ -1255,8 +1194,9 @@ Cause: `on_*` registrations persist in the Lua registry until the
 master state is recreated. Editing a script doesn't kill handlers
 the old version already installed.
 
-Fix: reboot the P4 core. The next `lua_engine_load_all` brings up a
-fresh state with only the current sources.
+Fix: press Apply on the Scripts page (`script.reload`, which calls
+`lua_engine_reload`): a fresh Lua state with only the current sources,
+no restart. A restart does the same.
 
 ### Deep nesting and recursion
 
@@ -1266,7 +1206,7 @@ one of cjson's nesting errors.
 Cause: TaskLua's C stack is bounded, so Lua is too: at most 16 nested
 levels of C calls and parser nesting (`pcall`, `string.gsub` callbacks,
 metamethods, nested functions, tables and parentheses; `LUAI_MAXCCALLS`
-in `components/lua_engine/lua_limits.cmake`), 16 levels of JSON, and
+in `zhac-components/components/lua_engine/lua_limits.cmake`), 16 levels of JSON, and
 32 levels of pattern-matching recursion (`MAXCCALLS`): past that a
 pattern fails with `pattern too complex`. In a pattern, each optional
 item (`a?`) or repetition costs about one level and each quantified
@@ -1291,22 +1231,24 @@ surface.
 
 ### 12.1 Not exposed from Lua
 
-- **ZDO bind / unbind.** The `zhc_adapter` has no bind entry point
-  and `zhac_lua_module.cpp` exports no such function. Use REST
-  `POST /api/devices/:ieee/bind` instead.
+- **ZDO bind / unbind.** `zhac_lua_module.cpp` exports no such
+  function. Use the WebSocket `device.bind` command (the device page's
+  Bind tab) instead.
 - **Group multicast.** No `zhac.group_*` functions. Use REST
-  `POST /api/groups/:id/cmd` or script multiple per-device
+  `POST /api/group/cmd` or script multiple per-device
   `zhac.set_attr` calls.
 - **Raw ZCL write.** `zhac.set_attr_raw` is not exported. For
-  unmapped attributes you need a ZHC port (see `embedded/zhc/`).
+  unmapped attributes you need a device definition in `embedded-zhc`.
 - **Persistent KV.** No `zhac.kv_*` module. Persist state via the
   device shadow on a real device, or wait for the KV store plan
-  (`docs/FEATURES.md` §7.2).
+  ([FEATURES.md](FEATURES.md), L20).
 - **Raw frame capture (`ZCL_RAW`).** Not wired into `zhac.on_*`.
   Unhandled cluster frames still hit the EventBus but no Lua hook
   routes them in. Workaround: bridge to MQTT and subscribe from
   outside.
-- **Alerts API.** Scripts cannot emit HAP `ALERT` frames.
+- **Alerts API.** The hub keeps no alert list. Send a Telegram
+  message (`zhac.telegram_send`, §5.15) or an MQTT message
+  (`zhac.publish`, §5.6) instead.
 
 ### 12.2 Not enforced
 
@@ -1326,7 +1268,7 @@ surface.
 
 - **`cjson`** (`CONFIG_LUA_ENGINE_WITH_CJSON`, default **y**). JSON
   encode/decode from openresty/lua-cjson 2.1.0.14, vendored under
-  `components/lua_cjson/src/`. `require "cjson"` returns the module;
+  `zhac-components/components/lua_cjson/src/`. `require "cjson"` returns the module;
   `cjson.encode(tbl)` / `cjson.decode(str)` are the core entry points.
   Encode and decode nesting are capped at 16 at init, and the depth
   setters and `cjson.new` are removed, so neither a script nor a payload
@@ -1353,5 +1295,5 @@ surface.
 - `docs/web/zhac_web_ui.md` — WebUI walkthrough.
 - `docs/plans/2026-04-21-lua-engine-plan.md` — historical design
   brief; marked DONE.
-- `components/lua_engine/README.md` — component-local notes and
+- `zhac-components/components/lua_engine/README.md` — component-local notes and
   phase tracker.

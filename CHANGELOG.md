@@ -6,6 +6,12 @@ All notable changes to **zhac-docs** are documented in this file.
 
 ### Changed
 
+- **The API references describe the hub firmware, zhac-wired-core** (`REST_API.md`, `WS_API.md`,
+  `LUA_API.md`, `openapi.yaml` 0.4.0): they described the archived S3 net core. Each route,
+  WebSocket command and push event is now one the firmware has: the 19 documented routes it never
+  had are gone, the 31 it had undocumented are in, and every implementation pointer names a file
+  in zhac-wired-core or zhac-components. `HAP_PROTOCOL.md` and `ZNP_API_CONTRACT.md` are marked
+  archived; `RULES_DSL.md`'s link to the Lua triggers works again.
 - **`FIRST_20_MINUTES.md` follows today's flasher, for both boards**: the ESP32-S31 path next to the P4 + C6 one; on the P4, the one-time radio installer replaces the USB-serial wiring (by wire stays as the flasher's Advanced section), and the flasher picks the silicon family, so the manual revision check and the "v3.x will not boot" step are gone (v3.0 stays unsupported). The status note says what runs on hardware; Backups names the full backup.
 - **Issues and Discussions move here from zhac-platform** (archived): `.github/ISSUE_TEMPLATE/` (bug, device request, board report; the dual-chip and single-chip choices dropped, the label commands now name this repo). Every "report a bug", "request a device" and Discussions link — zhac.org, the flasher, supported devices, `FIRST_20_MINUTES.md`, `TROUBLESHOOTING.md`, `HOME_ASSISTANT.md` — points here. Before the forms work: enable Discussions on this repo and create the labels (commands in `config.yml`).
 - **The browser flasher no longer offers the dual-chip images** (`flash/index.html`, `flash/build-site.sh`): that build never shipped and is archived; its releases stay on GitHub.

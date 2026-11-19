@@ -137,7 +137,7 @@ ON 0x001234567890ABCD DO script.run "router" ENDON
 The Lua handler receives the full event context in its single table
 argument (`ev.key`, `ev.value`, `ev.int_val`, `ev.cluster`, `ev.attr_id`,
 `ev.ieee`, etc.) and can dispatch however it wants — see
-[LUA_API.md](LUA_API.md#triggers) for the exact shape. The wildcard fires on
+[LUA_API.md](LUA_API.md#4-triggers) for the exact shape. The wildcard fires on
 **every** report, repeats included: the script decides what counts as a change.
 
 ### System boot

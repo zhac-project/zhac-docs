@@ -1,5 +1,9 @@
 # ZNP API contract — what zhac actually uses
 
+> **Archived.** This contract served the two-chip design's TI CC2652 radio, dropped on
+> 2026-10-28. Today's hub runs the Zigbee stack itself on an Espressif 802.15.4 radio: the
+> ESP32-S31's own, or an ESP32-C6 running `ot_rcp` next to an ESP32-P4 (zhac-wired-core).
+
 **Audience:** an independent agent implementing an
 ESP32-C6/H2-based replacement for the TI CC2652 radio coprocessor.
 Re-implementing the surface listed here on the C6 (running

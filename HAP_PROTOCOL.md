@@ -5,6 +5,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # HAP — Host Application Protocol (ESP32-S3 ⇄ ESP32-P4 link)
 
+> **Archived.** HAP belongs to the two-chip ESP32-P4 + ESP32-S3 design (zhac-main-core and
+> zhac-net-core), dropped on 2026-10-28: no shipped firmware speaks it. Today's hub is one board
+> running zhac-wired-core; its interfaces are in [WS_API.md](WS_API.md) and [REST_API.md](REST_API.md).
+
 HAP is the binary protocol on the on-board SPI bus between the two ZHAC chips:
 the **ESP32-S3 net core** (WiFi / REST / WebSocket / MQTT gateway) and the
 **ESP32-P4 main core** (Zigbee coordinator + Lua engine). Every cross-chip
