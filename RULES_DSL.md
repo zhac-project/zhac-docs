@@ -213,6 +213,23 @@ included, and the hub only receives topics under its root (`zhac/…` by default
 ON Mqtt#zhac/home/alarm DO zigbee.set siren state 1 ENDON
 ```
 
+### Device offline
+
+```
+ON Offline#<device_ref> DO ... ENDON
+```
+
+Fires when a mains-powered device stops answering the hub's availability ping. The hub pings a
+device that keeps its receiver on after `ZHAC_PING_S` seconds without a message from it (10 minutes
+by default, as zigbee2mqtt); a device that sends nothing within 30 seconds of the ping is offline,
+once per silence, until its next message. `<device_ref>` is an IEEE address or a friendly name, as
+in a device trigger; there is no `#<attr>`. Battery devices are not pinged and never fire it.
+`%value%` is empty.
+
+```
+ON Offline#kitchen_plug DO publish home/alert kitchen_plug_offline ENDON
+```
+
 ---
 
 ## Actions
@@ -354,7 +371,7 @@ log rule triggered OK
 
 ### `script.run <name>`
 
-Invoke a stored Lua script by filename (no extension). The script is loaded from SPIFFS at `/scripts/<name>.lua`, run on the Lua `TaskLua` coroutine scheduler, and receives a single event table with `{value, key, ieee, cluster, attr_id, val_type, int_val, str_val}` — for attribute triggers the backend fills every field from the ZCL event; for non-attribute triggers (`System#Boot`, `Event#…`, `Rules#Timer=…`, `Time#Cron=…`) most fields are empty. See `docs/LUA_API.md` §4 for the full event shape.
+Invoke a stored Lua script by filename (no extension). The script is loaded from SPIFFS at `/scripts/<name>.lua`, run on the Lua `TaskLua` coroutine scheduler, and receives a single event table with `{value, key, ieee, cluster, attr_id, val_type, int_val, str_val}` — for attribute triggers the backend fills every field from the ZCL event; for non-attribute triggers (`System#Boot`, `Event#…`, `Rules#Timer=…`, `Time#Cron=…`, `Offline#…`) most fields are empty. See `docs/LUA_API.md` §4 for the full event shape.
 
 - `<name>`: alphanumeric + `_` + `-`, up to 24 characters. Must match an uploaded script (see `docs/LUA_API.md`).
 

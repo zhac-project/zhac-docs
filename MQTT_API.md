@@ -40,11 +40,12 @@ Device addresses in topics are the IEEE address as **16 upper-case hex digits wi
 | Topic | Direction | Retained | When |
 |---|---|---|---|
 | `<root>/availability` | hub → broker | yes | always: `online` on connect, `offline` as the last will |
-| `<root>/devices/<IEEE>/state` | hub → broker | no | always: one message per reported value |
+| `<root>/devices/<IEEE>/state` | hub → broker | with discovery off | always: the device's full state, once per report |
 | `<root>/devices/<IEEE>/<key>` | hub → broker | yes (except `action`) | discovery on |
-| `<root>/devices/<IEEE>/availability` | hub → broker | yes | discovery on, battery devices |
-| `<root>/devices/<IEEE>/<key>/set` | broker → hub | — | discovery on |
+| `<root>/devices/<IEEE>/availability` | hub → broker | yes | discovery on |
+| `<root>/devices/<IEEE>/<key>/set` | broker → hub | — | always |
 | `homeassistant/<component>/zhac_<ieee>_<key>/config` | hub → broker | yes | discovery on |
+| `homeassistant/device_automation/zhac_<ieee>/action_<value>/config` | hub → broker | yes | discovery on, buttons |
 | anything else under `<root>/…` | broker → hub | — | always: goes to rules and Lua |
 
 ---
@@ -63,24 +64,30 @@ mosquitto_sub -h broker.local -t 'zhac/availability' -v
 
 ### `<root>/devices/<IEEE>/state` — always on
 
-One JSON message per reported value, with or without Home Assistant discovery:
+The device's full state as one JSON message after each report, with or without Home Assistant
+discovery, the way zigbee2mqtt publishes it:
 
 ```json
-{"ieee":"0x70B3D52B600316B5","attrs":{"temperature":21.4}}
+{"ieee":"0x70B3D52B600316B5","attrs":{"state":1,"power":12.5,"energy":3.27}}
 ```
 
 Watch everything:
 
 ```sh
 mosquitto_sub -h broker.local -t 'zhac/devices/+/state' -v
-# zhac/devices/A4C138D750FECC83/state {"ieee":"0xA4C138D750FECC83","attrs":{"humidity":57.2}}
-# zhac/devices/70B3D52B600316B5/state {"ieee":"0x70B3D52B600316B5","attrs":{"state":1}}
+# zhac/devices/A4C138D750FECC83/state {"ieee":"0xA4C138D750FECC83","attrs":{"temperature":21.4,"humidity":57.2,"battery":90}}
+# zhac/devices/70B3D52B600316B5/state {"ieee":"0x70B3D52B600316B5","attrs":{"state":1,"power":12.5,"energy":3.27}}
 ```
 
-Values are JSON: numbers (`21.4`), booleans, or strings (`"high"`). Each message carries one key;
-a device reporting three values sends three messages. The topic is not retained: a new subscriber
-sees values as the devices report them, not the last known state. For the last known state use the
-per-key topics below (discovery on) or the REST API.
+Values are JSON: numbers (`21.4`), booleans, or strings (`"high"`). A device that reports three
+values at once sends one message with all its values. With discovery **off** the message is
+**retained**, so a new subscriber gets every device's last known state at once; with discovery on
+it is not (see the note below) and the per-key topics hold the last values instead. A removed
+device's retained state is cleared.
+
+Button presses (`action`) and codes typed on a keypad (`action_code`) are momentary: each goes out
+at once in a message of its own, with the state and never retained; the retained state never
+carries them.
 
 ### `<root>/devices/<IEEE>/<key>` — with discovery on
 
@@ -100,12 +107,22 @@ mosquitto_sub -h broker.local -t 'zhac/devices/70B3D52B600316B5/#' -v
 
 Careful: with discovery on, `<root>/devices/<IEEE>/state` can mean two things. It is the JSON
 message above, and it is also the per-key topic of a value that happens to be called `state`
-(switches, plugs, lights). Tell them apart by the payload: JSON object versus bare value.
+(switches, plugs, lights). Tell them apart by the payload: JSON object versus bare value. That is
+also why the JSON is not retained with discovery on: it would replace the bare value Home
+Assistant reads after a restart.
 
 ### `<root>/devices/<IEEE>/availability` — with discovery on
 
-For battery devices that report on their own schedule: `online`, or `offline` when the device has
-been silent too long. Mains devices do not get this topic.
+`online` or `offline`, retained, for every device:
+
+- **battery devices**, which report on their own schedule: `offline` after 25 hours without a message;
+- **mains devices** (and others that keep their receiver on): `offline` when they stop answering the
+  hub's availability ping. The hub pings such a device after `ZHAC_PING_S` seconds without a message
+  from it (10 minutes by default, like zigbee2mqtt's availability); nothing within 30 seconds and it
+  is offline until its next message.
+
+Home Assistant shows a device unavailable when this topic or the hub's own says `offline`. The hub
+page shows an Offline badge, and a rule can act on it: `ON Offline#<device> DO … ENDON`.
 
 ---
 
@@ -144,16 +161,16 @@ their allowed values). The hub publishes the new value on the state topics once 
 it. Battery devices (valves, remotes) take it on their next wake-up; the hub holds the command until
 then.
 
-With discovery **off**, `…/set` topics are ignored: use a rule or a Lua script (below), or the
-[REST/WebSocket API](REST_API.md) (`device.attr.set`).
+They work with discovery off too. A rule or a Lua script (below) or the
+[REST/WebSocket API](REST_API.md) (`device.attr.set`) can set values as well.
 
 ---
 
 ## Your own messages: rules and Lua
 
 The hub subscribes to **`<root>/#` only**. Every message under the root that is not a `…/set`
-command and not one of its own `devices/…` topics is handed to rules (`Mqtt#` triggers) and to Lua
-(`zhac.on_mqtt`). Messages outside the root never reach the hub, so **put your topics under the root**:
+command and not one of the hub's own topics (`devices/…`, `log/…`, `bridge/…`, `availability`) is
+handed to rules (`Mqtt#` triggers) and to Lua (`zhac.on_mqtt`). Messages outside the root never reach the hub, so **put your topics under the root**:
 with the default root, `zhac/home/alarm`, not `home/alarm`.
 
 A trigger names the **full** topic, root included, and matches it exactly (no `+` / `#` wildcards).
@@ -212,8 +229,10 @@ while the hub is not connected. More in [LUA_API.md](LUA_API.md).
 
 ### Limits for incoming messages
 
-Rules and Lua see at most **63 characters of topic and 31 bytes of payload**; longer ones are cut
-short. Keep commands short (`movie`, `1`, `21.5`) and put structure in the topic, not in a JSON body.
+Rules see at most **63 characters of topic and 31 bytes of payload**; of a longer payload, its
+first 27. Lua's `zhac.on_mqtt` gets the payload whole up to **1 KB** (the hub keeps the last 16 long
+ones; a handler running that far behind gets the first 27 bytes). Keep rule commands short (`movie`,
+`1`, `21.5`) and put structure in the topic.
 `…/set` commands go to the device path and are not affected (values up to 63 characters).
 
 ---
@@ -222,7 +241,9 @@ short. Keep commands short (`movie`, `1`, `21.5`) and put structure in the topic
 
 With discovery on, the hub also publishes a retained config for every value of every device on
 `homeassistant/<component>/zhac_<ieee>_<key>/config` (prefix configurable), plus one for the hub's
-own connection sensor. Removing a device clears its configs. Entity types, names and limitations:
+own connection sensor, and a device trigger per button press
+(`homeassistant/device_automation/zhac_<ieee>/action_<value>/config`). Removing a device clears its
+configs. Entity types, names and limitations:
 [HOME_ASSISTANT.md](HOME_ASSISTANT.md).
 
 ---

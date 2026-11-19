@@ -44,7 +44,7 @@ Assistant. Removing it in ZHAC removes it there. Turning discovery off removes t
 | writable numbers (calibration, …) | **number**, with the device's range and step |
 | read-only numbers | **sensor**, with unit, device class and state class where Home Assistant knows them (temperature, humidity, power, energy, battery, …) |
 | writable choices (`power_outage_memory`, …) | **select** |
-| `action` (button and remote presses) | **event** — fires on every press, even two of the same in a row; use it as an automation trigger |
+| `action` (button and remote presses) | **event** — fires on every press, even two of the same in a row — and a **device trigger** per press ("single", "double", …), so an automation can pick the press from the device's trigger list |
 | other read-only choices and text | **sensor** |
 
 Values marked *diagnostic* or *config* in the device definition land in those entity
@@ -58,22 +58,25 @@ With the default root `zhac` and prefix `homeassistant`:
 | Topic | Direction | Content |
 |---|---|---|
 | `homeassistant/<component>/zhac_<ieee>_<key>/config` | ZHAC → HA | discovery config, retained |
+| `homeassistant/device_automation/zhac_<ieee>/action_<value>/config` | ZHAC → HA | a button press as a device trigger, retained |
 | `zhac/devices/<IEEE>/<key>` | ZHAC → HA | the value, retained (not `action` and not a keypad's `action_code`, which go out once per press) — `1`/`0` for on/off, numbers as numbers, text as text |
-| `zhac/devices/<IEEE>/<key>/set` | HA → ZHAC | a new value, same format |
+| `zhac/devices/<IEEE>/<key>/set` | HA → ZHAC | a new value, same format (taken with discovery off too) |
 | `zhac/devices/<IEEE>/color_xy`, `…/color_hs` | both | colour pairs, `x,y` (CIE 1931) and `h,s` (0–360, 0–100), as Home Assistant's light sends and expects them |
 | `zhac/availability` | ZHAC → HA | `online`, or `offline` when the hub drops off the broker |
-| `zhac/devices/<IEEE>/availability` | ZHAC → HA | battery devices only: `offline` after 25 hours without a report, `online` on the next one |
-| `zhac/devices/<IEEE>/state` | ZHAC → any | every update as one JSON object (`{"ieee","attrs":{…}}`), published whether or not discovery is on |
+| `zhac/devices/<IEEE>/availability` | ZHAC → HA | every device: battery devices `offline` after 25 hours without a report, mains devices when they stop answering the hub's availability ping; `online` on the next report |
+| `zhac/devices/<IEEE>/state` | ZHAC → any | the device's full state as one JSON object (`{"ieee","attrs":{…}}`) after each report, whether or not discovery is on; not retained while discovery is on (for a switch it is also the `state` value's topic) |
 
 `<ieee>` is the 16-digit address in lower case, `<IEEE>` in upper case. Anything can use the
 per-attribute topics — Node-RED, scripts — not only Home Assistant.
 
 ## Limits
 
-- **Mains devices never go "unavailable" on their own.** They only report on change, so
-  silence proves nothing; only the hub's own availability applies to them. Battery devices
-  get their own topic and turn unavailable after 25 hours of silence (a dead battery, a
-  sensor out of range). The clock restarts when the hub reboots.
+- **Unavailable devices.** Battery devices turn unavailable after 25 hours of silence (a
+  dead battery, a sensor out of range); the clock restarts when the hub reboots. Mains devices
+  only report on change, so silence proves nothing: the hub pings one it has not heard from
+  for `ZHAC_PING_S` seconds (10 minutes by default) and marks it unavailable when it does not
+  answer within 30 seconds, until it is heard again. With the ping off (`ZHAC_PING_S` = 0)
+  mains devices never turn unavailable on their own.
 - **A handful of Tuya devices** get their entities from the datapoint map at runtime (their
   zigbee2mqtt entry has no flat exposes). Types and options are exact; whether a value is a
   sensor or a control is guessed from its name. Please report an odd one with the model id.

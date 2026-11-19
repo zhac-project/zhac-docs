@@ -362,9 +362,11 @@ end)
 Dispatch: EventBus `MQTT_MSG` → event bridge → TaskLua. The topic is the
 **full** topic and is matched exactly (no `+` / `#`). The hub only
 receives topics under its root topic (`zhac/…` by default), so a
-handler for a topic outside the root never fires. `zhac.on_mqtt(fn)`, with
-no topic, receives every message. Topic up to 63 characters, payload up to
-31 bytes (longer ones are cut short) — see [MQTT_API.md](MQTT_API.md).
+handler for a topic outside the root never fires, nor do the hub's own
+messages (`devices/…`, `log/…`, `bridge/…`, `availability`). `zhac.on_mqtt(fn)`,
+with no topic, receives every other message. Topic up to 63 characters,
+payload up to 1 KB (a JSON body fits; longer ones are cut short) — see
+[MQTT_API.md](MQTT_API.md).
 
 ### 4.5 `zhac.on_boot(fn)`
 
