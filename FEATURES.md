@@ -224,7 +224,7 @@ Sole scripting runtime since 2026-04-21 (Berry removed — see `docs/plans/2026-
 | S19 | MQTT auto-disable in AP mode | ✅ | Greyed out in UI, skipped in firmware |
 | S20 | Wi-Fi setup from the browser flasher (Improv Wi-Fi serial) | ✅ | Dual-chip S3, UART port |
 | S21 | Browser flasher (ESP Web Tools) with release images built by CI | ✅ | `flash/`; hardware run of each image pending |
-| S22 | Backup and restore of names, rules, scripts and collections | ✅ | Web UI, every build; the Zigbee network itself is not included |
+| S22 | Backup and restore of names, rules, scripts and collections | ✅ | Web UI, every build; the Zigbee network itself is not included (wired builds: the full backup, WC10) |
 
 ### 6b. Wired build (`zhac-wired-core`)
 
@@ -239,6 +239,7 @@ Sole scripting runtime since 2026-04-21 (Berry removed — see `docs/plans/2026-
 | WC7 | Wall clock from SNTP once Ethernet has an address, from a time server named in Settings, or from the browser (`time.set`) | ✅ | The boards have no RTC; "last seen" and cron rules depend on it, and cron rules wait while it is unset |
 | WC8 | Zigbee network map: the hub page's Map tab scans the mesh and shows who hears whom | ✅ | z2m-style: asks every router for its neighbour table, then draws a graph (links coloured by LQI) and a by-parent list, plus the hub's devices no router listed. Manual scan, about 1–2 s per router; nothing stored in flash |
 | WC9 | "No motion since" for every motion sensor: the hub sets `no_occupancy_since` to N seconds of quiet after the sensor's "no motion" | ✅ | z2m option `no_occupancy_since` with one interval (Device → Options); back to 0 on the next motion, so a rule fires once per quiet period, also for sensors whose own hold tops out at 30–120 s |
+| WC10 | Full backup and restore: the whole hub (Zigbee network and keys, devices, rules, scripts, settings, sign-in) as one password-encrypted file | ✅ | Settings › Backup; the hub encrypts (AES-256-GCM, PBKDF2 key) and restores through its idle firmware slot, so a new board takes over without pairing again. The old hub must stay off. `tools/zhac_backup.py` reads the file on a computer. Hardware run pending |
 
 ---
 

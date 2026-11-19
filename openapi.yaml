@@ -215,6 +215,69 @@ paths:
         '429':
           description: Rate limited (5 s cooldown)
 
+  /api/backup/full:
+    post:
+      summary: Download a full backup of the hub, encrypted with the given password (wired builds)
+      operationId: postBackupFull
+      security: [{ ApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, description: "8 to 63 bytes (UTF-8)" }
+      responses:
+        '200':
+          description: The .zhacbak file (about 3.2 MB); a cut-off transfer means the backup failed
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '400':
+          description: password_length
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '415':
+          description: json_required
+        '500':
+          description: partition_missing, crypto
+        '503':
+          description: busy (the storage kept changing), no_memory
+
+  /api/backup/restore:
+    post:
+      summary: Restore a full backup onto this hub, then restart (wired builds)
+      description: >-
+        Body = the password's length in bytes (u16, little-endian), the password (UTF-8), then the file. Checked
+        before anything is written; staged in the idle firmware slot and written over the storage at the next boot.
+      operationId: postBackupRestore
+      security: [{ ApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Staged; the hub restarts to apply it
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400':
+          description: not_a_backup, password_length, wrong_password, incomplete, damaged
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: >-
+            partitions_differ (with `partition`), newer_firmware (with `fw`), on_trial, update_running
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '415':
+          description: octet_stream_required
+        '500':
+          description: no_space, flash, crypto
+        '503':
+          description: no_memory
+
   /api/ota:
     post:
       summary: Start S3 OTA update

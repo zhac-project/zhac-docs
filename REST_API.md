@@ -595,6 +595,57 @@ Trigger P4 OTA update over HAP. **Auth required.**
 
 ---
 
+### Full backup (wired builds)
+
+The whole hub as one file: the Zigbee network with its keys, devices, rules,
+scripts, settings and sign-in (partitions `nvs`, `zb_storage`, `zhac_data`,
+`scripts`). The hub encrypts it with a password you give (PBKDF2-HMAC-SHA256,
+100 000 rounds, then AES-256-GCM) and decrypts it again on restore; nothing is
+sent in the clear. `GET /api/status` reports `"full_backup": true` on firmware
+that has these routes. Both run for seconds, during which the hub's other web
+requests wait. `tools/zhac_backup.py` (wired repository) reads, decrypts and
+makes the same files on a computer; `decrypt` also prints the `esptool`
+command that writes the partitions back over USB.
+
+#### `POST /api/backup/full`
+Download a full backup. **Auth required.** `Content-Type: application/json`.
+
+**Request:**
+```json
+{ "password": "8 to 63 bytes" }
+```
+
+**Response:** `200` `application/octet-stream`, `Content-Disposition:
+attachment; filename="zhac-full-<host>-<YYYYMMDD>.zhacbak"` (no date while the
+clock is unset), about 3.2 MB. A transfer cut off midway means the backup
+failed; such a file never restores (its tag is missing).
+
+**Errors:** `400 password_length`, `415 json_required`, `500 partition_missing`,
+`500 crypto`, `503 busy` (the storage kept changing during five tries),
+`503 no_memory`.
+
+#### `POST /api/backup/restore`
+Restore a full backup onto this hub. **Auth required.**
+`Content-Type: application/octet-stream`; body = the password's length in
+bytes (u16, little-endian), the password (UTF-8), then the file.
+
+The hub checks the file (format, partitions and sizes, firmware version, the
+password) before it writes anything, then decrypts it into the idle firmware
+slot, checking the whole file's tag. On `200` `{"ok": true}` it restarts and
+writes the backup over its storage before anything opens it; the restored
+network then sends above every frame counter the old hub used. Keep the hub
+the backup came from switched off for good. Sign-in, the password and the API
+token come from the backup.
+
+**Errors:** `400 not_a_backup`, `400 password_length`, `400 wrong_password`,
+`400 incomplete`, `400 damaged` (nothing armed, storage kept),
+`409 partitions_differ` (+ `partition`), `409 newer_firmware` (+ `fw`: restore
+on that firmware or newer), `409 on_trial` (a firmware update is still being
+checked), `409 update_running`, `415 octet_stream_required`, `500 no_space`,
+`500 flash`, `500 crypto`, `503 no_memory`.
+
+---
+
 ### Permit Join
 
 #### `POST /api/permit_join`
