@@ -654,6 +654,68 @@ checked), `409 update_running`, `415 octet_stream_required`, `500 no_space`,
 
 ---
 
+### Device firmware update (wired builds)
+
+Updates one Zigbee device's firmware with an OTA file you upload: the hub
+checks the file, holds it in memory and serves it through the OTA Upgrade
+server on its endpoint 1, to that device only. The hub fetches no images
+itself. One update runs at a time; a device of the same model that asks
+meanwhile is told there is no image. A hub restart drops the file: the
+device's download then fails and it keeps its firmware. With no file loaded
+the hub answers every device's query with "no image available".
+`GET /api/status` reports `"device_ota": true` on firmware that has these
+routes. The upload holds the hub's other web requests for the seconds it
+takes.
+
+#### `POST /api/device/ota?ieee=0x00158D0001020304`
+
+Body: the OTA file (`Content-Type: application/octet-stream`, at most 4 MB).
+The hub looks for the OTA header (`0x0BEEF11E`, header version 1.0) from the
+start, so a vendor prefix before it is fine, and serves the image's total size
+from there; bytes after it are ignored. It does not compare the file with the
+device's node descriptor: the device's own query decides (manufacturer code
+and image type), and the state below says when it asked for another image.
+Then the hub sends the device an Image Notify (query jitter 100) so an awake
+device asks at once; a sleepy one asks when it wakes.
+
+**Response:** `200` `{"manuf": 4476, "image_type": 8449, "file_version": 587751985, "size": 245760}`.
+
+**Errors:** `400 no_device`, `400 not_an_ota_file`, `400 incomplete`,
+`404 unknown_device`, `409 busy` (another update runs), `409 radio_down`,
+`413 too_large`, `415 octet_stream_required`, `503 radio_busy` (try again),
+`503 no_memory`.
+
+#### `GET /api/device/ota`
+
+`{"state": "idle"}`, or the update:
+
+```json
+{
+  "state": "sending", "ieee": "0x00158D0001020304",
+  "manuf": 4476, "image_type": 8449, "file_version": 587751985, "size": 245760,
+  "offset": 98304, "pct": 40, "fits": true, "reason": "", "device_status": 0,
+  "elapsed_s": 312,
+  "device_manuf": 4476, "device_image_type": 8449, "device_version": 587751697
+}
+```
+
+`state`: `waiting` (for the device's query), `sending`, `done` (the device has
+the whole image and applies it at once; `reason` `same_version` when it
+already ran it), `failed` (`reason`: `device_status` with the device's
+Upgrade End status in `device_status`, `device_aborted`, `device_left`),
+`cancelled`. The `device_*` fields appear once the device asked (Query Next
+Image) and stay after the end, so they show the version it runs after its
+restart. `fits` turns `false` when the device asked for another manufacturer
+code or image type: it will never take this file.
+
+#### `POST /api/device/ota/cancel`
+
+Stops the update and drops the file; answers with the state above. A device
+in the middle of its download is refused its next block and keeps its
+firmware.
+
+---
+
 ### Permit Join
 
 #### `POST /api/permit_join`

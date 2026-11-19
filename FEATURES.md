@@ -240,6 +240,7 @@ Sole scripting runtime since 2026-04-21 (Berry removed — see `docs/plans/2026-
 | WC8 | Zigbee network map: the hub page's Map tab scans the mesh and shows who hears whom | ✅ | z2m-style: asks every router for its neighbour table, then draws a graph (links coloured by LQI) and a by-parent list, plus the hub's devices no router listed. Manual scan, about 1–2 s per router; nothing stored in flash |
 | WC9 | "No motion since" for every motion sensor: the hub sets `no_occupancy_since` to N seconds of quiet after the sensor's "no motion" | ✅ | z2m option `no_occupancy_since` with one interval (Device → Options); back to 0 on the next motion, so a rule fires once per quiet period, also for sensors whose own hold tops out at 30–120 s |
 | WC10 | Full backup and restore: the whole hub (Zigbee network and keys, devices, rules, scripts, settings, sign-in) as one password-encrypted file | ✅ | Settings › Backup; the hub encrypts (AES-256-GCM, PBKDF2 key) and restores through its idle firmware slot, so a new board takes over without pairing again. The old hub must stay off. `tools/zhac_backup.py` reads the file on a computer. Hardware run pending |
+| WC11 | Zigbee device firmware update: upload a device's OTA file on its page; the hub serves it to that device only | ✅ | Device page › Info › Firmware update; one update at a time, file held in memory (≤ 4 MB), progress, cancel; the hub fetches no images (automatic updates: zhac-cloud, later) |
 
 ---
 

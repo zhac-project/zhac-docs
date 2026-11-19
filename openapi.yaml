@@ -278,6 +278,73 @@ paths:
         '503':
           description: no_memory
 
+  /api/device/ota:
+    post:
+      summary: Update one Zigbee device's firmware with an uploaded OTA file (wired builds)
+      description: >-
+        The hub checks the file (OTA header from the start; vendor prefixes and trailing bytes allowed), holds it in
+        memory, serves it through its OTA Upgrade server to this device only and sends it an Image Notify. One update
+        at a time.
+      operationId: postDeviceOta
+      security: [{ ApiKey: [] }]
+      parameters:
+        - { name: ieee, in: query, required: true, schema: { type: string, example: "0x00158D0001020304" } }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Loaded; the device was told to ask
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  manuf: { type: integer }
+                  image_type: { type: integer }
+                  file_version: { type: integer }
+                  size: { type: integer }
+        '400':
+          description: no_device, not_an_ota_file, incomplete
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: unknown_device
+        '409':
+          description: busy (another update runs), radio_down
+        '413':
+          description: too_large (over 4 MB)
+        '415':
+          description: octet_stream_required
+        '503':
+          description: radio_busy, no_memory
+    get:
+      summary: The device firmware update the hub runs (wired builds)
+      operationId: getDeviceOta
+      security: [{ ApiKey: [] }]
+      responses:
+        '200':
+          description: >-
+            {"state":"idle"}, or state (waiting, sending, done, failed, cancelled), ieee, manuf, image_type,
+            file_version, size, offset, pct, fits, reason (same_version, device_status, device_aborted, device_left),
+            device_status, elapsed_s, and once the device asked device_manuf, device_image_type, device_version
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/device/ota/cancel:
+    post:
+      summary: Stop the device firmware update; the device keeps its firmware (wired builds)
+      operationId: postDeviceOtaCancel
+      security: [{ ApiKey: [] }]
+      responses:
+        '200':
+          description: The state after the cancel (as GET /api/device/ota)
+          content:
+            application/json:
+              schema: { type: object }
+
   /api/ota:
     post:
       summary: Start S3 OTA update
