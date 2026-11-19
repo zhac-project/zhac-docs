@@ -100,6 +100,7 @@ Static-memory C++20 library replacing the retired `zcl_converter` /
 | R5 | **Trigger — FreeRTOS timer fire** | ✅ | `TriggerType::TIMER` |
 | R6 | **Trigger — MQTT topic message** | ✅ | `TriggerType::MQTT_TOPIC` |
 | R7 | **Trigger — cron schedule** | ✅ | `TriggerType::TIME_CRON`, 1-min task |
+| R7a | **Trigger — device offline** (`Offline#<device>`, unanswered availability ping) | ✅ | `TriggerType::DEVICE_OFFLINE`, mains devices |
 | R8 | **Action — zigbee.set** (write device attribute) | ✅ | `ActionType::ZIGBEE_SET` |
 | R9 | **Action — publish** (MQTT) | ✅ | `ActionType::PUBLISH` |
 | R10 | **Action — event** (fire named event) | ✅ | `ActionType::EVENT` |
