@@ -138,7 +138,8 @@ older. A download the server redirects again after the hub resolved its address 
 On the wired build `device.bind` and `device.groups.add` / `remove` / `refresh` answer when the device
 did, up to about 10 seconds later; the hub keeps serving other requests meanwhile. They go out one at
 a time. With one running and four waiting, another is answered at once with
-`busy -- another radio command is still running, try again`.
+`busy -- another radio command is still running, try again`. Commands relayed from the cloud still run
+on the cloud link's own task and are not queued.
 
 Rename, delete and permit join share one implementation with REST (`device_cmd` in
 zhac-components): `device.rename` refuses names over 29 bytes or with quotes, backslashes or
