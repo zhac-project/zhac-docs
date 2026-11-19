@@ -600,8 +600,11 @@ Trigger P4 OTA update over HAP. **Auth required.**
 The whole hub as one file: the Zigbee network with its keys, devices, rules,
 scripts, settings and sign-in (partitions `nvs`, `zb_storage`, `zhac_data`,
 `scripts`). The hub encrypts it with a password you give (PBKDF2-HMAC-SHA256,
-100 000 rounds, then AES-256-GCM) and decrypts it again on restore; nothing is
-sent in the clear. `GET /api/status` reports `"full_backup": true` on firmware
+100 000 rounds, then AES-256-GCM) and decrypts it again on restore. The file
+never leaves the hub unencrypted, but the password itself crosses your network
+in plain HTTP, like the hub's sign-in: anyone who captures both can open the
+file. Use a password you use nowhere else, on a network you trust.
+`GET /api/status` reports `"full_backup": true` on firmware
 that has these routes. Both run for seconds, during which the hub's other web
 requests wait. `tools/zhac_backup.py` (wired repository) reads, decrypts and
 makes the same files on a computer; `decrypt` also prints the `esptool`
@@ -630,16 +633,21 @@ Restore a full backup onto this hub. **Auth required.**
 bytes (u16, little-endian), the password (UTF-8), then the file.
 
 The hub checks the file (format, partitions and sizes, firmware version, the
-password) before it writes anything, then decrypts it into the idle firmware
-slot, checking the whole file's tag. On `200` `{"ok": true}` it restarts and
-writes the backup over its storage before anything opens it; the restored
+password) before it writes anything. Its NVS partitions (`nvs`, `zb_storage`,
+`zhac_data`) may be larger than the backup's, never smaller, and `scripts` must
+be the same size: a backup of a hub installed before 2026-10-25 (16 KB
+`zb_storage`) restores onto a newly flashed one (128 KB), not the other way.
+It then decrypts it into the idle firmware slot, checking the whole file's
+tag. On `200` `{"ok": true}` it restarts and writes the backup over its
+storage before anything opens it; the restored
 network then sends above every frame counter the old hub used. Keep the hub
 the backup came from switched off for good. Sign-in, the password and the API
 token come from the backup.
 
 **Errors:** `400 not_a_backup`, `400 password_length`, `400 wrong_password`,
 `400 incomplete`, `400 damaged` (nothing armed, storage kept),
-`409 partitions_differ` (+ `partition`), `409 newer_firmware` (+ `fw`: restore
+`409 partitions_differ` (+ `partition`: missing or smaller here),
+`409 newer_firmware` (+ `fw`: restore
 on that firmware or newer), `409 on_trial` (a firmware update is still being
 checked), `409 update_running`, `415 octet_stream_required`, `500 no_space`,
 `500 flash`, `500 crypto`, `503 no_memory`.
