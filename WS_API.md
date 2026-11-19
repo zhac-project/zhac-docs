@@ -135,6 +135,11 @@ older. A download the server redirects again after the hub resolved its address 
 | `diag.tasks` | — (wired and single-chip builds) | — |
 | `device.reinterview` | `api_device_reinterview` | `POST /api/devices/:ieee/interview` |
 
+On the wired build `device.bind` and `device.groups.add` / `remove` / `refresh` answer when the device
+did, up to about 10 seconds later; the hub keeps serving other requests meanwhile. They go out one at
+a time. With one running and four waiting, another is answered at once with
+`busy -- another radio command is still running, try again`.
+
 Rename, delete and permit join share one implementation with REST (`device_cmd` in
 zhac-components): `device.rename` refuses names over 29 bytes or with quotes, backslashes or
 control characters; `device.delete` with `hard: false` (default) asks the device to leave and
@@ -243,6 +248,12 @@ The cloud relay runs the same commands as this socket, with these limits:
 | `group.update` | `api_group_update` | `PUT /api/groups/:id` |
 | `group.delete` | `api_group_delete` | `DELETE /api/groups/:id` |
 | `group.cmd` | `api_group_cmd` | `POST /api/groups/:id/cmd` |
+
+`group.cmd` sends the command to every member of the collection. On the wired build, On, Off and
+Toggle (`{cluster:6, cmd:0|1|2}`, or `state` = `ON` / `OFF` / `TOGGLE`) go out as one ZCL groupcast
+when a native ZCL group (the device page's Groups tab) holds exactly the collection's members, at
+least two and none of them asleep, so they switch together. Otherwise, or when the hub has sent 4
+broadcasts in the last 9 seconds, each member gets its own command. The reply is the same either way.
 
 ---
 

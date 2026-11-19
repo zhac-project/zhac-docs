@@ -66,6 +66,8 @@ Nothing on the hub depends on a cloud service.
 | Z12 | ZNP task priority drop after init | ✅ | Priority 5→2 after coordinator ready |
 | Z13 | ZNP transport refactor: dedicated RX + worker tasks, per-call reply queues, late-SRSP policy | ✅ | `components/znp_driver/src/znp_worker.cpp` |
 | Z14 | Event burst back-pressure on UART RX | 🔲 | See improvements-report §Z14 |
+| Z15 | A command the device did not take: address lookup, one resend, offline when nobody answers | ✅ | Wired build; mains devices; ZDO `NWK_addr_req`, at most 4 broadcasts in 9 s |
+| Z16 | A collection that is exactly a native ZCL group switches with one groupcast | ✅ | Wired build; On / Off / Toggle; no member asleep; shares the broadcast budget |
 
 ---
 

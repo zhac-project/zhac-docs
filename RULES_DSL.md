@@ -222,7 +222,8 @@ ON Offline#<device_ref> DO ... ENDON
 Fires when a mains-powered device stops answering the hub's availability ping. The hub pings a
 device that keeps its receiver on after `ZHAC_PING_S` seconds without a message from it (10 minutes
 by default, as zigbee2mqtt); a device that sends nothing within 30 seconds of the ping is offline,
-once per silence, until its next message. `<device_ref>` is an IEEE address or a friendly name, as
+once per silence, until its next message. A command the device did not take, followed by an address
+lookup nobody answered, makes it offline at once. `<device_ref>` is an IEEE address or a friendly name, as
 in a device trigger; there is no `#<attr>`. Battery devices are not pinged and never fire it.
 `%value%` is empty.
 
