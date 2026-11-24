@@ -91,7 +91,7 @@ broker address sends its user name and password in clear (`mqtt://`).
 | Surface | Notes |
 |---------|-------|
 | HTTP REST API | Sign-in gates every route but those listed above; with sign-in off, the cross-site check. The web UI is served from a pack inside the firmware image: a path is looked up in its table, never on a file system |
-| WebSocket | Sign-in as above; a frame over 8 KB closes the session |
+| WebSocket | Sign-in as above; a frame over 32 KB (32,768 bytes) closes the session |
 | MQTT | Publishes device state and takes commands under its root topic. `mqtts://` checks the broker as above |
 | ZHAC Cloud link | Outbound `wss://` only, off until the owner connects it. The relay may not change the cloud settings (`remote_scripts`, `log_to_cloud`) |
 

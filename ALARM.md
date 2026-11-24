@@ -256,7 +256,7 @@ Each output has a kind, which depends on what the device offers:
 | `alarm` | Tuya-style sirens that expose an `alarm` switch | sets the tone (`melody` / `ringtone`) and `volume` you chose, the device's own `duration` (the alarm time left, within the device's range), then `alarm` on | `alarm` off |
 | `state` | any switch, plug or valve | sets `state` to the value you chose, on or off | the opposite value, unless "leave it so" |
 
-- **Melody and volume are plain text** of up to 23 characters, no control characters. The page
+- **Melody and volume are plain text** of up to 23 bytes of UTF-8, no control characters. The page
   offers the siren's own values.
 - **Leave it so** (kind `state` only): the output is set once and left so. A valve closed by a leak
   stays closed until you open it. The hub never sends the opposite value to such a device: not when
@@ -329,7 +329,8 @@ them under **Keypads and codes** on the Safety page.
 - **The hub restarts during `pending` or `triggered`:** each profile comes back to the state it was
   in before the alarm (armed, or disarmed after a panic from a disarmed profile) and, a minute
   later, the hub sends "The hub restarted during an alarm" and switches off the outputs that were
-  sounding (unless a new alarm sounds them by then, and except those left so).
+  sounding (unless a new alarm sounds them by then). Those left so get their value once more
+  instead: the restart may have come before the hub sent it, and a valve must still close.
 - **The network is down when a notification is due** (an internet outage, a router still booting
   after a power cut): the cloud notification waits on the hub and goes out when the cloud link is
   back, and Telegram is tried again every 30 s for 10 minutes. A restart in the meantime loses what
@@ -455,12 +456,15 @@ profiles.
 
 - **The armed state is carried.** If you armed or disarmed on v2026112401, the intrusion profiles
   come back as that says. The other profiles come back as they were.
-- **A mode armed on v2026112401 comes back only when a profile with that id or that keypad button
-  (away, home, night) exists in Safety.** When you renamed the profile or deleted it before the fall
-  back, the intrusion profiles come back disarmed. The page shows the state.
-- **The config is not carried.** A config you changed on v2026112401 during the fall back is not
-  taken over. The Safety config from before the fall back is used, so a sensor you added there is
-  unguarded until you add it on the Safety page again.
+- **A mode armed on v2026112401 comes back on the intrusion profile with that id (away, home,
+  night), else on the one with that keypad button.** A new name changes nothing. Only when that
+  profile was deleted before the fall back and no other profile has its keypad button do the
+  intrusion profiles come back disarmed. The page shows the state.
+- **The config is carried until the Safety page has saved.** The Safety config record is written
+  only by a save on the Safety page. Before the first save the hub converts the old record again at
+  every start, so a config you changed on v2026112401 during the fall back is taken over. Once the
+  Safety page has saved, its config is used, and a change made on v2026112401 is not: a sensor you
+  added there is unguarded until you add it on the Safety page again.
 
 ## Limits
 
@@ -476,9 +480,18 @@ profiles.
 | Profile id | 1-13 characters of `a-z`, `0-9`, `_`, starting with a letter |
 | Profile name | 1-24 bytes of UTF-8 |
 | Roles | `away`, `home`, `night`, each once, intrusion only |
-| Melody, volume | up to 23 characters, plain text |
+| Melody, volume | up to 23 bytes of UTF-8, plain text |
 | A WebSocket frame to the hub | 32 KB. The largest config the limits allow is about 22 KB as JSON |
 | The config in flash | 8 KB. The stored form is packed so the largest config the limits allow fits; a save that does not fit is refused ("could not save the config") |
 
 The config and the state of every profile are kept in the hub's flash. They survive restarts and
-updates. For the WebSocket commands behind the page, see [WS_API.md](WS_API.md#safety).
+updates. For the WebSocket commands behind the page, see [WS_API.md](WS_API.md#safety). Three of
+their rules matter to a script of your own:
+
+- `alarm.config.set` needs `profiles` as a list (`[]` for none). The v2026112401 form is refused
+  there ("profiles must be a list"); the hub converts it only from its own stored record, at start.
+- A profile's `id` must be text that is not empty. Only leaving `id` out names no profile (for
+  `alarm.disarm`: all of them), so an `id` of `null` or `""` is answered "no such profile" and
+  changes nothing.
+- `alarm.get` answers the error `oom` when the hub has no memory for the whole answer: it never
+  sends part of the config as if it were all of it.

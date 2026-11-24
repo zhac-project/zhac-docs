@@ -356,11 +356,16 @@ attribute, or `alarm_state`). The commands keep their `alarm.*` names and the de
 
 | cmd | args | answers |
 |-----|------|---------|
-| `alarm.get` | none | the status (below) plus `config` |
+| `alarm.get` | none | the status (below) plus `config`; the error `oom` when the hub has no memory for the whole answer (it never answers part of the config) |
 | `alarm.arm` | `{id, force?: bool}` (`mode` is still read as `id`) | `{armed: true}`, or `{armed: false, open: [{ieee, name?}]}` while contacts of that profile are open (send again with `force: true` to arm past them); the error `an alarm is on: disarm first` while that profile (or, for an intrusion profile, any intrusion profile) is pending or triggered; `no such profile` |
 | `alarm.disarm` | `{id?}` | ok. With `id`, that profile is disarmed. Without it every intrusion profile is disarmed and every other profile that is pending or triggered is silenced. `no such profile` for an unknown id |
 | `alarm.silence` | `{id}` | ok: that profile's pending or triggered ends now, back to its resting state (`armed`, or `disarmed` after a panic from disarmed). `no such profile` for an unknown id |
 | `alarm.config.set` | `{config}` | ok, or the first problem as the error (`profiles[1].sensors[2]: 0x... is not a device on this hub`); nothing is changed then |
+
+`id` names a profile only as text that is not empty. Leaving `id` out is the only way to give none (for
+`alarm.disarm`: every profile; for `alarm.arm`: `mode` is read instead). An `id` that is `null`, `""`, a
+number or anything else that is not text is answered `no such profile`, and nothing is armed, disarmed or
+silenced.
 
 The status: `{state, sensor?, profiles: [{id, name, class, state, since, left?, cause?, sensor?, bypassed}]}`:
 - `state` is the summary of the intrusion profiles, the `alarm_state` value: `disarmed`, `arming`,
@@ -392,9 +397,10 @@ The config:
 
 - `alarm.config.set` replaces the whole config; a field left out takes its default (delays 0, `siren_time`
   180, `notify_arm` false, no `role`).
-- An object without `profiles` is the config of v2026112401 (`exit_delay`, `entry_delay`, `sensors` with
-  `modes`, `sirens`). The hub converts it to the profiles `away`, `home` and `night`. It always answers in the
-  new form.
+- `profiles` is required and must be a list (`[]` for none): a config without it, or with `"profiles": null`
+  or an object there, is refused with `profiles must be a list`. The config of v2026112401 (`exit_delay`,
+  `entry_delay`, `sensors` with `modes`, `sirens`) is not taken here: the hub converts that form only from
+  its own stored record, at start. It always answers in the new form.
 - Leaving `codes` out keeps the stored codes; `"codes": []` clears them.
 - `alarm.get` never returns the codes, only `codes_count`.
 - A sensor appears in each profile that lists it, with its own `entry` flag. `role` is for an intrusion
@@ -409,7 +415,7 @@ The config:
   - `id`: 1-13 of `a-z`, `0-9`, `_`, starting with a letter, unique, and not `alarm_state`, `alarm_sensor`,
     `armed`, `disarmed`, `arming`, `pending` or `triggered`; `name`: 1-24 bytes of UTF-8, no control
     characters; each `role` at most once;
-  - `melody` and `volume`: plain text of up to 23 characters;
+  - `melody` and `volume`: plain text of up to 23 bytes of UTF-8, no control characters;
   - every sensor must expose `contact`, `occupancy`, `presence`, `vibration`, `water_leak`, `smoke`, `gas` or
     `carbon_monoxide`; every output needs something settable for its kind: `warning` a settable `warning`,
     `alarm` a settable `alarm` (a smoke sensor's `alarm` is only a reading), `state` a settable `state`
