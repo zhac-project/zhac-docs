@@ -254,12 +254,22 @@ Set a device attribute by semantic key name.
   [Value substitution & expressions](#value-substitution--expressions). Note that
   `%value%` of a decimal attribute is the raw ×100 integer, so `zigbee.set valve
   current_heating_setpoint 21.5` is what you write by hand, not `2150`.
+  Anything that is not a number goes out as **text**: an option of a choice setting
+  (`effect blink`, `alarm_state armed_away`) or an IAS WD siren's `warning` as
+  `mode[,level[,strobe[,duration]]]` (`burglar,high,1,180`; left-out fields default to
+  emergency, medium, strobe on, 10 s; `stop` stops). Before 2026-11 such a word was sent as 0.
 
 ```
 zigbee.set kitchen_light state 1
 zigbee.set 0x001234567890ABCD brightness 128
 zigbee.set radiator_valve current_heating_setpoint 21.5
+zigbee.set led_strip effect blink
+zigbee.set hall_siren warning burglar,high,1,180
+zigbee.set Alarm alarm_state armed_away
 ```
+
+The hub's alarm panel is the device `Alarm`; [ALARM.md](ALARM.md#your-own-reactions) has
+rules that react to it (`ON Alarm#alarm_state="triggered"`, `ON Event#alarm_triggered`) and arm it.
 
 ### `zigbee.toggle <device_ref> <key>`
 

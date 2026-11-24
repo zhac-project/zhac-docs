@@ -4,6 +4,10 @@ All notable changes to **zhac-docs** are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`ALARM.md`: security mode**, the hub's built-in alarm panel (stage 1): states, what sets it off, sirens, keypads, notifications, rules and Lua that react to it, who can disarm, limits. `WS_API.md` gets the `alarm.*` commands and the `alarm.changed` push, `RULES_DSL.md` the text values of `zigbee.set` (`effect blink`, a siren's `warning burglar,high,1,180`, `alarm_state armed_away`), `FEATURES.md` row WC12.
+
 ### Changed
 
 - **`SECURITY.md` describes the hub firmware, zhac-wired-core**: the threat model (the P4 ↔ C6 radio UART instead of the two-chip SPI bus), sign-in (lockout, the cross-site check, the WebSocket sign-in deadline), the attack surface (the web UI packed in the firmware, the cloud link), the hardening settings, and OTA: `https://` only, this firmware's own images, no older release unless asked, the trial with rollback, and no signature check. The S3 / P4 OTA routes and `/metrics` are gone.

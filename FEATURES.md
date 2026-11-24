@@ -234,6 +234,7 @@ HAP linked the two chips of the dropped dual-chip design; no shipped firmware sp
 | WC9 | "No motion since" for every motion sensor: the hub sets `no_occupancy_since` to N seconds of quiet after the sensor's "no motion" | ✅ | z2m option `no_occupancy_since` with one interval (Device → Options); back to 0 on the next motion, so a rule fires once per quiet period, also for sensors whose own hold tops out at 30–120 s |
 | WC10 | Full backup and restore: the whole hub (Zigbee network and keys, devices, rules, scripts, settings, sign-in) as one password-encrypted file | ✅ | Settings › Backup; the hub encrypts (AES-256-GCM, PBKDF2 key) and restores through its idle firmware slot, so a new board takes over without pairing again. The old hub must stay off. `tools/zhac_backup.py` reads the file on a computer. Hardware run pending |
 | WC11 | Zigbee device firmware update: upload a device's OTA file on its page; the hub serves it to that device only | ✅ | Device page › Info › Firmware update; one update at a time, file held in memory (≤ 4 MB), progress, cancel; the hub fetches no images (automatic updates: zhac-cloud, later) |
+| WC12 | Security mode: an alarm panel on the hub (away / home / night, exit and entry delays, sirens, IAS ACE keypads, cloud and Telegram alerts) | ✅ | The Security page; the `Alarm` device and `Event#alarm_<state>` for your own reactions ([ALARM.md](ALARM.md)). First hardware run pending |
 
 ---
 

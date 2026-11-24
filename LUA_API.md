@@ -513,6 +513,7 @@ the device (logged via `ESP_LOGW`).
 ```lua
 local ok = zhac.set_attr("0x00158D0001020304", "state", true)
 if not ok then zhac.log("W", "write failed") end
+zhac.set_attr("0x025A484143414C00", "alarm_state", "armed_night")   -- the hub's alarm panel, see ALARM.md
 ```
 
 Source: `l_zhac_set_attr`.

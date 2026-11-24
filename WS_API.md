@@ -346,6 +346,49 @@ last 9 seconds, each member gets its own command. The reply is the same either w
 
 ---
 
+### Security mode
+
+The hub's alarm panel ([ALARM.md](ALARM.md)). Hub page only: the cloud link does not accept these
+commands in stage 1. The cloud can still arm and disarm through the Alarm device's `alarm_state`.
+
+| cmd | args | answers |
+|-----|------|---------|
+| `alarm.get` | — | the state (below) plus `config` |
+| `alarm.arm` | `{mode: "away"\|"home"\|"night", force?: bool}` | `{armed: true}`, or `{armed: false, open: [{ieee, name?}]}` while doors or windows of that mode are open (send again with `force: true` to arm past them); the error `the alarm is on: disarm first` during `pending` / `triggered` |
+| `alarm.disarm` | — | ok |
+| `alarm.config.set` | `{config}` | ok, or the first problem as the error (`sensors[2]: 0x… is not a device on this hub`); nothing is changed then |
+
+The state: `{state, mode, since, left?, cause?, sensor?, bypassed: [ieee]}`:
+- `state` is one of `disarmed`, `arming`, `armed_away`, `armed_home`, `armed_night`, `pending`,
+  `triggered`.
+- `mode` is the armed (or last armed) mode.
+- `since` is the epoch seconds of the last change, 0 while the clock is unset.
+- `left` is the seconds to the next step (exit delay, entry delay or siren time), during
+  `arming`, `pending` and `triggered` only.
+- `cause` (an IEEE) and `sensor` (its name) say what started `pending` or `triggered`.
+- `bypassed` lists the open sensors a forced arm ignores until disarm.
+
+The config:
+
+```json
+{ "exit_delay": 30, "entry_delay": 30, "siren_time": 180, "notify_arm": false,
+  "sensors": [{"ieee": "0x00158D0001234567", "modes": ["away", "home", "night"], "entry": true}],
+  "sirens":  [{"ieee": "0x…", "kind": "warning", "mode": "burglar", "level": "high", "strobe": true},
+              {"ieee": "0x…", "kind": "alarm", "melody": "5", "volume": "high"},
+              {"ieee": "0x…", "kind": "state"}],
+  "keypads": [{"ieee": "0x…", "trusted": false}],
+  "codes":   ["1234"] }
+```
+
+- `alarm.config.set` replaces the whole config; a field left out takes its default.
+- Leaving `codes` out keeps the stored codes; `"codes": []` clears them.
+- `alarm.get` never returns the codes, only `codes_count`.
+- Limits:
+  - delays 0–300 s; `siren_time` 10–1800 s;
+  - 48 sensors, 8 sirens, 8 keypads, 8 codes of 4–8 digits (as text);
+  - every sensor needs at least one mode and must expose `contact`, `occupancy`, `presence` or
+    `vibration`.
+
 ## Push events
 
 Events are broadcast unsolicited to every signed-in socket using the envelope:
@@ -365,7 +408,8 @@ link is up, to the cloud, which gets the bare payload.
 
 | event | when | payload |
 |-------|------|---------|
-| `attr.changed` | a device reported a value | `{ieee, key, value, nwk, ep, cluster, attr_id, ts?}`: `ts` in epoch seconds, absent while the hub's clock is unset |
+| `attr.changed` | a device reported a value | `{ieee, key, value, nwk, ep, cluster, attr_id, ts?}`: `ts` in epoch seconds, absent while the hub's clock is unset. A keypad PIN (`action_code`, `pin_code`) goes to the hub page only, never the cloud |
+| `alarm.changed` | the alarm panel changed state | the `alarm.get` state without `config` (see [Security mode](#security-mode)) |
 | `attr.bulk` | a device answered again after a silence, or left its availability ping unanswered | `[{ieee, last_seen?, offline, attrs: {}}]` |
 | `device.added` | a device joined | `{ieee, friendly, name}` |
 | `device.removed` | a device left the network | `{ieee}` |
