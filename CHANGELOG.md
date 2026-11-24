@@ -6,7 +6,7 @@ All notable changes to **zhac-docs** are documented in this file.
 
 ### Added
 
-- **`ALARM.md`: security mode**, the hub's built-in alarm panel (stage 1): states, what sets it off, sirens, keypads, notifications, rules and Lua that react to it, who can disarm, limits. `WS_API.md` gets the `alarm.*` commands and the `alarm.changed` push, `RULES_DSL.md` the text values of `zigbee.set` (`effect blink`, a siren's `warning burglar,high,1,180`, `alarm_state armed_away`), `FEATURES.md` row WC12.
+- **`ALARM.md`: security mode**, the hub's built-in alarm panel (stage 1): states, what sets it off, sirens, keypads, notifications, rules and Lua that react to it, who can disarm, limits. `WS_API.md` gets the `alarm.*` commands and the `alarm.changed` push, `RULES_DSL.md` the text values of `zigbee.set` (`effect blink`, a siren's `warning burglar,high,1,180`, `alarm_state armed_away`), `FEATURES.md` row WC12. Covers `Event#alarm_arm_failed` (an arm refused for open doors or windows, not from the hub page), the siren check on save, notifications held back while the network is down, the 19-character rule value, and `on` / `off` / `true` / `false` as 1 / 0 in `zigbee.set`.
 
 ### Changed
 

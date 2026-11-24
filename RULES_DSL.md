@@ -258,6 +258,9 @@ Set a device attribute by semantic key name.
   (`effect blink`, `alarm_state armed_away`) or an IAS WD siren's `warning` as
   `mode[,level[,strobe[,duration]]]` (`burglar,high,1,180`; left-out fields default to
   emergency, medium, strobe on, 10 s; `stop` stops). Before 2026-11 such a word was sent as 0.
+  `on` / `off` / `true` / `false`, in any case, are 1 / 0, as in cloud-made rules. A value is at
+  most 19 characters (`fire,very_high,1,60` fits); a rule with a longer one is refused when it
+  is saved.
 
 ```
 zigbee.set kitchen_light state 1
@@ -269,7 +272,8 @@ zigbee.set Alarm alarm_state armed_away
 ```
 
 The hub's alarm panel is the device `Alarm`; [ALARM.md](ALARM.md#your-own-reactions) has
-rules that react to it (`ON Alarm#alarm_state="triggered"`, `ON Event#alarm_triggered`) and arm it.
+rules that react to it (`ON Alarm#alarm_state="triggered"`, `ON Event#alarm_triggered`,
+`ON Event#alarm_arm_failed`) and arm it.
 
 ### `zigbee.toggle <device_ref> <key>`
 

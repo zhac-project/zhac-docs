@@ -387,7 +387,10 @@ The config:
   - delays 0–300 s; `siren_time` 10–1800 s;
   - 48 sensors, 8 sirens, 8 keypads, 8 codes of 4–8 digits (as text);
   - every sensor needs at least one mode and must expose `contact`, `occupancy`, `presence` or
-    `vibration`.
+    `vibration`;
+  - every siren needs something settable for its kind: `warning` a settable `warning`, `alarm` a
+    settable `alarm` (a smoke sensor's `alarm` is only a reading), `state` a settable `state`
+    (`sirens[0]: Hall smoke has no alarm switch the hub can set …`).
 
 ## Push events
 

@@ -59,6 +59,11 @@ Arming is refused while a contact sensor of that mode is open. The hub page list
 and offers **Arm anyway**. A forced arm ignores those sensors until you disarm. A restart also
 clears the list, so the panel comes back with every sensor guarded.
 
+A keypad, a button, a rule, Lua, MQTT or Home Assistant cannot force. When an arm from one of
+them is refused, the hub tells you, because otherwise you would leave thinking the house is
+guarded: a notification ("Not armed (away): Bathroom window is open") and the event
+`Event#alarm_arm_failed`.
+
 ## Sirens
 
 Each siren has a kind, which depends on what the device offers:
@@ -69,7 +74,9 @@ Each siren has a kind, which depends on what the device offers:
 | `alarm` | Tuya-style sirens that expose an `alarm` switch | sets the tone (`melody` / `ringtone`) and `volume` you chose, the device's own `duration` (the siren time, within the device's range), then `alarm` on |
 | `state` | any switch or plug | `state` on |
 
-The sirens go off when the siren time ends or when you disarm.
+The sirens stop when the siren time ends or when you disarm. Saving the settings checks that each
+siren's device has something to set for its kind: a smoke sensor's `alarm` is only a reading, and
+is refused as a siren of kind `alarm`.
 
 ## Keypads
 
@@ -96,18 +103,25 @@ The hub understands IAS ACE keypads and arm/disarm keyfobs: devices whose `actio
   - Telegram gets a message, when it is set up;
   - the text names the sensor and the mode ("Front door (armed away)"), or the keypad for a panic
     ("Panic button on Hall keypad").
+- **An arm refused for open doors or windows** (see above): "Not armed (away): Bathroom window is
+  open".
 - **Notify on arm and disarm** (a setting): also "Armed (away)" and "Disarmed". The return to the
   armed state after the siren time sends nothing.
-- **The hub restarts during `pending` or `triggered`:** it comes back armed and, a minute later,
+- Each message ends with the time it happened ("… at 02:13") once the hub's clock is set.
+- **The hub restarts during `pending` or `triggered`:** it comes back to the state it was in
+  before the alarm (armed, or disarmed after a panic from a disarmed panel) and, a minute later,
   sends "The hub restarted during an alarm" and switches the sirens off (unless a new alarm
   sounds them by then).
-- **The cloud link is down when the alarm goes off:** that cloud notification is lost. Telegram
-  still goes out when it is set up and the network is up.
+- **The network is down when a notification is due** (an internet outage, a router still
+  booting after a power cut): the cloud notification waits on the hub and goes out when the
+  cloud link is back, and Telegram is tried again every 30 s for 10 minutes. A restart in the
+  meantime loses what is still waiting.
 
 ## Your own reactions
 
 Rules and Lua see the Alarm device like any other device. On every state change the hub also fires
-the named event `alarm_<state>`, for example `Event#alarm_triggered` or `Event#alarm_disarmed`.
+the named event `alarm_<state>`, for example `Event#alarm_triggered` or `Event#alarm_disarmed`, and
+`Event#alarm_arm_failed` when an arm is refused for open doors or windows (not from the hub page).
 
 ```
 # Lights on and an RGB strip blinking when the alarm goes off
@@ -122,7 +136,13 @@ ON hall_button#action="double" DO zigbee.set Alarm alarm_state disarmed ENDON
 
 # A message of your own when it arms
 ON Event#alarm_armed_night DO publish home/alarm night ENDON
+
+# Blink the hall light when the button could not arm
+ON Event#alarm_arm_failed DO zigbee.set hall_light effect blink ENDON
 ```
+
+A rule's value is at most 19 characters: `fire,very_high,1,60` fits, `police_panic,high,1,60` does
+not. For a longer signal, add the siren in the Security settings.
 
 Rules refer to the device by its name. If you rename the Alarm device, use the new name or its
 IEEE address. The **Security** page builds the two common rules for you (**Add a reaction**,
