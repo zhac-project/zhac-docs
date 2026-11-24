@@ -60,8 +60,10 @@ starts signed in, and `auth` on a signed-in socket just answers `ok`.
 
 ### Size limits
 
-- Inbound frame: at most 8,192 bytes. A longer frame closes the session (the hub cannot answer a
-  request it did not read); send a long script in parts (`script.part`, below) or with
+- Inbound frame: at most 32,768 bytes (the cloud relay's limit stays 8,192, see
+  [Remote editing from ZHAC Cloud](#remote-editing-from-zhac-cloud)). A longer frame closes the
+  session (the hub cannot answer a request it did not read); send a long script in parts
+  (`script.part`, below) or with
   `POST /api/scripts/<name>`, and check it with `POST /api/scripts/<name>/check`.
 - Inbound frame time: each frame, PING and CLOSE included, must arrive within 8 seconds of the
   start of its read (at most 11 s: the check comes before each read, which can wait 3 s); a slower
@@ -346,51 +348,77 @@ last 9 seconds, each member gets its own command. The reply is the same either w
 
 ---
 
-### Security mode
+### Safety
 
-The hub's alarm panel ([ALARM.md](ALARM.md)). Hub page only: the cloud link does not accept these
-commands in stage 1. The cloud can still arm and disarm through the Alarm device's `alarm_state`.
+The hub's alarm profiles ([ALARM.md](ALARM.md)). Hub page only: the cloud link does not accept these
+commands. The cloud can still arm and disarm through the Alarm device's attributes (a profile's
+attribute, or `alarm_state`). The commands keep their `alarm.*` names and the device stays `Alarm`.
 
 | cmd | args | answers |
 |-----|------|---------|
-| `alarm.get` | — | the state (below) plus `config` |
-| `alarm.arm` | `{mode: "away"\|"home"\|"night", force?: bool}` | `{armed: true}`, or `{armed: false, open: [{ieee, name?}]}` while doors or windows of that mode are open (send again with `force: true` to arm past them); the error `the alarm is on: disarm first` during `pending` / `triggered` |
-| `alarm.disarm` | — | ok |
-| `alarm.config.set` | `{config}` | ok, or the first problem as the error (`sensors[2]: 0x… is not a device on this hub`); nothing is changed then |
+| `alarm.get` | none | the status (below) plus `config` |
+| `alarm.arm` | `{id, force?: bool}` (`mode` is still read as `id`) | `{armed: true}`, or `{armed: false, open: [{ieee, name?}]}` while contacts of that profile are open (send again with `force: true` to arm past them); the error `an alarm is on: disarm first` while that profile (or, for an intrusion profile, any intrusion profile) is pending or triggered; `no such profile` |
+| `alarm.disarm` | `{id?}` | ok. With `id`, that profile is disarmed. Without it every intrusion profile is disarmed and every other profile that is pending or triggered is silenced. `no such profile` for an unknown id |
+| `alarm.silence` | `{id}` | ok: that profile's pending or triggered ends now, back to its resting state (`armed`, or `disarmed` after a panic from disarmed). `no such profile` for an unknown id |
+| `alarm.config.set` | `{config}` | ok, or the first problem as the error (`profiles[1].sensors[2]: 0x... is not a device on this hub`); nothing is changed then |
 
-The state: `{state, mode, since, left?, cause?, sensor?, bypassed: [ieee]}`:
-- `state` is one of `disarmed`, `arming`, `armed_away`, `armed_home`, `armed_night`, `pending`,
-  `triggered`.
-- `mode` is the armed (or last armed) mode.
-- `since` is the epoch seconds of the last change, 0 while the clock is unset.
-- `left` is the seconds to the next step (exit delay, entry delay or siren time), during
-  `arming`, `pending` and `triggered` only.
-- `cause` (an IEEE) and `sensor` (its name) say what started `pending` or `triggered`.
-- `bypassed` lists the open sensors a forced arm ignores until disarm.
+The status: `{state, sensor?, profiles: [{id, name, class, state, since, left?, cause?, sensor?, bypassed}]}`:
+- `state` is the summary of the intrusion profiles, the `alarm_state` value: `disarmed`, `arming`,
+  `armed_<id>`, `pending` or `triggered`. A flood or fire profile never moves it.
+- `sensor` is the name of the sensor or keypad behind the summary's `pending` or `triggered`.
+- `profiles` has one entry per profile, in config order:
+  - `state` is one of `disarmed`, `arming`, `armed`, `pending`, `triggered`;
+  - `since` is the epoch seconds of the profile's last change, 0 while the clock is unset;
+  - `left` is the seconds to the next step (arm delay, trigger delay or alarm time), during `arming`,
+    `pending` and `triggered` only;
+  - `cause` (an IEEE) and `sensor` (its name) say what started `pending` or `triggered`;
+  - `bypassed` lists the open sensors a forced arm ignores until disarm.
 
 The config:
 
 ```json
-{ "exit_delay": 30, "entry_delay": 30, "siren_time": 180, "notify_arm": false,
-  "sensors": [{"ieee": "0x00158D0001234567", "modes": ["away", "home", "night"], "entry": true}],
-  "sirens":  [{"ieee": "0x…", "kind": "warning", "mode": "burglar", "level": "high", "strobe": true},
-              {"ieee": "0x…", "kind": "alarm", "melody": "5", "volume": "high"},
-              {"ieee": "0x…", "kind": "state"}],
-  "keypads": [{"ieee": "0x…", "trusted": false}],
-  "codes":   ["1234"] }
+{"profiles": [
+   {"id": "flood", "name": "Flood", "class": "water", "arm_delay": 0, "trigger_delay": 0, "siren_time": 180,
+    "notify_arm": true,
+    "sensors": [{"ieee": "0x00158D0001020304", "entry": false}],
+    "outputs": [{"ieee": "0x00158D0005060708", "kind": "state", "value": "off", "keep": true},
+                {"ieee": "0x00158D00090A0B0C", "kind": "warning", "mode": "emergency", "level": "high", "strobe": true},
+                {"ieee": "0x00158D00112233FF", "kind": "alarm", "melody": "5", "volume": "high"}]},
+   {"id": "night", "name": "Night", "class": "intrusion", "role": "night", "arm_delay": 0, "trigger_delay": 30,
+    "siren_time": 180, "notify_arm": false, "sensors": [], "outputs": []}],
+ "keypads": [{"ieee": "0x00158D0001AABBCC", "trusted": false}],
+ "codes": ["1234"]}
 ```
 
-- `alarm.config.set` replaces the whole config; a field left out takes its default.
+- `alarm.config.set` replaces the whole config; a field left out takes its default (delays 0, `siren_time`
+  180, `notify_arm` false, no `role`).
+- An object without `profiles` is the config of v2026112401 (`exit_delay`, `entry_delay`, `sensors` with
+  `modes`, `sirens`). The hub converts it to the profiles `away`, `home` and `night`. It always answers in the
+  new form.
 - Leaving `codes` out keeps the stored codes; `"codes": []` clears them.
 - `alarm.get` never returns the codes, only `codes_count`.
+- A sensor appears in each profile that lists it, with its own `entry` flag. `role` is for an intrusion
+  profile only (`""` is none). An output carries `mode`, `level` and `strobe` for kind `warning`, `melody` and
+  `volume` for kind `alarm`, and `value` (`on` or `off`) and `keep` for kind `state`.
+- The config is refused while any profile is arming, pending or triggered: `an alarm is running: disarm or
+  wait, then save`.
 - Limits:
-  - delays 0–300 s; `siren_time` 10–1800 s;
-  - 48 sensors, 8 sirens, 8 keypads, 8 codes of 4–8 digits (as text);
-  - every sensor needs at least one mode and must expose `contact`, `occupancy`, `presence` or
-    `vibration`;
-  - every siren needs something settable for its kind: `warning` a settable `warning`, `alarm` a
-    settable `alarm` (a smoke sensor's `alarm` is only a reading), `state` a settable `state`
-    (`sirens[0]: Hall smoke has no alarm switch the hub can set …`).
+  - 8 profiles; delays 0-300 s; `siren_time` 10-1800 s;
+  - 48 different sensors, each in any number of profiles; 8 outputs in a profile and 32 in all;
+    8 keypads; 8 codes of 4-8 digits (as text);
+  - `id`: 1-13 of `a-z`, `0-9`, `_`, starting with a letter, unique, and not `alarm_state`, `alarm_sensor`,
+    `armed`, `disarmed`, `arming`, `pending` or `triggered`; `name`: 1-24 bytes of UTF-8, no control
+    characters; each `role` at most once;
+  - `melody` and `volume`: plain text of up to 23 characters;
+  - every sensor must expose `contact`, `occupancy`, `presence`, `vibration`, `water_leak`, `smoke`, `gas` or
+    `carbon_monoxide`; every output needs something settable for its kind: `warning` a settable `warning`,
+    `alarm` a settable `alarm` (a smoke sensor's `alarm` is only a reading), `state` a settable `state`
+    (`profiles[0].outputs[0]: Hall smoke has no alarm switch the hub can set ...`);
+  - one switch used as a `state` output in several profiles needs the same `value` and `keep` in all of them;
+  - the class of a saved profile cannot change (`profiles[0]: the class of a saved profile cannot change`);
+  - the config is kept in flash in at most 8 KB, which the largest config the limits allow fits; a
+    frame to the hub is at most 32 KB (see [Size limits](#size-limits)), and that config is about 22 KB.
+    A save that cannot be stored answers `could not save the config`.
 
 ## Push events
 
@@ -412,7 +440,7 @@ link is up, to the cloud, which gets the bare payload.
 | event | when | payload |
 |-------|------|---------|
 | `attr.changed` | a device reported a value | `{ieee, key, value, nwk, ep, cluster, attr_id, ts?}`: `ts` in epoch seconds, absent while the hub's clock is unset. A keypad PIN (`action_code`, `pin_code`) goes to the hub page only, never the cloud |
-| `alarm.changed` | the alarm panel changed state | the `alarm.get` state without `config` (see [Security mode](#security-mode)) |
+| `alarm.changed` | a profile of the alarm changed state, or the config was saved | the `alarm.get` status without `config` (see [Safety](#safety)) |
 | `attr.bulk` | a device answered again after a silence, or left its availability ping unanswered | `[{ieee, last_seen?, offline, attrs: {}}]` |
 | `device.added` | a device joined | `{ieee, friendly, name}` |
 | `device.removed` | a device left the network | `{ieee}` |
