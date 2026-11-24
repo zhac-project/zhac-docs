@@ -93,8 +93,9 @@ The hub understands IAS ACE keypads and arm/disarm keyfobs: devices whose `actio
 
 - **Codes:** up to 8 codes of 4–8 digits.
 - **Trusted keypads** disarm without a code. Use this for a keyfob that has no keypad.
-- **No feedback in stage 1.** The hub does not answer the keypad yet, so its own lights and beeps
-  may not show the panel's state.
+- **No feedback yet (planned for stage 2).** The hub does not answer the keypad, so its own lights
+  and beeps may not show the panel's state; some keypads may beep an error or repeat the command.
+  The arm or disarm still works.
 
 ## Notifications
 
