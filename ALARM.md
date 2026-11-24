@@ -99,7 +99,8 @@ The hub understands IAS ACE keypads and arm/disarm keyfobs: devices whose `actio
 - **Notify on arm and disarm** (a setting): also "Armed (away)" and "Disarmed". The return to the
   armed state after the siren time sends nothing.
 - **The hub restarts during `pending` or `triggered`:** it comes back armed and, a minute later,
-  sends "The hub restarted during an alarm".
+  sends "The hub restarted during an alarm" and switches the sirens off (unless a new alarm
+  sounds them by then).
 - **The cloud link is down when the alarm goes off:** that cloud notification is lost. Telegram
   still goes out when it is set up and the network is up.
 
