@@ -19,8 +19,49 @@ no radio, and its IEEE address is always `0x025A484143414C00`. It has two attrib
 | `alarm_state` | `disarmed`, `arming`, `armed_away`, `armed_home`, `armed_night`, `pending`, `triggered`; settable |
 | `alarm_sensor` | the name of the sensor or keypad that started `pending` or `triggered`, else empty |
 
-Stage 1 is the hub only. The ZHAC Cloud app, the HomeTiles tile and a Home Assistant alarm panel
-come later.
+Stage 1 is the hub only. The ZHAC Cloud app, the HomeTiles tile, a Home Assistant alarm panel and
+the keypad feedback come later.
+
+## How it works
+
+The panel runs on the hub. Guarding, the sirens and your own rules work without the internet; only
+the notifications need it, and they wait for it (see [Notifications](#notifications)). The panel
+does the core job: the states, the delays, the sirens and the notifications. It reports every
+change through the Alarm device and named events. Anything else you want (lights, a scene, a
+message of your own) goes in rules or Lua that react to them.
+
+```
+ sensor and keypad reports ──────────┐
+ hub page: Arm, Disarm ──────────────┼──► state machine ──► on each change, in this order:
+ alarm_state set by a rule, Lua,     │    (exit delay,       1. saves the state in flash
+ MQTT, Home Assistant, the cloud ────┘     entry delay,      2. queues the notifications
+                                           siren time)       3. sets the Alarm device's alarm_state, alarm_sensor
+                                                             4. fires Event#alarm_<state>
+                                                             5. switches the sirens on or off
+                                                             6. tells the open hub pages
+```
+
+- **What goes in.** The hub decodes every Zigbee report as usual. The panel looks only at the
+  devices on the Security page: a sensor's `contact`, `occupancy`, `presence` or `vibration`, and a
+  keypad's `action`. Arming and disarming come from the hub page, or as a new value of the Alarm
+  device's `alarm_state`. Rules, Lua, MQTT, Home Assistant and the cloud device card all go that
+  way, so they behave the same.
+- **The decision.** A small state machine decides what each input means in the current state and
+  mode (see [States](#states) and [What sets it off](#what-sets-it-off)). Before arming, it checks
+  the mode's contacts against their last report, so an open door blocks the arm. A contact counts
+  only when it changes to open. At start-up the panel takes each contact's last known state, so a
+  door left open across a restart is not a new opening.
+- **The clock.** The panel keeps the exit delay, the entry delay and the siren time itself, and
+  checks them every second while one of them runs.
+- **What comes out.** The panel's own task does the slow work of each change, in the order above.
+  The sirens come late in it, because a siren can take a few seconds to answer over Zigbee.
+- **A restart.** The settings and the state are kept in flash. After a restart the panel comes back
+  in the state it was in, or, if the alarm was on, in the state before the alarm.
+
+In the firmware (`zhac-wired-core`): `main/alarm_core.cpp` is the state machine (plain C++,
+host-tested), `main/alarm.cpp` the task with the sirens, the notifications, the flash records and
+the Alarm device, and `main/ws_bridge.cpp` the `alarm.*` commands of
+[WS_API.md](WS_API.md#security-mode).
 
 ## States
 

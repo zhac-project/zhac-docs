@@ -104,6 +104,8 @@ To build one yourself, put `zhac-components`, `embedded-zhc` and `www-spa` next 
 | [RULES_DSL.md](RULES_DSL.md) | Automation rule DSL (`ON … DO … ENDON`) |
 | [LUA_API.md](LUA_API.md) | Lua scripting API |
 | [AUTOMATION_EXAMPLES.md](AUTOMATION_EXAMPLES.md) | Automation cookbook — worked rule + Lua examples, beginner → advanced |
+| [ALARM.md](ALARM.md) | Security mode: the hub's built-in alarm panel — how it works, sensors, sirens, keypads, notifications |
+| [GPIO.md](GPIO.md) | The board's own pins (Hub I/O): relays, LEDs, buttons, voltages, WS2812 strips |
 | [HAP_PROTOCOL.md](HAP_PROTOCOL.md) | P4 ↔ S3 SPI binary protocol of the archived two-chip build — framing, message catalog, reliability |
 | [ZNP_API_CONTRACT.md](ZNP_API_CONTRACT.md) | P4 ↔ CC2652 ZNP/MT contract of the archived two-chip build |
 | [supported-devices/](supported-devices/README.md) · [search](https://zhac.org/devices/) | Supported devices by brand, and a search page |
