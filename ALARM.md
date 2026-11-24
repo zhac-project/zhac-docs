@@ -44,8 +44,8 @@ message of your own) goes in rules or Lua that react to them.
 - **What goes in.** The hub decodes every Zigbee report as usual. The panel looks only at the
   devices on the Security page: a sensor's `contact`, `occupancy`, `presence` or `vibration`, and a
   keypad's `action`. Arming and disarming come from the hub page, or as a new value of the Alarm
-  device's `alarm_state`. Rules, Lua, MQTT, Home Assistant and the cloud device card all go that
-  way, so they behave the same.
+  device's `alarm_state`. Rules, Lua, MQTT, Home Assistant and ZHAC Cloud scenes all go that way,
+  so they behave the same.
 - **The decision.** A small state machine decides what each input means in the current state and
   mode (see [States](#states) and [What sets it off](#what-sets-it-off)). Before arming, it checks
   the mode's contacts against their last report, so an open door blocks the arm. A contact counts
@@ -211,11 +211,13 @@ You can set the Alarm device's `alarm_state` from all of these:
 - MQTT, with discovery on (`<root>/devices/025A484143414C00/alarm_state/set` with `armed_away`,
   `disarmed`, …);
 - Home Assistant, where it shows up as a select;
-- the ZHAC Cloud device card.
+- ZHAC Cloud, through a scene. For example, an "Arm away" scene sets the Alarm device's
+  `alarm_state` to `armed_away`, and a "Disarm" scene sets it to `disarmed`. The cloud's device
+  card shows `alarm_state` but has no control for it yet.
 
-**None of these ask for a code.** Anyone who can publish to your MQTT broker or control the device
-from Home Assistant can disarm the panel. Secure those the way you would secure the door. Forcing
-past open sensors is only on the hub page.
+**None of these ask for a code.** Anyone who can publish to your MQTT broker, control the device
+from Home Assistant or run scenes in your ZHAC Cloud account can disarm the panel. Secure those
+the way you would secure the door. Forcing past open sensors is only on the hub page.
 
 A keypad's code is checked on the hub. It shows in the hub page's live view of the keypad, but it
 never goes to the cloud.
