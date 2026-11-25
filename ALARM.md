@@ -76,8 +76,10 @@ your own) goes in rules or Lua that react to them.
   device) it may skip the steps in between, but every profile's last state is saved, shown and acted
   on, and every alarm is notified. A profile that was disarmed and armed again between two looks, and
   ends in the state it was seen in, sends no "Disarmed" or "Armed" notification and fires no event.
-- **A restart.** The settings and the state of every profile are kept in flash. After a restart each
-  profile comes back in the state it rested in: armed stays armed, disarmed stays disarmed, and
+- **A restart.** The settings and the state of every profile are kept in flash. A save writes the
+  states of every profile, a new one too, together with the settings, so a power cut right after a
+  save brings each profile back as it rested at the save. After a restart each profile comes back
+  in the state it rested in: armed stays armed, disarmed stays disarmed, and
   a profile that was in an alarm comes back in the state before the alarm. Nothing is armed again
   by itself. A state that cannot be written is logged and the change still takes effect; a restart
   then comes back to the state written last.
@@ -93,7 +95,7 @@ A profile has these fields:
 
 | Field | Values | Notes |
 |---|---|---|
-| `id` | `a-z`, `0-9`, `_`; starts with a letter; 1 to 13 characters | Unique. Fixed once saved: rules, MQTT and Home Assistant refer to it. Not `alarm_state`, `alarm_sensor`, `armed`, `disarmed`, `arming`, `pending`, `triggered`. |
+| `id` | `a-z`, `0-9`, `_`; starts with a letter; 1 to 13 characters | Unique. Fixed once saved: rules, MQTT and Home Assistant refer to it. Not one of these ten, which are the hub's own: `alarm_state`, `alarm_sensor`, `armed`, `disarmed`, `arming`, `pending`, `triggered`, `pin_code`, `action_code`, `color_hex`. |
 | `name` | text, 1 to 24 bytes of UTF-8, no control characters | Shown on the page and in notifications. Free to change. |
 | `class` | `intrusion`, `fire`, `water`, `gas`, `other` | Fixed once saved, like the id. |
 | `role` | `away`, `home`, `night` or none | Intrusion only. The keypad button that arms this profile. Each role at most once. The page calls it "Keypad button". |
@@ -101,7 +103,7 @@ A profile has these fields:
 | `trigger_delay` | 0 to 300 s (default 0) | Time in `pending` before `triggered`, for sensors marked delayed. The old entry delay. |
 | `siren_time` | 10 to 1800 s (default 180) | The alarm time: how long `triggered` lasts. The page calls it "Alarm time". |
 | `notify_arm` | true, false | Also notify when this profile is armed or disarmed. |
-| `sensors` | list of `{ieee, entry}` | `entry` means delayed: the sensor starts `pending` instead of the alarm. The page calls it "delayed". |
+| `sensors` | list of `{ieee, entry}` | `entry` means delayed: the sensor starts `pending` instead of the alarm. The page calls it "delayed". A sensor is listed once in a profile. |
 | `outputs` | list, see [Outputs](#outputs) | Driven in the order listed. |
 
 What the class does:
@@ -128,9 +130,11 @@ modes and 8 sirens, which become 24 outputs). The whole list is under [Limits](#
   Vacation (intrusion, no keypad button), Flood (water), Fire and smoke (fire), Gas and CO (gas),
   and an empty profile (class other). A template is only a filled-in form: Away has a 30 s arm delay
   and a 30 s trigger delay, Home and Night a 30 s trigger delay, the alarm time is 180 s, and the
-  Flood, Fire and Gas templates tick "Notify when it is armed or disarmed".
-- The **Id** is proposed from the name. The id and the class can be set until the first save; after
-  it they are shown, not edited. Save is refused for a duplicate or reserved id.
+  Flood, Fire and Gas templates tick "Notify when it is armed or disarmed". A second profile from
+  the same template gets the first free name: "Night 2", "Night 3", and so on.
+- The **Id** is proposed from the name, never one that is reserved or that another profile has. The
+  id and the class can be set until the first save; after it they are shown, not edited. Save is
+  refused for a duplicate id or a reserved one (the ten are in the table above).
 - The sensor picker lists the sensors that suit the class first, but any sensor can go into any
   profile. The output picker lists the devices that can act as an output.
 - While an alarm is running the page says why Save is off. Delete profile asks first, and rules that
@@ -184,7 +188,9 @@ Each profile has the same life:
 - **When an arm ends in `armed`** (a profile armed from disarmed, also a new one), each of its
   hazard sensors (water leak, smoke, gas, carbon monoxide) that is still active counts as going off
   now. Motion, presence and vibration are ignored. This check runs only then: not when an alarm ends,
-  not after a silence and not at start-up.
+  not after a silence and not at start-up. One corner: a keypad panic during the arm delay sounds the
+  alarm before the profile has reached `armed`. That arm is not over, so when the panic's alarm ends
+  (by its time or by a silence) the profile ends in `armed` and the check runs then.
 - **Disarm a profile:** from any state to `disarmed`. Its outputs stop, except those you marked
   "leave it so".
 - **Disarm with no profile named** (the page's main Disarm button, a keypad, `alarm_state =
@@ -263,7 +269,9 @@ Each output has a kind, which depends on what the device offers:
   an alarm ends, not when you disarm or silence, not when another profile's alarm ends, not after a
   restart. The page ticks it by default for a switch set to off.
 - **A "leave it so" output is set on every alarm**, even one that is silenced or ends at once: a
-  valve closes for every leak alarm, however short.
+  valve closes for every leak alarm, however short. It follows the settings the alarm went off
+  under: a save made before the hub has acted on a short alarm still closes a valve that the save
+  removes, and does not close one that the save adds, for that earlier alarm.
 - **One device as a `state` output in several profiles** must have the same value and the same
   "leave it so" in all of them. A save that breaks this is refused, so no profile can reopen a valve
   another one closed. A device can be listed once in a profile.
@@ -331,6 +339,14 @@ them under **Keypads and codes** on the Safety page.
   later, the hub sends "The hub restarted during an alarm" and switches off the outputs that were
   sounding (unless a new alarm sounds them by then). Those left so get their value once more
   instead: the restart may have come before the hub sent it, and a valve must still close.
+  - **Which outputs.** Those of the settings in force at the restart. A save in that minute that
+    changes the profile's outputs does not change what is switched off.
+  - **A disarm in that minute** switches those outputs off at once, without waiting for the minute.
+    Any accepted disarm does it, of any profile: from the hub page, the Alarm device (a rule, Lua,
+    MQTT, Home Assistant, a cloud scene) or a keypad. The notice still comes at the minute, and
+    nothing is switched off twice.
+  - **A second restart in that minute** still switches them off. The hub keeps the job in flash
+    until it is done, in a record `bt` of its own in its `alarm` storage.
 - **The network is down when a notification is due** (an internet outage, a router still booting
   after a power cut): the cloud notification waits on the hub and goes out when the cloud link is
   back, and Telegram is tried again every 30 s for 10 minutes. A restart in the meantime loses what
@@ -384,6 +400,15 @@ does not. For a longer signal, add the siren as an output of the profile.
 Rules refer to the device by its name. If you rename the Alarm device, use the new name or its IEEE
 address. The **Safety** page builds the two common rules for you (**Add a reaction**, **Arm with a
 button**) in its **Rule shortcuts** card; they are ordinary rules you can change on the Rules page.
+
+- **Devices.** A rule built there names a device by its name when the name reads as one word in a
+  rule and no other device has that exact name; the hub's rules take the first match. Otherwise it
+  uses the device's IEEE address.
+- **Names.** A reaction is named `Alarm <id> <state>` ("Alarm flood triggered"). A button's rule is
+  `Button arms <id>` or `Button disarms <id>`; a button for every profile is `Button disarms`. A
+  name is at most 23 bytes, and the page never cuts one. When the long form does not fit, its first
+  word goes: a 13-character id gives `abcdefghijklm triggered` and `arms abcdefghijklm`. A different
+  profile, state or button target always gives a different name.
 
 ```lua
 local ALARM = "0x025A484143414C00"
@@ -465,6 +490,10 @@ profiles.
   every start, so a config you changed on v2026112401 during the fall back is taken over. Once the
   Safety page has saved, its config is used, and a change made on v2026112401 is not: a sensor you
   added there is unguarded until you add it on the Safety page again.
+- **A fall back in the minute after a restart during an alarm** can leave the `bt` record (see
+  [Notifications](#notifications)) in flash, because the older firmware does not know it. The next
+  update to this firmware then sends one more "The hub restarted during an alarm" and switches
+  those outputs off once more.
 
 ## Limits
 
