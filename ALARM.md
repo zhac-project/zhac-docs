@@ -346,9 +346,9 @@ them under **Keypads and codes** on the Safety page.
   - **Which outputs.** Those of the settings in force at the restart. A save in that minute that
     changes the profile's outputs does not change what is switched off.
   - **A disarm in that minute** switches those outputs off at once (an output left so gets its
-    value again instead), without waiting for the minute. Any accepted disarm does it, of any profile: from the hub page, the Alarm device (a rule, Lua,
-    MQTT, Home Assistant, a cloud scene) or a keypad. The notice still comes at the minute, and
-    nothing is switched off twice.
+    value again instead), without waiting for the minute. Any accepted disarm does it, of any
+    profile: from the hub page, the Alarm device (a rule, Lua, MQTT, Home Assistant, a cloud scene)
+    or a keypad. The notice still comes at the minute, and nothing is switched off twice.
   - **A second restart in that minute** still switches them off. The hub keeps the job in flash
     until it is done, in a record `bt` of its own in its `alarm` storage.
 - **The network is down when a notification is due** (an internet outage, a router still booting
