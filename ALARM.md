@@ -77,7 +77,7 @@ your own) goes in rules or Lua that react to them.
   on, and every alarm is notified. A profile that was disarmed and armed again between two looks, and
   ends in the state it was seen in, sends no "Disarmed" or "Armed" notification and fires no event.
 - **A restart.** The settings and the state of every profile are kept in flash. A save writes the
-  states of every profile, a new one too, together with the settings, so a power cut right after a
+  states of every profile, a new one too, straight after the settings, so a power cut right after a
   save brings each profile back as it rested at the save. After a restart each profile comes back
   in the state it rested in: armed stays armed, disarmed stays disarmed, and
   a profile that was in an alarm comes back in the state before the alarm. Nothing is armed again
@@ -248,9 +248,13 @@ event `Event#alarm_arm_failed_<id>` (also `Event#alarm_arm_failed`).
 ### A sensor that stays active
 
 A contact or hazard sensor that is still open or active when its alarm ends does not start a new
-one, however the alarm ended: by its time, by a silence, by a restart. It counts again once it has
-closed or cleared. A fire that still burns when the alarm time ends therefore does not sound again;
-the alarm time is your setting. Only arming from disarmed checks hazard sensors anew.
+one, however the alarm ended: by its time, by a silence, by a restart (bar the one corner at the end
+of this section). It counts again once it has closed or cleared. A fire that still burns when the
+alarm time ends therefore does not sound again; the alarm time is your setting. Only arming from
+disarmed checks hazard sensors anew. The one corner: when a keypad panic sounds during the arm
+delay, that arm has not yet reached `armed`, so the check runs when the panic's alarm ends, and a
+hazard sensor still active then counts as going off (see
+[Arming, disarming, silencing](#arming-disarming-silencing)).
 
 ## Outputs
 
@@ -341,8 +345,8 @@ them under **Keypads and codes** on the Safety page.
   instead: the restart may have come before the hub sent it, and a valve must still close.
   - **Which outputs.** Those of the settings in force at the restart. A save in that minute that
     changes the profile's outputs does not change what is switched off.
-  - **A disarm in that minute** switches those outputs off at once, without waiting for the minute.
-    Any accepted disarm does it, of any profile: from the hub page, the Alarm device (a rule, Lua,
+  - **A disarm in that minute** switches those outputs off at once (an output left so gets its
+    value again instead), without waiting for the minute. Any accepted disarm does it, of any profile: from the hub page, the Alarm device (a rule, Lua,
     MQTT, Home Assistant, a cloud scene) or a keypad. The notice still comes at the minute, and
     nothing is switched off twice.
   - **A second restart in that minute** still switches them off. The hub keeps the job in flash
