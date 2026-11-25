@@ -268,6 +268,14 @@ Each output has a kind, which depends on what the device offers:
 
 - **Melody and volume are plain text** of up to 23 bytes of UTF-8, no control characters. The page
   offers the siren's own values.
+- **The hub's own speaker.** On a board with a speaker, the device **Hub Sound** appears in the
+  Safety page's output list as an output of kind `warning`, like an IAS siren
+  ([SOUND.md](SOUND.md#the-hub-sound-device)). It plays looped sounds: mode `burglar` the `alarm`
+  sound, `fire` and `fire_panic` the `fire` sound, `emergency`, `police_panic` and `emergency_panic`
+  the `siren` sound. The level gives the volume (`low` 25, `medium` 40, `high` 55, `very_high` 70, never
+  above 70), and the strobe is ignored. It stops when the alarm ends, or after 10 minutes at the most.
+  These are urgent sounds, so a muted hub still sounds the alarm. To keep the speaker out of the alarm,
+  leave Hub Sound out of the outputs.
 - **Leave it so** (kind `state` only): the output is set once and left so. A valve closed by a leak
   stays closed until you open it. The hub never sends the opposite value to such a device: not when
   an alarm ends, not when you disarm or silence, not when another profile's alarm ends, not after a
@@ -404,6 +412,9 @@ ON Event#alarm_arm_failed DO zigbee.set hall_light effect blink ENDON
 
 A rule's value is at most 19 characters: `fire,very_high,1,60` fits, `police_panic,high,1,60`
 does not. For a longer signal, add the siren as an output of the profile.
+
+On a board with a speaker, rules can also play sounds: exit and entry beeps for a profile are in
+[SOUND.md](SOUND.md#exit-and-entry-beeps-for-an-alarm-profile).
 
 Rules refer to the device by its name. If you rename the Alarm device, use the new name or its IEEE
 address. The **Safety** page builds the two common rules for you (**Add a reaction**, **Arm with a

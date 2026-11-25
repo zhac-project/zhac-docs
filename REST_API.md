@@ -427,6 +427,45 @@ Replace the pin configuration: `{"pins": [ … ]}`, under 4 KB. **Response:** th
 
 ---
 
+## Hub sound
+
+The hub's speaker, which plays generated sounds: see [SOUND.md](SOUND.md). Local only; **Auth required**,
+as for `/api/io`. Bodies are JSON objects under 256 bytes. A refusal is `400 {"error": "<why>"}`.
+
+#### `GET /api/sound`
+
+**Response:**
+
+```json
+{"present": true, "volume": 40, "max_volume": 70, "muted": false, "playing": null,
+ "sounds": [{"name": "beep", "ms": 120, "loop": true, "urgent": false}, …]}
+```
+
+`present` is false on a board without the speaker's codec. `volume` is the default volume and
+`max_volume` the loudest the hub plays (70). `playing` is the name of the sound that plays, `"tone"`
+or `"melody"`, or `null`. `sounds` lists the 16 built-in sounds; `ms` is one pass in milliseconds.
+`error` (a short text) is added when the codec was found but did not start.
+
+#### `PUT /api/sound`
+
+`{"volume": 0-100, "muted": true|false}`, each optional. A volume above 70 is held to 70. **Response:**
+the state of `GET /api/sound`, with the values now in force. `400`: `body must be a JSON object under
+256 bytes`, `volume must be 0-100` (a whole number is needed), `muted must be true or false`; a refused
+body changes neither value.
+
+#### `POST /api/sound/play`
+
+`{"name": "<sound>", "volume": 0-100}`; `volume` is optional (the default volume), and the sound does not
+loop. **Response:** `{"ok": true}`. `400`: the body errors above, `volume must be 0-100`, and the player's
+reasons: `unknown sound` (also for a missing name), `muted`, `an urgent sound is playing`,
+`no speaker on this hub`.
+
+#### `POST /api/sound/stop`
+
+Stop whatever plays. **Response:** `{"ok": true}`, also when nothing plays.
+
+---
+
 ## Cloud link
 
 The hub's link to ZHAC Cloud. **Auth required.**

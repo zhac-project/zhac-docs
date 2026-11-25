@@ -712,6 +712,85 @@ configured `leds` count are ignored.
 zhac.ws_write("strip", { 0xff0000, 0x00ff00, 0x0000ff })
 ```
 
+### 5.22 `zhac.sound_play(name [, volume [, loop]]) → true | nil, err`
+
+Play a built-in sound on the hub's speaker and return at once. `volume` is 0-100 (never above 70), `loop` repeats a sound that can loop.
+
+- `name`: one of the 16 sounds in [SOUND.md](SOUND.md#built-in-sounds) (`beep`, `chime`, `doorbell`, `siren`, …).
+- `volume`: an integer 0-100; `nil` is the hub's default volume (40 until changed). The hub never plays louder than 70.
+- `loop`: any true value. The sound repeats until `zhac.sound_stop`, another sound or 10 minutes. Only `beep`, `double_beep`,
+  `triple_beep`, `warning`, `alarm`, `siren`, `fire` and `co` can loop.
+- Returns `true` once the sound is queued, else `nil, err`: `unknown sound`, `this sound cannot loop`, `muted`,
+  `an urgent sound is playing`, `bad value (volume 0-100, hz 100-8000, ms 1-10000, 1-32 notes)` or `no speaker on this hub`.
+
+One sound plays at a time and a new one replaces it, but a normal sound never replaces an urgent one (`alarm`, `siren`, `fire`,
+`co`), and mute silences every sound except the urgent ones. See [SOUND.md](SOUND.md#mute-and-urgent-sounds).
+
+```lua
+zhac.sound_play("doorbell")
+zhac.sound_play("beep", 60, true)          -- looping, volume 60
+local ok, err = zhac.sound_play("siren")
+if not ok then zhac.log("W", err) end
+```
+
+### 5.23 `zhac.sound_tone(hz, ms [, volume]) → true | nil, err`
+
+Play one tone on the hub's speaker and return at once: `hz` is 100-8000, `ms` is 1-10000, `volume` is 0-100 (never above 70).
+
+A tone is a normal sound: it does not loop, mute and an urgent sound refuse it, and it replaces any normal sound that plays. Returns
+`true`, or `nil, err` with the texts of `zhac.sound_play`. At a sample rate of 16 kHz a pitch close to 8000 Hz comes out weak, and 8000 Hz
+itself is silent.
+
+```lua
+zhac.sound_tone(880, 300)
+zhac.sound_tone(440, 1000, 30)
+```
+
+### 5.24 `zhac.sound_melody(notes [, volume]) → true | nil, err`
+
+Play a melody of up to 32 notes on the hub's speaker and return at once. `notes` is a table of `{hz, ms}` pairs; `hz` 0 is a rest.
+
+- Each note: `hz` is 0 (a rest) or 100-8000, `ms` is 1-10000. A list with no notes, more than 32, or a malformed entry returns
+  `nil, "bad value (volume 0-100, hz 100-8000, ms 1-10000, 1-32 notes)"`.
+- A melody is a normal sound, like a tone. The other errors are those of `zhac.sound_play`.
+
+```lua
+zhac.sound_melody({ {523, 150}, {659, 150}, {784, 300}, {0, 100}, {1047, 400} })
+```
+
+### 5.25 `zhac.sound_stop([name]) → true`
+
+Stop the sound that plays on the hub's speaker. With a `name`, stop it only if that sound is playing.
+
+Always returns `true`, also when nothing plays or there is no speaker. Without a name it stops anything, an urgent sound and the Hub Sound
+device's siren included; with a name it leaves any other sound alone.
+
+```lua
+zhac.sound_stop()            -- whatever plays
+zhac.sound_stop("beep")      -- only if the beep plays
+```
+
+### 5.26 `zhac.sound_volume([v]) → volume | nil, err`
+
+Return the hub's default volume, 0-70. With `v` (an integer 0-100) set it first, held to 70, and keep it across restarts.
+
+Only the default changes: a volume given to a play call still wins for that sound. A `v` that is not an integer 0-100 returns
+`nil, "volume must be 0-100"` and changes nothing.
+
+```lua
+zhac.sound_volume(30)        --> 30
+zhac.sound_volume(100)       --> 70, the loudest the hub plays
+zhac.log("volume " .. zhac.sound_volume())   -- logs: volume 70
+```
+
+### 5.27 `zhac.sound_playing() → name | nil`
+
+Return the name of the sound that plays now, or `nil`. A tone is `"tone"` and a melody `"melody"`.
+
+```lua
+if zhac.sound_playing() == "beep" then zhac.sound_stop("beep") end
+```
+
 ---
 
 ## 6. Sandbox

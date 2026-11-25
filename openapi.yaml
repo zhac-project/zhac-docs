@@ -175,6 +175,25 @@ components:
         adc_pins: { type: array, items: { type: integer } }
         pins:     { type: array, items: { type: object, additionalProperties: true } }
 
+    SoundState:
+      type: object
+      properties:
+        present:    { type: boolean, description: False on a board without the speaker's codec }
+        volume:     { type: integer, minimum: 0, maximum: 70, description: The default volume }
+        max_volume: { type: integer, example: 70, description: The loudest the hub plays }
+        muted:      { type: boolean }
+        playing:    { type: string, nullable: true, description: 'The sound that plays: a built-in name, "tone" or "melody"' }
+        sounds:
+          type: array
+          items:
+            type: object
+            properties:
+              name:   { type: string, example: beep }
+              ms:     { type: integer, description: One pass in milliseconds, a loop's pause excluded }
+              loop:   { type: boolean }
+              urgent: { type: boolean }
+        error:      { type: string, description: Added when the codec was found but did not start }
+
 paths:
   /api/status:
     get:
@@ -911,6 +930,77 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+
+  /api/sound:
+    get:
+      summary: The hub's speaker (SOUND.md)
+      operationId: getSound
+      responses:
+        '200':
+          description: The volume, mute, the sound that plays and the 16 built-in sounds
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SoundState' }
+    put:
+      summary: Set the default volume and the mute
+      operationId: putSound
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                volume: { type: integer, minimum: 0, maximum: 100, description: Held to the hub's maximum, 70 }
+                muted:  { type: boolean }
+      responses:
+        '200':
+          description: The new state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SoundState' }
+        '400':
+          description: "`body must be a JSON object under 256 bytes`, `volume must be 0-100` or `muted must be true or false`"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/sound/play:
+    post:
+      summary: Play a built-in sound once (no loop)
+      operationId: postSoundPlay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:   { type: string, example: doorbell }
+                volume: { type: integer, minimum: 0, maximum: 100, description: Absent = the default volume; held to 70 }
+      responses:
+        '200':
+          description: Playing
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '400':
+          description: "The body or the volume is wrong, or the player refuses: `unknown sound`, `muted`, `an urgent sound is playing`, `no speaker on this hub`"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/sound/stop:
+    post:
+      summary: Stop whatever plays
+      operationId: postSoundStop
+      responses:
+        '200':
+          description: Stopped, or nothing was playing
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
 
   /api/remote/status:
     get:

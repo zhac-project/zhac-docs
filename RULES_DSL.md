@@ -313,6 +313,68 @@ Inputs and ADC pins are triggers like any attribute of the Hub I/O device:
 ON Hub I/O#button=1 DO gpio.toggle relay ENDON
 ```
 
+### `strip.set <pin> <#RRGGBB> [<brightness>]`, `strip.off <pin>`
+
+Light a WS281x strip configured as a `strip` pin (Settings › I/O, see [GPIO.md](GPIO.md)). `pin` is the
+configured name or the GPIO number. A pin that is not configured, or is configured in another mode, is
+refused when the rule is saved, and the answer names the strips there are.
+
+- `strip.set <pin> <#RRGGBB> [<brightness>]`: fills the whole strip, every configured LED, with one colour.
+  The colour is `#` and six hex digits, upper or lower case, written out: `%value%` and expressions are not
+  accepted. `brightness` is 0-100 (default 100) and scales the colour.
+- `strip.off <pin>`: turns every LED off.
+
+```
+strip.set hall #FF0000
+strip.set hall #ff8800 40
+strip.off hall
+```
+
+```
+ON Event#alarm_triggered_away DO strip.set hall #FF0000 ENDON
+ON Event#alarm_disarmed_away DO strip.off hall ENDON
+```
+
+A rule colours the whole strip only. For a colour per LED, use Lua's [`zhac.ws_write`](LUA_API.md#5-zhac-module-reference).
+
+### `sound.play <name> [<volume>] [loop]`, `sound.stop [<name>]`
+
+Play a generated sound on the hub's speaker, see [SOUND.md](SOUND.md) for the boards, the sounds and the
+volume rules.
+
+- `sound.play <name> [<volume>] [loop]`: `name` is one of the 16 built-in sounds (`beep`, `double_beep`,
+  `triple_beep`, `chime`, `doorbell`, `westminster`, `notify`, `success`, `error`, `warning`, `armed`,
+  `disarmed`, `alarm`, `siren`, `fire`, `co`). `volume` is a whole number 0-100, without it the hub's default
+  volume; the hub never plays louder than 70. `loop` repeats the sound until a `sound.stop`, another sound or
+  10 minutes; it comes last, and only `beep`, `double_beep`, `triple_beep`, `warning`, `alarm`, `siren`,
+  `fire` and `co` can loop.
+- `sound.stop [<name>]`: without a name stops whatever plays; with a name stops only if that sound is
+  playing.
+
+```
+sound.play westminster
+sound.play beep 60 loop
+sound.stop beep
+```
+
+```
+ON Mqtt#zhac/home/doorbell DO sound.play westminster ENDON
+ON Event#alarm_pending_away DO sound.play beep 60 loop ENDON
+ON Event#alarm_disarmed_away DO sound.stop beep ENDON
+```
+
+The hub refuses the rule when it is saved if:
+
+- the sound does not exist (`unknown sound, use: beep,double_beep,…` with every name),
+- `loop` is asked of a sound that cannot (`<name> cannot loop, loopable: …`),
+- the volume is not 0-100 (`sound.play: volume must be 0-100`),
+- the hub has no speaker (`no speaker on this hub`).
+
+When the rule runs, a muted hub plays nothing and the rule is not in error. A normal sound asked while an
+urgent one (`alarm`, `siren`, `fire`, `co`) plays is refused, and the rule's last skip reads
+`action_error:sound.play`. [SOUND.md](SOUND.md#exit-and-entry-beeps-for-an-alarm-profile) has ready rules
+for exit and entry beeps.
+
 ### `publish <topic> <payload>`
 
 Publish to MQTT. `topic` and `payload` are space-delimited tokens (no spaces within each);

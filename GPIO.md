@@ -35,12 +35,14 @@ The configuration is kept in the hub's flash and survives updates.
 ## Which pins
 
 The editor lists only pins that are free on your build. A pin used by Ethernet, the Zigbee radio,
-the status LED, the Wi-Fi co-processor or the flash/PSRAM is never offered.
+the status LED, the Wi-Fi co-processor, the speaker ([SOUND.md](SOUND.md)) or the flash/PSRAM is never
+offered. GPIO53 on the P4 is the speaker's amplifier pin and is no longer offered; a hub with a user pin
+there shows that row's error after the update, so move the pin.
 
 | Build | Pins offered |
 |---|---|
-| ESP32-P4 (Guition / Waveshare P4) | 2, 3, 4, 5, 20, 21, 22, 23, 26, 27, 32, 33, 45, 46, 47, 48, 53 |
-| ESP32-P4 with Wi-Fi co-processor | 21, 22, 23, 26, 27, 45, 46, 47, 48, 53 |
+| ESP32-P4 (Guition / Waveshare P4) | 2, 3, 4, 5, 20, 21, 22, 23, 26, 27, 32, 33, 45, 46, 47, 48 |
+| ESP32-P4 with Wi-Fi co-processor | 21, 22, 23, 26, 27, 45, 46, 47, 48 |
 | ESP32-S31 Function-CoreBoard | 2, 3, 4, 20–25, 35–40, 42–49 |
 | ESP32-S31 with Wi-Fi co-processor | 2, 3, 4, 35–40, 42–46, 48, 49 |
 
@@ -62,7 +64,7 @@ attributes are the pin names:
 | pwm | 0–100 % | slider, writable |
 | in | on/off | read-only, updated on every change (debounced, ~40 ms) |
 | adc | mV or raw | read-only, published every `interval` seconds when it moved by `delta` |
-| strip | — | Lua only |
+| strip | — | no attribute: rules (`strip.set`, `strip.off`) and Lua (`ws_write`) drive it |
 
 It works like any device: rename it, put it in dashboards, read it from MQTT/Home Assistant and
 the cloud, and use inputs as rule triggers:
@@ -77,9 +79,17 @@ delete its pins in Settings › I/O.
 
 ## Rules and Lua
 
-Rules: `gpio.set <pin> on|off`, `gpio.toggle <pin>`, `pwm.set <pin> <0-100>`; see
-[RULES_DSL.md](RULES_DSL.md). Lua: `zhac.gpio_write`, `gpio_toggle`, `gpio_read`, `pwm_write`,
-`adc_read`, `ws_write`; see [LUA_API.md](LUA_API.md). `<pin>` is the name or the GPIO number.
+Rules: `gpio.set <pin> on|off`, `gpio.toggle <pin>`, `pwm.set <pin> <0-100>`, and for strips
+`strip.set <pin> <#RRGGBB> [<0-100>]` (the whole strip one colour, with an optional brightness) and
+`strip.off <pin>`; see [RULES_DSL.md](RULES_DSL.md). A `strip.set` or `strip.off` on a pin that is not a
+`strip` is refused when the rule is saved. Lua: `zhac.gpio_write`, `gpio_toggle`, `gpio_read`, `pwm_write`,
+`adc_read`, `ws_write`; see [LUA_API.md](LUA_API.md). `<pin>` is the name or the GPIO number. A colour
+per LED, or any pattern, stays in Lua with `ws_write`.
+
+```
+ON Event#alarm_triggered_away DO strip.set hall #FF0000 ENDON
+ON Event#alarm_disarmed_away DO strip.off hall ENDON
+```
 
 ## Wiring
 
