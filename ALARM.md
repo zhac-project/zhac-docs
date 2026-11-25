@@ -271,7 +271,8 @@ Each output has a kind, which depends on what the device offers:
 - **Leave it so** (kind `state` only): the output is set once and left so. A valve closed by a leak
   stays closed until you open it. The hub never sends the opposite value to such a device: not when
   an alarm ends, not when you disarm or silence, not when another profile's alarm ends, not after a
-  restart. The page ticks it by default for a switch set to off.
+  restart, also when you save in the minute after it (see [Notifications](#notifications)). The page
+  ticks it by default for a switch set to off.
 - **A "leave it so" output is set on every alarm**, even one that is silenced or ends at once: a
   valve closes for every leak alarm, however short. It follows the settings the alarm went off
   under: a save made before the hub has acted on a short alarm still closes a valve that the save
@@ -344,7 +345,10 @@ them under **Keypads and codes** on the Safety page.
   sounding (unless a new alarm sounds them by then). Those left so get their value once more
   instead: the restart may have come before the hub sent it, and a valve must still close.
   - **Which outputs.** Those of the settings in force at the restart. A save in that minute that
-    changes the profile's outputs does not change what is switched off.
+    changes the profile's outputs does not change what is switched off, except for a switch that
+    the settings in force then leave so: it never gets the opposite of the value they leave it at.
+    A switch the save leaves so at on is not switched off, and one it leaves so at off (a closed
+    valve) is not switched on.
   - **A disarm in that minute** switches those outputs off at once (an output left so gets its
     value again instead), without waiting for the minute. Any accepted disarm does it, of any
     profile: from the hub page, the Alarm device (a rule, Lua, MQTT, Home Assistant, a cloud scene)
@@ -406,8 +410,8 @@ address. The **Safety** page builds the two common rules for you (**Add a reacti
 button**) in its **Rule shortcuts** card; they are ordinary rules you can change on the Rules page.
 
 - **Devices.** A rule built there names a device by its name when the name reads as one word in a
-  rule and no other device has that exact name; the hub's rules take the first match. Otherwise it
-  uses the device's IEEE address.
+  rule and no other device has that exact name; the hub's rules take the first match, skipping
+  removed devices. Otherwise it uses the device's IEEE address.
 - **Names.** A reaction is named `Alarm <id> <state>` ("Alarm flood triggered"). A button's rule is
   `Button arms <id>` or `Button disarms <id>`; a button for every profile is `Button disarms`. A
   name is at most 23 bytes, and the page never cuts one. When the long form does not fit, its first
