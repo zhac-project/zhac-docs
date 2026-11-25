@@ -360,7 +360,7 @@ attribute, or `alarm_state`). The commands keep their `alarm.*` names and the de
 | `alarm.arm` | `{id, force?: bool}` (`mode` is still read as `id`) | `{armed: true}`, or `{armed: false, open: [{ieee, name?}]}` while contacts of that profile are open (send again with `force: true` to arm past them); the error `an alarm is on: disarm first` while that profile (or, for an intrusion profile, any intrusion profile) is pending or triggered; `no such profile` |
 | `alarm.disarm` | `{id?}` | ok. With `id`, that profile is disarmed. Without it every intrusion profile is disarmed and every other profile that is pending or triggered is silenced. `no such profile` for an unknown id |
 | `alarm.silence` | `{id}` | ok: that profile's pending or triggered ends now, back to its resting state (`armed`, or `disarmed` after a panic from disarmed). `no such profile` for an unknown id |
-| `alarm.config.set` | `{config}` | ok, or the first problem as the error (`profiles[1].sensors[2]: 0x... is not a device on this hub`); nothing is changed then |
+| `alarm.config.set` | `{config}` | ok, or the first problem as the error (`profiles[1].sensors[2]: 0x... is not a device on this hub`, `profiles[0]: id armed is reserved`); nothing is changed then |
 
 `id` names a profile only as text that is not empty. Leaving `id` out is the only way to give none (for
 `alarm.disarm`: every profile; for `alarm.arm`: `mode` is read instead). An `id` that is `null`, `""`, a
@@ -403,6 +403,11 @@ The config:
   its own stored record, at start. It always answers in the new form.
 - Leaving `codes` out keeps the stored codes; `"codes": []` clears them.
 - `alarm.get` never returns the codes, only `codes_count`.
+- An error about a sensor reads `profiles[P].sensors[N]: ...`. `N` is the sensor's row in that profile's
+  `sensors` list as sent, counted from 0. A problem with the device itself (`... is not a device on this
+  hub`, or nothing it can watch) names the first profile that lists the sensor, and its row there. A
+  sensor listed twice in one profile is `profiles[1].sensors[3]: listed twice`, and a 49th different
+  sensor, in any profile, is `profiles[2].sensors[7]: more than 48 different sensors`.
 - A sensor appears in each profile that lists it, with its own `entry` flag. `role` is for an intrusion
   profile only (`""` is none). An output carries `mode`, `level` and `strobe` for kind `warning`, `melody` and
   `volume` for kind `alarm`, and `value` (`on` or `off`) and `keep` for kind `state`.
@@ -412,9 +417,10 @@ The config:
   - 8 profiles; delays 0-300 s; `siren_time` 10-1800 s;
   - 48 different sensors, each in any number of profiles; 8 outputs in a profile and 32 in all;
     8 keypads; 8 codes of 4-8 digits (as text);
-  - `id`: 1-13 of `a-z`, `0-9`, `_`, starting with a letter, unique, and not `alarm_state`, `alarm_sensor`,
-    `armed`, `disarmed`, `arming`, `pending` or `triggered`; `name`: 1-24 bytes of UTF-8, no control
-    characters; each `role` at most once;
+  - `id`: 1-13 of `a-z`, `0-9`, `_`, starting with a letter, unique, and not one of the ten reserved
+    words `alarm_state`, `alarm_sensor`, `armed`, `disarmed`, `arming`, `pending`, `triggered`,
+    `pin_code`, `action_code` or `color_hex` (`profiles[0]: id armed is reserved`); `name`: 1-24 bytes
+    of UTF-8, no control characters; each `role` at most once;
   - `melody` and `volume`: plain text of up to 23 bytes of UTF-8, no control characters;
   - every sensor must expose `contact`, `occupancy`, `presence`, `vibration`, `water_leak`, `smoke`, `gas` or
     `carbon_monoxide`; every output needs something settable for its kind: `warning` a settable `warning`,
