@@ -198,7 +198,7 @@ goes over REST: [Device firmware update](REST_API.md#device-firmware-update).
 `device.list` without arguments answers the bare array of every device: `{ieee, nwk, friendly,
 name, model, manufacturer, vendor, model_id, known, last_seen, lqi, battery, ep_count, …}`, with
 `offline: true` on a device that left its availability ping unanswered and `local: true` on the
-Hub I/O device (UIs hide its Zigbee buttons). With `{"cursor": "0"}` it answers pages,
+hub's own devices, Hub I/O, Alarm and Hub Sound (UIs hide their Zigbee buttons). With `{"cursor": "0"}` it answers pages,
 `{items: [...], next_cursor}`, the cursor being the last IEEE address of the page; the last page
 has no `next_cursor`. The cloud relay always gets pages.
 
@@ -221,9 +221,9 @@ labels, editable inputs or enum dropdowns.
   about 10 seconds later; the hub keeps serving other requests meanwhile. They go out one at a
   time. With one running and four waiting, another is answered at once with
   `busy -- another radio command is still running, try again`. Commands relayed from the cloud
-  still run on the cloud link's own task and are not queued. The Hub I/O device refuses the
-  Zigbee-only commands (`device.bind`, `device.reinterview`, `device.configure`,
-  `device.groups.add` / `remove` / `refresh`).
+  still run on the cloud link's own task and are not queued. The hub's own devices (Hub I/O, Alarm,
+  Hub Sound) refuse the Zigbee-only commands (`device.bind`, `device.reinterview`, `device.configure`,
+  `device.groups.add` / `remove` / `refresh`) with `a device on the hub itself: not a Zigbee device`.
 
 Rename, delete and permit join share one implementation with REST (`device_cmd` in
 zhac-components): `device.rename` refuses names over 29 bytes or with quotes, backslashes or

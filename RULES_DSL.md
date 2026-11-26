@@ -335,7 +335,7 @@ ON Event#alarm_triggered_away DO strip.set hall #FF0000 ENDON
 ON Event#alarm_disarmed_away DO strip.off hall ENDON
 ```
 
-A rule colours the whole strip only. For a colour per LED, use Lua's [`zhac.ws_write`](LUA_API.md#5-zhac-module-reference).
+A rule colours the whole strip only. For a colour per LED, use Lua's [`zhac.ws_write`](LUA_API.md#521-zhacws_writepin-colors--true--nil-err).
 
 ### `sound.play <name> [<volume>] [loop]`, `sound.stop [<name>]`
 

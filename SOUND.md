@@ -227,6 +227,8 @@ this through the same player as rules and Lua:
 - However long a profile's alarm time is, the sound ends after 10 minutes at the most.
 - When two profiles list the device, it behaves like a shared Zigbee siren: see
   [Outputs](ALARM.md#outputs).
+- In Home Assistant (MQTT discovery) the device is a switch whose state stays unknown, as `warning`
+  takes writes only. On sends `1`, a siren for one second; off sends `0` and stops it.
 
 The device exists only while the codec is there. On a board without it the entry is removed at boot.
 
@@ -242,5 +244,6 @@ If not, the hub:
   `sound.stop` when it is saved (`no speaker on this hub`);
 - has no Hub Sound device.
 
-A codec that answers but fails to start (for example an I2S error) also leaves audio off. The reason is
-in `GET /api/sound` (`error`) and in the log.
+A codec that answers but fails to start (for example an I2S error) also leaves audio off: every play is
+answered with `no speaker on this hub`, and the Hub Sound device stays in the device list but is never
+marked seen and refuses a `warning`. The reason is in `GET /api/sound` (`error`) and in the log.

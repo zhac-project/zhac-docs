@@ -826,7 +826,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Ok' }
-        '400': { description: bad name, or the body did not arrive in full }
+        '400': { description: "bad name, or the body did not arrive in full" }
         '408': { description: The body timed out }
         '411': { description: A chunked upload (send Content-Length) }
         '413': { description: Over 16384 bytes }
