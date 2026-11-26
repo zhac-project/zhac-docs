@@ -245,12 +245,14 @@ If not, the hub:
   `sound.stop` when it is saved (`no speaker on this hub`);
 - has no Hub Sound device.
 
-A codec that answers but fails to start (for example an I2S error) also leaves audio off:
+A codec that answers but fails to start (for example an I2S error) also leaves audio off for that boot:
+a sound asked for while the hub was starting never plays, and from then on:
 
 - every play is answered with `speaker off: <why>`, for example
   `speaker off: I2S setup failed: ESP_ERR_INVALID_STATE`, and a rule that tries to play logs that text;
 - a rule with a `sound.play` or `sound.stop` is refused with that text when it is saved; rules saved
   before still load;
-- the Hub Sound device stays in the device list but is never marked seen and refuses a `warning`.
+- the Hub Sound device stays in the device list, but its last-seen time is no longer updated, and it
+  refuses a `warning`.
 
 The reason is also in `GET /api/sound` (`error`) and in the boot log.
