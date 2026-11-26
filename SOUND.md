@@ -34,9 +34,9 @@ plays, and off again about a second after it ends.
 ### GPIO53 on the P4
 
 On the P4, GPIO53 is the amplifier pin. It is no longer one of the pins you can set up in
-**Settings › I/O** (see [GPIO.md](GPIO.md#which-pins)). A hub that already has a user pin on GPIO53 shows
-that row's error after the update. Move the pin to another GPIO in **Settings › I/O**. The S31's pin
-lists contain none of the audio pins.
+**Settings › I/O** (see [GPIO.md](GPIO.md#which-pins)). A hub that already has a user pin on GPIO53 drops
+that row at boot (the boot log says why), and **Settings › I/O** no longer lists it. Add the pin again on
+another GPIO in **Settings › I/O**. The S31's pin lists contain none of the audio pins.
 
 When the codec answers at boot, all eight audio pins belong to the firmware and **Settings › I/O** never
 offers them.

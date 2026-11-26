@@ -37,7 +37,8 @@ The configuration is kept in the hub's flash and survives updates.
 The editor lists only pins that are free on your build. A pin used by Ethernet, the Zigbee radio,
 the status LED, the Wi-Fi co-processor, the speaker ([SOUND.md](SOUND.md)) or the flash/PSRAM is never
 offered. GPIO53 on the P4 is the speaker's amplifier pin and is no longer offered; a hub with a user pin
-there shows that row's error after the update, so move the pin.
+there drops that row at boot (the boot log says why) and Settings › I/O no longer lists it, so add the pin
+again on another GPIO.
 
 | Build | Pins offered |
 |---|---|
