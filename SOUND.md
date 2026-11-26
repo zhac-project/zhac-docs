@@ -235,8 +235,8 @@ The device exists only while the codec is there. On a board without it the entry
 
 ## No speaker found
 
-At boot the hub reads the ES8311's chip ID over I2C. If the chip answers with the right ID, audio is on.
-If not, the hub:
+At boot the hub reads the ES8311's chip ID over I2C. If the chip answers with the right ID, the hub starts
+audio. If not, the hub:
 
 - claims none of the audio pins, so a board without the codec keeps every pin it had;
 - shows **No speaker found on this board** in **Settings › Sound**, and `GET /api/sound` answers
@@ -252,7 +252,7 @@ a sound asked for while the hub was starting never plays, and from then on:
   `speaker off: I2S setup failed: ESP_ERR_INVALID_STATE`, and a rule that tries to play logs that text;
 - a rule with a `sound.play` or `sound.stop` is refused with that text when it is saved; rules saved
   before still load;
-- the Hub Sound device stays in the device list, but its last-seen time is no longer updated, and it
-  refuses a `warning`.
+- the Hub Sound device stays in the device list, but its periodic last-seen updates stop, and it
+  refuses a new `warning`.
 
 The reason is also in `GET /api/sound` (`error`) and in the boot log.
