@@ -31,7 +31,7 @@ The pins are set in the firmware build (`CONFIG_ZHAC_AUDIO_*`) and are the same 
 Audio is on in the release images of both boards. The hub switches the amplifier on only while a sound
 plays, and off again about a second after it ends. The amplifier stays silent for a moment after it
 switches on, so a sound that starts while it is off begins about 0.15 s late
-(`CONFIG_ZHAC_AUDIO_PA_LEAD_MS`). A sound within a second of the last one starts at once.
+(`CONFIG_ZHAC_AUDIO_PA_LEAD_MS`). A sound within about a second of the last one starts at once.
 
 ### GPIO53 on the P4
 
