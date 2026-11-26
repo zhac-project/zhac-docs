@@ -986,7 +986,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Ok' }
         '400':
-          description: "The body or the volume is wrong, or the player refuses: `unknown sound`, `muted`, `an urgent sound is playing`, `no speaker on this hub`"
+          description: "The body or the volume is wrong, or the player refuses: `unknown sound`, `muted`, `an urgent sound is playing`, `no speaker on this hub`, `speaker off: <why>` (the speaker did not start)"
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

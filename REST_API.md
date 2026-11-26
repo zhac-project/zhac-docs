@@ -458,7 +458,7 @@ body changes neither value.
 `{"name": "<sound>", "volume": 0-100}`; `volume` is optional (the default volume), and the sound does not
 loop. **Response:** `{"ok": true}`. `400`: the body errors above, `volume must be 0-100`, and the player's
 reasons: `unknown sound` (also for a missing name), `muted`, `an urgent sound is playing`,
-`no speaker on this hub`.
+`no speaker on this hub`, and `speaker off: <why>` when the speaker is there but did not start.
 
 #### `POST /api/sound/stop`
 

@@ -172,11 +172,12 @@ if zhac.sound_playing() == "beep" then zhac.sound_stop("beep") end
 ```
 
 A refusal comes back as `nil` and the reason: `muted`, `an urgent sound is playing`, `unknown sound`,
-`this sound cannot loop`, `bad value (volume 0-100, hz 100-8000, ms 1-10000, 1-32 notes)` or
-`no speaker on this hub`.
+`this sound cannot loop`, `bad value (volume 0-100, hz 100-7900, ms 1-10000, 1-32 notes)`,
+`no speaker on this hub`, or `speaker off: <why>` when the speaker is there but did not start (see
+[No speaker found](#no-speaker-found)). A volume, pitch or length that is not a whole number (`40.5`,
+`"loud"`) is a bad value too: the script gets `nil, err` and goes on.
 
-Pitches run from 100 to 8000 Hz. The sample rate is 16 kHz, so a pitch close to 8000 Hz comes out weak
-and 8000 Hz itself is silent.
+Pitches run from 100 to 7900 Hz. The sample rate is 16 kHz, so the highest pitches come out weak.
 
 ## REST
 
@@ -244,6 +245,12 @@ If not, the hub:
   `sound.stop` when it is saved (`no speaker on this hub`);
 - has no Hub Sound device.
 
-A codec that answers but fails to start (for example an I2S error) also leaves audio off: every play is
-answered with `no speaker on this hub`, and the Hub Sound device stays in the device list but is never
-marked seen and refuses a `warning`. The reason is in `GET /api/sound` (`error`) and in the log.
+A codec that answers but fails to start (for example an I2S error) also leaves audio off:
+
+- every play is answered with `speaker off: <why>`, for example
+  `speaker off: I2S setup failed: ESP_ERR_INVALID_STATE`, and a rule that tries to play logs that text;
+- a rule with a `sound.play` or `sound.stop` is refused with that text when it is saved; rules saved
+  before still load;
+- the Hub Sound device stays in the device list but is never marked seen and refuses a `warning`.
+
+The reason is also in `GET /api/sound` (`error`) and in the boot log.

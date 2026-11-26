@@ -718,10 +718,12 @@ Play a built-in sound on the hub's speaker and return at once. `volume` is 0-100
 
 - `name`: one of the 16 sounds in [SOUND.md](SOUND.md#built-in-sounds) (`beep`, `chime`, `doorbell`, `siren`, …).
 - `volume`: an integer 0-100; `nil` is the hub's default volume (40 until changed). The hub never plays louder than 70.
+  A value that is not a whole number (`40.5`, `"loud"`) is a bad value.
 - `loop`: any true value. The sound repeats until `zhac.sound_stop`, another sound or 10 minutes. Only `beep`, `double_beep`,
   `triple_beep`, `warning`, `alarm`, `siren`, `fire` and `co` can loop.
 - Returns `true` once the sound is queued, else `nil, err`: `unknown sound`, `this sound cannot loop`, `muted`,
-  `an urgent sound is playing`, `bad value (volume 0-100, hz 100-8000, ms 1-10000, 1-32 notes)` or `no speaker on this hub`.
+  `an urgent sound is playing`, `bad value (volume 0-100, hz 100-7900, ms 1-10000, 1-32 notes)`, `no speaker on this hub`,
+  or `speaker off: <why>` when the speaker is there but did not start ([SOUND.md](SOUND.md#no-speaker-found)).
 
 One sound plays at a time and a new one replaces it, but a normal sound never replaces an urgent one (`alarm`, `siren`, `fire`,
 `co`), and mute silences every sound except the urgent ones. See [SOUND.md](SOUND.md#mute-and-urgent-sounds).
@@ -735,11 +737,11 @@ if not ok then zhac.log("W", err) end
 
 ### 5.23 `zhac.sound_tone(hz, ms [, volume]) → true | nil, err`
 
-Play one tone on the hub's speaker and return at once: `hz` is 100-8000, `ms` is 1-10000, `volume` is 0-100 (never above 70).
+Play one tone on the hub's speaker and return at once: `hz` is 100-7900, `ms` is 1-10000, `volume` is 0-100 (never above 70).
 
 A tone is a normal sound: it does not loop, mute and an urgent sound refuse it, and it replaces any normal sound that plays. Returns
-`true`, or `nil, err` with the texts of `zhac.sound_play`. At a sample rate of 16 kHz a pitch close to 8000 Hz comes out weak, and 8000 Hz
-itself is silent.
+`true`, or `nil, err` with the texts of `zhac.sound_play`. All three are whole numbers: `440.5` is a bad value. At a sample rate of
+16 kHz the highest pitches come out weak.
 
 ```lua
 zhac.sound_tone(880, 300)
@@ -750,8 +752,8 @@ zhac.sound_tone(440, 1000, 30)
 
 Play a melody of up to 32 notes on the hub's speaker and return at once. `notes` is a table of `{hz, ms}` pairs; `hz` 0 is a rest.
 
-- Each note: `hz` is 0 (a rest) or 100-8000, `ms` is 1-10000. A list with no notes, more than 32, or a malformed entry returns
-  `nil, "bad value (volume 0-100, hz 100-8000, ms 1-10000, 1-32 notes)"`.
+- Each note: `hz` is 0 (a rest) or 100-7900, `ms` is 1-10000. A list with no notes, more than 32, or a malformed entry returns
+  `nil, "bad value (volume 0-100, hz 100-7900, ms 1-10000, 1-32 notes)"`.
 - A melody is a normal sound, like a tone. The other errors are those of `zhac.sound_play`.
 
 ```lua

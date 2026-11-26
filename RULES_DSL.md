@@ -368,7 +368,7 @@ The hub refuses the rule when it is saved if:
 - the sound does not exist (`unknown sound, use: beep,double_beep,…` with every name),
 - `loop` is asked of a sound that cannot (`<name> cannot loop, loopable: …`),
 - the volume is not 0-100 (`sound.play: volume must be 0-100`),
-- the hub has no speaker (`no speaker on this hub`).
+- the hub has no speaker (`no speaker on this hub`), or its speaker did not start (`speaker off: <why>`).
 
 When the rule runs, a muted hub plays nothing and the rule is not in error. A normal sound asked while an
 urgent one (`alarm`, `siren`, `fire`, `co`) plays is refused, and the rule's last skip reads
