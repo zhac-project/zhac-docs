@@ -115,14 +115,15 @@ Assistant reads after a restart.
 
 `online` or `offline`, retained, for every device:
 
-- **battery devices**, which report on their own schedule: `offline` after 25 hours without a message;
-- **mains devices** (and others that keep their receiver on): `offline` when they stop answering the
-  hub's availability ping. The hub pings such a device after `ZHAC_PING_S` seconds without a message
-  from it (10 minutes by default, like zigbee2mqtt's availability); nothing within 30 seconds and it
-  is offline until its next message. A command the device did not take is checked at once: the hub
+- **battery devices**, which report on their own schedule: `offline` after 48 hours without a message;
+- **mains devices** (routers and devices on single-phase mains, zigbee2mqtt's "active" devices):
+  `offline` after an hour without a message, once they leave the hub's availability ping unanswered.
+  The hub pings such a device after `ZHAC_PING_S` seconds without a message from it (10 minutes by
+  default, like zigbee2mqtt's availability), then less and less often while it stays silent; it is
+  offline until its next message. A command the device did not take is checked at once: the hub
   looks its address up again and resends the command once (to its new address when it moved; not a
   Toggle or a step, which may have run with only its acknowledgements lost, and not a command a newer
-  one has replaced); when nobody answers the lookup, the device is offline right away.
+  one has replaced); when nobody answers the lookup, that counts as an unanswered ping.
 
 Home Assistant shows a device unavailable when this topic or the hub's own says `offline`. The hub
 page shows an Offline badge, and a rule can act on it: `ON Offline#<device> DO … ENDON`.

@@ -197,7 +197,8 @@ goes over REST: [Device firmware update](REST_API.md#device-firmware-update).
 
 `device.list` without arguments answers the bare array of every device: `{ieee, nwk, friendly,
 name, model, manufacturer, vendor, model_id, known, last_seen, lqi, battery, ep_count, …}`, with
-`offline: true` on a device that left its availability ping unanswered and `local: true` on the
+`offline: true` on a device silent too long (an hour with its availability ping unanswered, 48 hours
+for a battery device) and `local: true` on the
 hub's own devices, Hub I/O, Alarm and Hub Sound (UIs hide their Zigbee buttons). With `{"cursor": "0"}` it answers pages,
 `{items: [...], next_cursor}`, the cursor being the last IEEE address of the page; the last page
 has no `next_cursor`. The cloud relay always gets pages.
@@ -499,7 +500,7 @@ link is up, to the cloud, which gets the bare payload.
 |-------|------|---------|
 | `attr.changed` | a device reported a value | `{ieee, key, value, nwk, ep, cluster, attr_id, ts?}`: `ts` in epoch seconds, absent while the hub's clock is unset. A keypad PIN (`action_code`, `pin_code`) goes to the hub page only, never the cloud |
 | `alarm.changed` | a profile of the alarm changed state, or the config was saved | the `alarm.get` status without `config` (see [Safety](#safety)) |
-| `attr.bulk` | a device answered again after a silence, or left its availability ping unanswered | `[{ieee, last_seen?, offline, attrs: {}}]` |
+| `attr.bulk` | a device answered again after a silence, or went offline (silent too long) | `[{ieee, last_seen?, offline, attrs: {}}]` |
 | `device.added` | a device joined | `{ieee, friendly, name}` |
 | `device.removed` | a device left the network | `{ieee}` |
 | `group.added` / `group.updated` | a collection was created or changed | the collection, as `group.get` answers it |

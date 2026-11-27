@@ -63,7 +63,7 @@ With the default root `zhac` and prefix `homeassistant`:
 | `zhac/devices/<IEEE>/<key>/set` | HA → ZHAC | a new value, same format (taken with discovery off too) |
 | `zhac/devices/<IEEE>/color_xy`, `…/color_hs` | both | colour pairs, `x,y` (CIE 1931) and `h,s` (0–360, 0–100), as Home Assistant's light sends and expects them |
 | `zhac/availability` | ZHAC → HA | `online`, or `offline` when the hub drops off the broker |
-| `zhac/devices/<IEEE>/availability` | ZHAC → HA | every device: battery devices `offline` after 25 hours without a report, mains devices when they stop answering the hub's availability ping; `online` on the next report |
+| `zhac/devices/<IEEE>/availability` | ZHAC → HA | every device: battery devices `offline` after 48 hours without a report, mains devices after an hour without one, once they leave the hub's availability ping unanswered; `online` on the next report |
 | `zhac/devices/<IEEE>/state` | ZHAC → any | the device's full state as one JSON object (`{"ieee","attrs":{…}}`) after each report, whether or not discovery is on; not retained while discovery is on (for a switch it is also the `state` value's topic) |
 
 `<ieee>` is the 16-digit address in lower case, `<IEEE>` in upper case. Anything can use the
@@ -71,12 +71,12 @@ per-attribute topics — Node-RED, scripts — not only Home Assistant.
 
 ## Limits
 
-- **Unavailable devices.** Battery devices turn unavailable after 25 hours of silence (a
+- **Unavailable devices.** Battery devices turn unavailable after 48 hours of silence (a
   dead battery, a sensor out of range); the clock restarts when the hub reboots. Mains devices
   only report on change, so silence proves nothing: the hub pings one it has not heard from
-  for `ZHAC_PING_S` seconds (10 minutes by default) and marks it unavailable when it does not
-  answer within 30 seconds, until it is heard again. With the ping off (`ZHAC_PING_S` = 0)
-  mains devices never turn unavailable on their own.
+  for `ZHAC_PING_S` seconds (10 minutes by default) and marks it unavailable once it has been
+  silent for an hour with its ping unanswered, until it is heard again. With the ping off
+  (`ZHAC_PING_S` = 0) mains devices never turn unavailable on their own.
 - **A handful of Tuya devices** get their entities from the datapoint map at runtime (their
   zigbee2mqtt entry has no flat exposes). Types and options are exact; whether a value is a
   sensor or a control is guessed from its name. Please report an odd one with the model id.

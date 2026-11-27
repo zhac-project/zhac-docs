@@ -21,6 +21,7 @@ All notable changes to **zhac-docs** are documented in this file.
 
 ### Changed
 
+- **Offline after an hour (mains) or 48 hours (battery)** (firmware rule, owner 2026-11-27): `MQTT_API.md`, `HOME_ASSISTANT.md`, `RULES_DSL.md`, `WS_API.md` and `FEATURES.md` (Z15, R7a) say a mains device is offline once it has sent nothing for an hour with its availability ping unanswered, and a battery device once it has sent nothing for 48 hours (was 30 seconds after an unanswered ping, and 25 hours in Home Assistant). Only routers not on battery and devices on single-phase mains are pinged; a command nothing reached counts as an unanswered ping, not as offline at once; `Offline#<device>` fires for battery devices too.
 - **`CONTRIBUTING.md`: a device definition can be changed directly** (owner 2026-11-27): definitions are ordinary C++, a pull request may change one under `generated/` too, and the maintainer moves it to a hand-kept file so the next import from z2m keeps the change (was: add a hand-written definition and repoint `registry.cpp`).
 - **`LICENSE` is the plain AGPL-3.0 text**, so GitHub shows the license. The notes on code snippets and the contribution terms moved to `NOTICE`. `site/index.html` carries an SPDX header.
 - **IEEE addresses blurred** in the zhac.org pairing screenshot (`site/assets/pairing.webp`) and in the device list of `FIRST_20_MINUTES.md` (`images/first-20/03-devices.png`). They were the demo hub's made-up addresses.
