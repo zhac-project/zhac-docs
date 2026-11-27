@@ -35,6 +35,8 @@
 body { margin: 0; background: var(--bg); }
 html { scroll-behavior: smooth; }
 img { max-width: 100%; }
+.repo:hover { background: rgba(255,255,255,0.06); }
+.repo:focus-visible { outline: 2px solid #A1F4CA; outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -51,19 +53,19 @@ img { max-width: 100%; }
 <a href="#hardware" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Hardware</a>
 <a href="#start" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Get started</a>
 <a href="https://github.com/zhac-project/zhac-docs#readme" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Docs</a>
-<a href="https://github.com/zhac-project/zhac-docs" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">GitHub</a>
+<a href="#code" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Source code</a>
 </div>
 <a href="flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #A1F4CA; color: #0B2237; font-weight: 800; font-size: 15px; text-decoration: none">Flash your board</a>
 </nav>
 
 <section id="top" aria-labelledby="hero-h" style="max-width: 1180px; margin: 0 auto; padding: 56px 24px 96px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 56px">
 <div style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 22px">
-<span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(161,244,202,0.14); color: #A1F4CA; font-size: 13px; font-weight: 700; letter-spacing: 0.04em">Open-source Zigbee hub</span>
+<a href="#code" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(161,244,202,0.14); color: #A1F4CA; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-decoration: none"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 16px; line-height: 1">code</span>Open source · see the code</a>
 <h1 id="hero-h" style="margin: 0; color: #FFFFFF; font-size: clamp(36px, 5vw, 60px); line-height: 1.06; font-weight: 800; letter-spacing: -0.03em">Your own Zigbee hub, on one small ESP32 board</h1>
 <p style="margin: 0; color: #C9D6E2; font-size: 19px; line-height: 1.6; max-width: 560px">ZHAC turns an Espressif ESP32 board into a complete Zigbee hub. The radio, the device library, your automations and the web interface all run on the board. No Raspberry Pi, no Docker, no cloud account.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 12px">
 <a href="flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; background: #A1F4CA; color: #0B2237; font-weight: 800; font-size: 17px; text-decoration: none"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 22px; line-height: 1">bolt</span>Flash your board</a>
-<a href="https://github.com/zhac-project/zhac-docs" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; border: 1.5px solid rgba(255,255,255,0.45); color: #FFFFFF; font-weight: 700; font-size: 17px; text-decoration: none">View on GitHub</a>
+<a href="#code" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; border: 1.5px solid rgba(255,255,255,0.45); color: #FFFFFF; font-weight: 700; font-size: 17px; text-decoration: none"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 22px; line-height: 1">code</span>See the source code</a>
 </div>
 <ul style="margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 20px; color: #A9BDCF; font-size: 14px; font-weight: 600">
 <li style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; color: #A1F4CA">wifi_off</span>Works offline</li>
@@ -144,7 +146,7 @@ img { max-width: 100%; }
 <div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
 <span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">code</span></span>
 <h3 style="margin: 0; font-size: 20px; font-weight: 800">Open source</h3>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">The firmware and device library are open source under AGPL-3.0. Read it, change it, build it yourself.</p>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">The firmware, its web page and the device library are all public on GitHub. Read the code, change it, build it yourself. <a href="#code" style="color: var(--link); font-weight: 700">See the code</a></p>
 </div>
 </div>
 </div>
@@ -310,15 +312,63 @@ img { max-width: 100%; }
 </div>
 </section>
 
-<section aria-labelledby="open-h" style="padding: 72px 0; background: #0B2237">
-<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 32px 56px">
-<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
-<h2 id="open-h" style="margin: 0; color: #FFFFFF; font-size: clamp(26px, 3vw, 34px); line-height: 1.2; font-weight: 800; letter-spacing: -0.02em">Open source, local first</h2>
-<p style="margin: 0; color: #C9D6E2; font-size: 17px; line-height: 1.7">The hub firmware and the device library are open source (AGPL-3.0) and work 100% on your own network. Nothing about your home leaves it unless you decide so.</p>
+<section id="code" aria-labelledby="code-h" style="padding: 88px 0; background: #0B2237">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 36px">
+<div style="display: flex; flex-direction: column; gap: 14px; max-width: 760px">
+<h2 id="code-h" style="margin: 0; color: #FFFFFF; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Yes, the code is open</h2>
+<p style="margin: 0; color: #C9D6E2; font-size: 18px; line-height: 1.65">The firmware, its web page and the device library are all public on GitHub, under open-source licenses. Anyone can read the code, check what it does, change it and build their own firmware from it. It is split into five GitHub repositories (project folders), one for each part:</p>
 </div>
-<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
-<h3 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 800">An optional cloud, later</h3>
-<p style="margin: 0; color: #C9D6E2; font-size: 17px; line-height: 1.7">A separate ZHAC Cloud — web console, phone app and remote access — is in private testing. The hub never needs it.</p>
+<ul style="margin: 0; padding: 0; list-style: none; border-top: 1px solid rgba(255,255,255,0.14)">
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/zhac-wired-core" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">memory</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">The firmware</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">zhac-wired-core</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">AGPL-3.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">The program that runs on the board. Start here if you want to build ZHAC yourself.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/www-spa" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">web</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">The web interface</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">www-spa</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">AGPL-3.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">The hub's own page, the one you open in your browser. It is built into the firmware.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/embedded-zhc" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">devices</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">The device library</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">embedded-zhc</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">Apache-2.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">How the hub knows {{MODELS}} Zigbee device models: what each one can do and how to talk to it.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/zhac-components" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">widgets</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">Shared building blocks</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">zhac-components</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">AGPL-3.0, Apache-2.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">Parts the firmware is built from: device storage, rules, Lua scripts, MQTT for Home Assistant and more.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/zhac-docs" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">menu_book</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">Guides and this website</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">zhac-docs</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">AGPL-3.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">How-to guides, this website, the browser flasher and the list of supported devices.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+</ul>
+<div style="display: flex; flex-wrap: wrap; gap: 24px 56px">
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 800">Local first</h3>
+<p style="margin: 0; color: #C9D6E2; font-size: 17px; line-height: 1.7">The hub works 100% on your own network. Nothing about your home leaves it unless you decide so.</p>
+</div>
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 800">The cloud is optional</h3>
+<p style="margin: 0; color: #C9D6E2; font-size: 17px; line-height: 1.7">The only closed part is the separate ZHAC Cloud (web console, phone app and remote access), now in private testing. The hub never needs it.</p>
+</div>
 </div>
 </div>
 </section>
@@ -331,6 +381,7 @@ img { max-width: 100%; }
 <a href="flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; background: #12639A; color: #FFFFFF; font-weight: 800; font-size: 17px; text-decoration: none">Flash your board</a>
 <a href="devices/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; border: 1.5px solid var(--outline); color: var(--fg); font-weight: 700; font-size: 17px; text-decoration: none">Check your devices</a>
 </div>
+<p style="margin: 6px 0 0; font-size: 16px; line-height: 1.6; color: var(--muted)">News and new releases: the <a href="https://t.me/zhac_project" style="color: var(--link); font-weight: 700">ZHAC Telegram channel</a>.</p>
 </div>
 </section>
 </main>
@@ -344,9 +395,10 @@ img { max-width: 100%; }
 </div>
 <nav aria-label="Project" style="flex: 0 1 180px; display: flex; flex-direction: column; gap: 6px; font-size: 15px">
 <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2)">Project</span>
-<a href="https://github.com/zhac-project/zhac-docs" style="color: var(--fg); text-decoration: none; padding: 4px 0">GitHub</a>
+<a href="#code" style="color: var(--fg); text-decoration: none; padding: 4px 0">Source code</a>
 <a href="https://github.com/zhac-project/zhac-wired-core/releases/latest" style="color: var(--fg); text-decoration: none; padding: 4px 0">Latest release</a>
 <a href="https://github.com/zhac-project/zhac-docs/discussions" style="color: var(--fg); text-decoration: none; padding: 4px 0">Discussions</a>
+<a href="https://t.me/zhac_project" style="color: var(--fg); text-decoration: none; padding: 4px 0">Telegram channel</a>
 <a href="https://github.com/zhac-project/zhac-docs/issues/new/choose" style="color: var(--fg); text-decoration: none; padding: 4px 0">Report a bug</a>
 </nav>
 <nav aria-label="Documentation" style="flex: 0 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 15px">
