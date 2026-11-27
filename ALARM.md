@@ -208,7 +208,8 @@ Who can do what:
 | From | Arm | Disarm one | Disarm all / silence | Force |
 |---|---|---|---|---|
 | Hub page | yes | yes | yes, and silence one | yes |
-| Rules, Lua, MQTT, Home Assistant, cloud scenes (the Alarm device) | yes | yes | `alarm_state = disarmed` | no |
+| Rules, Lua, MQTT, Home Assistant (the Alarm device) | yes | yes | `alarm_state = disarmed` | no |
+| ZHAC Cloud (scenes, the app: the Alarm device) | yes | only with "Allow the cloud to disarm the alarm" on the hub page, off by default | only with the same switch | no |
 | Keypad | the profile with the button's role | no | disarm, with a code or from a trusted keypad | no |
 
 None of them but the keypad asks for a code. A keypad arms without a code too.
@@ -455,13 +456,24 @@ You can set the Alarm device's attributes from all of these:
   lists all five states, of which only the ones above can be set. A proper alarm panel entity for
   Home Assistant comes later;
 - ZHAC Cloud, through a scene. For example, an "Arm night" scene sets the Alarm device's `night`
-  attribute to `armed`, and a "Disarm" scene sets `alarm_state` to `disarmed`. The cloud's device
-  card has no control for these attributes yet.
+  attribute to `armed`. A "Disarm" scene (`alarm_state` set to `disarmed`) works only while
+  **Allow the cloud to disarm the alarm** is on (Settings → Remote on the hub page). The cloud's
+  device card has no control for these attributes yet.
 
-**No code is asked for any of these.** Anyone who can publish to your MQTT broker, control the device
-from Home Assistant or run scenes in your ZHAC Cloud account can disarm the alarm, and that now
-includes the flood and fire profiles. Secure those the way you would secure the door. Forcing past
-open sensors is only on the hub page.
+**No code is asked for any of these.** Anyone who can publish to your MQTT broker or control the device
+from Home Assistant can disarm the alarm, and that now includes the flood and fire profiles. Secure
+those the way you would secure the door. Forcing past open sensors is only on the hub page.
+
+**The cloud is held back by a switch.** Settings → Remote has **Allow the cloud to disarm the
+alarm**, off on every hub (and after a storage reset). Off: the cloud and the app can arm the alarm
+but not disarm it; the hub refuses a disarm, any other change to the Alarm device, and a rule saved
+from the cloud whose actions write to the Alarm device, with `alarm_off`, and the app says to turn the
+switch on at the hub. A rule that only reads the Alarm device (a trigger or a condition) still saves.
+On: anyone who can control the alarm through your cloud account can disarm it, so the same care as for
+the door applies to who is a member of the hub. Either way, every change to the alarm that the cloud
+makes and the hub accepts raises a hub alert. The switch comes on top of **Cloud control**: the cloud
+needs at least the *Devices* level to write to any device. See
+[`WS_API.md`](WS_API.md#the-alarm-switch).
 
 ## Updating from v2026112401
 

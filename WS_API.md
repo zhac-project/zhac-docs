@@ -60,11 +60,11 @@ starts signed in, and `auth` on a signed-in socket just answers `ok`.
 
 ### Size limits
 
-- Inbound frame: at most 32,768 bytes (the cloud relay's limit stays 8,192, see
-  [Remote editing from ZHAC Cloud](#remote-editing-from-zhac-cloud)). A longer frame closes the
-  session (the hub cannot answer a request it did not read); send a long script in parts
-  (`script.part`, below) or with
-  `POST /api/scripts/<name>`, and check it with `POST /api/scripts/<name>/check`.
+- Inbound frame: at most 32,768 bytes. A longer frame closes the session (the hub cannot answer a
+  request it did not read); send a long script in parts (`script.part`, below) or with
+  `POST /api/scripts/<name>`, and check it with `POST /api/scripts/<name>/check`. The cloud relay's
+  limit stays 8,192: a longer frame from the cloud is dropped whole, never read in pieces, and the
+  hub tells the cloud once with `too_large` (see [Refusals](#refusals)).
 - Inbound frame time: each frame, PING and CLOSE included, must arrive within 8 seconds of the
   start of its read (at most 11 s: the check comes before each read, which can wait 3 s); a slower
   one closes the session (one frame held the hub's web server while it trickled in). The hub
@@ -311,13 +311,54 @@ also erases the stored address and token.
 
 ### Remote editing from ZHAC Cloud
 
-The cloud relay runs the same commands as this socket, with these limits:
+The cloud relay runs the same commands as this socket, with the limits below. Three settings on the hub's own page (Settings → Remote) decide how far the cloud reaches: the cloud control level, the alarm switch and the script switch. Only that page can change them: the relay answers `settings.set` carrying `remote_level`, `remote_alarm` or `remote_scripts` with `local_only`. Each setting is checked again for every command the relay passes, so a change applies to the next command.
 
-- **Allow script changes from the cloud** (Settings → Remote; `settings.set {"remote_scripts": true|false}`; `status.get` reports `remote_scripts`) is off by default and after a storage reset. While it is off, the relay answers `script.write`, `script.run`, `script.reload` and `system.restart` with `scripts_off`, and so a `rule.create` or `rule.update` whose text has a `script.run` action: the cloud cannot run Lua through a rule it adds either. Rules already on the hub keep running their scripts, `rule.run` included. Only the hub's own page can change it: the relay answers `settings.set` carrying `remote_scripts` with `local_only`.
+#### Cloud control level
+
+`settings.set {"remote_level": "view" | "devices" | "full"}` (the hub page's **Cloud control** select; `status.get` reports `remote_level`). Each level includes the ones above it.
+
+| Level | The hub page says | The cloud can |
+|---|---|---|
+| `view` | View only — the cloud shows states | Read: `status.get`, `alerts.get`, `device.list`, `device.get`, `device.groups.list`, `group.list`, `group.get`, `rule.list`, `rules.status`, `wifi.status`, `wifi.scan`, `zigbee.permit_join.status`, `uplink.get`, `rainmaker.status`, `device.rainmaker.list` |
+| `devices` | Devices — the cloud can switch devices | Also control devices and groups: `device.attr.set`, `group.cmd`, `device.rename`, `device.bind`, `device.options.set`, `device.reinterview`, `device.configure`, `device.groups.add`, `device.groups.remove`, `device.groups.refresh`, `group.create`, `group.update`, `group.delete`, `rainmaker.assoc.set`, `device.rainmaker.add`, `device.rainmaker.remove` |
+| `full` | Devices and rules — the cloud can also change rules, open pairing and read logs and scripts | Also store, change and run rules (`rule.create`, `rule.update`, `rule.enable`, `rule.delete`, `rule.run`, `rule.check`), open the join window (`zigbee.permit_join`), read logs (`logs.get`, `diagnostics.unhandled.get`), and list, read, check and delete scripts (`script.list`, `script.read`, `script.check`, `script.delete`, `script.part`). Writing, running and reloading Lua and `system.restart` also need the script switch below |
+
+- **Default.** A hub that has no `remote_level` when this firmware first starts gets `full` once if a cloud token is already stored (a hub that was linked keeps working), otherwise `view`. A new hub, a hub after a storage reset and a hub linked to the cloud only later start at `view`: raise the level on the hub page before the cloud can switch a light. The migration runs once; a later start never sets the level again.
+- **Saving.** Lowering the level applies at once. Raising it applies only once the hub has saved it, as with the script switch; if the save fails the hub keeps the lower level and the page shows the level the hub holds.
+- Commands that are in none of these lists are not relayed at any level (firmware update, token rotation, settings, sign-in, Wi-Fi join, the cloud address, Zigbee reset, device delete, storage reset and the `alarm.*` commands; a firmware built with the privileged-commands option relays some of them, and that option is off).
+- The hub refuses a command below its level with `level_view` (the level is `view`) or `level_devices` (the level is `devices`), the way it refuses a script change with `scripts_off`.
+
+#### The alarm switch
+
+`settings.set {"remote_alarm": true | false}` (the hub page's **Allow the cloud to disarm the alarm**; `status.get` reports `remote_alarm`). It is off on every hub, and after a storage reset. Off: the cloud and the app can arm the Alarm device ([ALARM.md](ALARM.md)) but not disarm it.
+
+- Off, the relay refuses with `alarm_off` every write to the Alarm device except arming: a disarm, and any other attribute or option of the device. Arming is a profile's attribute set to `armed`, or `alarm_state` set to an `armed_<id>` state.
+- Off, a `rule.create` or `rule.update` whose actions write to the Alarm device is refused `alarm_off`. A trigger or a condition on the Alarm device's state is still allowed, so the cloud can save a rule that only reads it.
+- On, the cloud may write to the Alarm device as to any other device (at the `devices` level or above).
+- Whatever the switch says, every change to the alarm that the cloud makes and the hub accepts raises a hub alert (`alerts.get`, the `alert` event) saying so, e.g. `Alarm <value> from the cloud`, so the owner hears of it.
+- The `alarm.*` commands stay closed to the cloud at every level, whatever the switch says.
+
+#### Refusals
+
+The hub answers a refused command with an error string. On the REST routes that relay a command, ZHAC Cloud turns the first four into an HTTP 409 with the same code and a message, and the apps show that message; `/ws` replies pass the hub's string through and the apps map it.
+
+| Hub answer | When | What the cloud and the apps say |
+|---|---|---|
+| `level_view` | the level is `view` and the command needs more | The hub lets the cloud view only. Raise "Cloud control" on the hub's own page. |
+| `level_devices` | the level is `devices` and the command needs `full` | The hub lets the cloud control devices only. Set "Cloud control" to "Devices and rules" on the hub's own page. |
+| `alarm_off` | the alarm switch is off and the command writes to the Alarm device, other than arming | The hub does not let the cloud disarm or change the alarm. Turn on "Allow the cloud to disarm the alarm" on the hub's own page. |
+| `too_large` | a frame from the cloud is over 8,192 bytes: the hub drops it unread, so the answer has no id (`script.write` and `script.part` use the same code for a script over 16,384 bytes) | That is too large to send to the hub. |
+| `scripts_off` | a script change, run or reload, `system.restart`, or a rule that runs a script, while the script switch is off | unchanged |
+| `local_only` | `settings.set` from the relay with a key only the hub page may change | unchanged |
+| `cmd_not_allowed` | a command that is not relayed | unchanged |
+
+#### Other limits
+
+- **Allow script changes from the cloud** (Settings → Remote; `settings.set {"remote_scripts": true|false}`; `status.get` reports `remote_scripts`) is off by default and after a storage reset, and it works on top of the `full` level: the commands it covers need both. While it is off, the relay answers `script.write`, `script.run`, `script.reload` and `system.restart` with `scripts_off`, and so a `rule.create` or `rule.update` whose text has a `script.run` action: the cloud cannot run Lua through a rule it adds either. Rules already on the hub keep running their scripts, `rule.run` included. Only the hub's own page can change it: the relay answers `settings.set` carrying `remote_scripts` with `local_only`.
 - **Log to cloud** (Settings → Remote; `settings.set {"log_to_cloud": "off" | "errors" | "warnings" | "everything"}`; `status.get` reports `log_to_cloud`; `remote.status` reports `log_sent` and `log_dropped` since the hub started) is off by default and after a storage reset. Errors sends errors; Warnings sends warnings and errors; Everything adds the information lines. Only the hub's own page can change it: the relay answers `settings.set` carrying `log_to_cloud` with `local_only`. While it is on, the hub sends `log.batch` events (below) and, once per run, `log.tail`. The cloud link's own lines (`remote_client`, `websocket_client`, `transport*`, `esp-tls*`) never enter the backlog (`log.batch`); the restart tail may include them.
-- The relay passes `rule.check`, `script.part` and every rule command.
+- At the `full` level the relay passes `rule.check`, `script.part` and every rule command; below it the level refusals above apply.
 - Every rule change (`rule.create`, `rule.update`, `rule.enable`, `rule.delete`, `rule.run`), every script change (`script.write`, `script.delete`, `script.run`, `script.reload`) and `system.restart` that the relay passes is written to the hub's log with the tag `cloud`, before it runs, e.g. `I (812345) cloud: script.write by <account id> name=heating`; the line adds `id=<n>` when the command carries a numeric `id`, and `name=<name>` when its `name` fits `[A-Za-z0-9_-]{1,24}` (every script name, and a rule name of that shape such as `porch_light`); any other name is left out. No other command the relay passes is logged.
-- Firmware with these commands says so when it connects: `caps: ["rules.v1", "rules.v2", "scripts.v1", "logs.v1"]`, `remote_scripts` and `log_to_cloud`.
+- Firmware with these commands says so when it connects: `caps: ["rules.v1", "rules.v2", "scripts.v1", "logs.v1"]`, `remote_scripts`, `log_to_cloud`, `remote_level` and `remote_alarm`.
   `rules.v2` (since review 2026-10-28): `rule.create` takes `enabled` and echoes it.
 - Every frame the hub sends to the cloud or to its own page is valid UTF-8: a byte that is not (a REST-uploaded script, a log line) goes out as `?`. The hub does this where frames leave it, so the JSON keeps its shape and length.
 
@@ -351,8 +392,9 @@ last 9 seconds, each member gets its own command. The reply is the same either w
 ### Safety
 
 The hub's alarm profiles ([ALARM.md](ALARM.md)). Hub page only: the cloud link does not accept these
-commands. The cloud can still arm and disarm through the Alarm device's attributes (a profile's
-attribute, or `alarm_state`). The commands keep their `alarm.*` names and the device stays `Alarm`.
+commands. The cloud can still arm through the Alarm device's attributes (a profile's
+attribute, or `alarm_state`); it can disarm that way only while "Allow the cloud to disarm the alarm"
+is on, see [The alarm switch](#the-alarm-switch). The commands keep their `alarm.*` names and the device stays `Alarm`.
 
 | cmd | args | answers |
 |-----|------|---------|
@@ -467,7 +509,7 @@ link is up, to the cloud, which gets the bare payload.
 | `ota.start` / `ota.progress` / `ota.complete` | a firmware update (`ota.update`) started, advanced or ended | see `ota.update` |
 | `net.map.progress` | after each router answers a map scan; hub page only, never the cloud | `{done, total, current}` |
 | `net.map.done` | the scan finished; the page then calls `net.map.get` | `{ts, ok, err?}` |
-| `hub.caps` | "Allow script changes from the cloud" or "Log to cloud" changed | `{caps, remote_scripts, log_to_cloud}` |
+| `hub.caps` | "Allow script changes from the cloud", "Log to cloud", "Cloud control" or "Allow the cloud to disarm the alarm" changed | `{caps, remote_scripts, log_to_cloud, remote_level, remote_alarm}` |
 | `log.batch` | Log to cloud on: every 5 s, or once 6 KB waits; to the cloud only | `{boot, seq, up, clock, dropped, lines: [[up_ms, "E"\|"W"\|"I", tag, msg], …]}`, at most 6,144 bytes; `seq` is the first line's number in this run, `clock` the hub's epoch ms or 0 when its clock is not set |
 | `log.tail` | Log to cloud on: once per run, first; to the cloud only | `{boot, prev_boot, up, clock, reason, planned, prev_clock_base, prev_sent, crash, lines: [[up_ms, level, tag, msg, seq], …]}`: why the hub restarted, a crash summary, and the previous run's lines the cloud never got |
 

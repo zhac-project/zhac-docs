@@ -98,7 +98,7 @@ WebSocket `status` command answers the same object (`api_status_fill`).
 | Time | `local_time`, `clock_set`, `timezone`, `ntp_server`, `ntp_dhcp_server` |
 | Updates, storage | `ota`, `ota_state`, `ota_rollback_reason`, `ota_store_unconfirmed`, `restart`, `storage_error` |
 | Sign-in | `auth_enabled`, `auth_setup_required`, `auth_setup_secs_left`, `auth_storage_error` |
-| Features | `full_backup`, `device_ota`, `remote_available`, `remote_state`, `remote_scripts`, `log_to_cloud`, `log_ws_enabled`, `scripts_held`, `ws_clients` |
+| Features | `full_backup`, `device_ota`, `remote_available`, `remote_state`, `remote_scripts`, `remote_level`, `remote_alarm`, `log_to_cloud`, `log_ws_enabled`, `scripts_held`, `ws_clients` |
 
 - `ota_state` is `pending` while a freshly updated firmware is on trial and `verified` once the
   hub has kept it; `ota_rollback_reason` appears only after an update was undone and says which
@@ -130,7 +130,8 @@ Fields: `broker_url`, `mqtt_enabled`, `mqtt_client_id`, `mqtt_root_topic`, `mqtt
 `timezone`; `auth_enabled`, `ap_disabled`; `metrics_enabled`, `metrics_mqtt_enabled`,
 `metrics_mqtt_interval_s`; `log_mqtt_enabled` / `log_mqtt_level` and `log_ws_enabled` /
 `log_ws_level` (log lines to MQTT and to the hub's sockets until the next restart; the level is
-the least severe one sent, `E`, `W`, `I`, `D` or `V`); `remote_scripts`, `log_to_cloud` (the cloud link; the relay may not change these, see
+the least severe one sent, `E`, `W`, `I`, `D` or `V`); `remote_scripts`, `remote_level` (`"view"`, `"devices"` or `"full"`), `remote_alarm`, `log_to_cloud` (the cloud link: what the
+cloud may do, whether it may disarm the alarm, script changes and logs; the relay may not change these, see
 [`WS_API.md`](WS_API.md#remote-editing-from-zhac-cloud)).
 
 `mqtt_tls_pin` is the SHA-256 fingerprint of an `mqtts://` or `wss://`

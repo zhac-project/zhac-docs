@@ -116,6 +116,8 @@ components:
         log_ws_enabled:          { type: boolean, description: Until the next restart }
         log_ws_level:            { type: string, enum: [E, W, I, D, V] }
         remote_scripts:          { type: boolean }
+        remote_level:            { type: string, enum: [view, devices, full], description: "What the cloud link may do: read only, also control devices, also rules, pairing, logs and scripts. Hub page only" }
+        remote_alarm:            { type: boolean, description: "Let the cloud disarm or change the alarm (off: it may only arm). Off on every hub. Hub page only" }
         log_to_cloud:            { type: boolean }
 
     Device:
