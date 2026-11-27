@@ -39,12 +39,13 @@ Most of ZHAC can be worked on and checked with nothing but a laptop:
 - **Device library** (`embedded-zhc`): `cmake -B build && cmake --build build && ctest
   --test-dir build` runs the parity suite (366 tests). `tests/README.md` has the six-step recipe
   for pinning a device's behaviour with a fixture, and every test runs without a radio.
-- **A device definition change**: the files under `definitions/<vendor>/generated/` are
-  produced by a private generator and are not edited by hand. To fix a device, add a
-  hand-written definition next to them (a `kDef_*` in `definitions/<vendor>/`), point the
-  vendor's `registry.cpp` at it, and pin the behaviour with a fixture test from the recipe
-  above. A pull request with the definition, the fixture and the device's model and
-  manufacturer strings is complete; the maintainer checks it on hardware.
+- **A device definition change**: definitions are ordinary C++, so change the device's file
+  directly, one under `definitions/<vendor>/generated/` included, and pin the behaviour with a
+  fixture test from the recipe above. `generated/` files are imported from
+  zigbee-herdsman-converters by the maintainer's import scripts; the maintainer moves a
+  changed one to a hand-kept file next to it, so the next import keeps your change. A pull
+  request with the change, the fixture and the device's model and manufacturer strings is
+  complete; the maintainer checks it on hardware.
 - **Documentation** (this repository): as above, a text editor.
 
 What does need a hub: anything Zigbee on the air (pairing, reports, writes) and the update

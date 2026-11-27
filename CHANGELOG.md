@@ -20,6 +20,8 @@ All notable changes to **zhac-docs** are documented in this file.
 
 ### Changed
 
+- **`CONTRIBUTING.md`: a device definition can be changed directly** (owner 2026-11-27): definitions are ordinary C++, a pull request may change one under `generated/` too, and the maintainer moves it to a hand-kept file so the next import from z2m keeps the change (was: add a hand-written definition and repoint `registry.cpp`).
+- **`LICENSE` is the plain AGPL-3.0 text**, so GitHub shows the license. The notes on code snippets and the contribution terms moved to `NOTICE`. `site/index.html` carries an SPDX header.
 - **IEEE addresses blurred** in the zhac.org pairing screenshot (`site/assets/pairing.webp`) and in the device list of `FIRST_20_MINUTES.md` (`images/first-20/03-devices.png`). They were the demo hub's made-up addresses.
 - **Hub sounds, more fixes from the review**: pitches run from 100 to 7900 Hz (`SOUND.md`, `LUA_API.md` §5.22–5.24), as 8000 Hz was silent. A Lua volume, pitch or length that is not a whole number is a bad value, answered with `nil, err`. A speaker that answers but does not start refuses plays and rule saves with `speaker off: <why>` (`SOUND.md`, `RULES_DSL.md`, `REST_API.md`, `openapi.yaml`).
 - **Small fixes from the hub-sounds review**: `WS_API.md` names Alarm and Hub Sound next to Hub I/O as the hub's own devices (`local: true`, and they refuse the Zigbee-only commands, with the error text). `SOUND.md` says what the Hub Sound device does when the codec answers but does not start, and how Home Assistant shows it (a switch: on is a one-second siren, off stops it). `RULES_DSL.md` links `zhac.ws_write` to its own section, and `openapi.yaml` quotes a `/api/scripts/{name}` 400 description that its comma split into a stray key.
