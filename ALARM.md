@@ -61,7 +61,9 @@ your own) goes in rules or Lua that react to them.
   devices on the Safety page: a sensor's `contact`, `occupancy`, `presence`, `vibration`,
   `water_leak`, `smoke`, `gas` or `carbon_monoxide`, and a keypad's `action`. Arming and disarming
   come from the hub page, or as a new value of an attribute of the Alarm device. Rules, Lua, MQTT,
-  Home Assistant and ZHAC Cloud scenes all go that way, so they behave the same.
+  Home Assistant and ZHAC Cloud scenes all go that way, so they behave the same, but for one thing:
+  from ZHAC Cloud a disarm, and an arm that would stop another profile, need "Allow the cloud to
+  disarm the alarm" on the hub's own page ([WS_API.md](WS_API.md#the-alarm-switch)).
 - **The decision.** One small state machine per profile decides what each input means in the
   profile's current state (see [States](#states) and [What sets it off](#what-sets-it-off)). Before
   arming, it checks the profile's contacts against their last report, so an open door blocks the
@@ -466,9 +468,10 @@ those the way you would secure the door. Forcing past open sensors is only on th
 
 **The cloud is held back by a switch.** Settings → Remote has **Allow the cloud to disarm the
 alarm**, off on every hub (and after a storage reset). Off: the cloud and the app can arm the alarm
-but not disarm it; the hub refuses a disarm, any other change to the Alarm device, and a rule saved
-from the cloud whose actions write to the Alarm device, with `alarm_off`, and the app says to turn the
-switch on at the hub. A rule that only reads the Alarm device (a trigger or a condition) still saves.
+while no other profile is armed, but not disarm it; the hub refuses a disarm, an arm that would stop
+another profile (Night in place of Away), any other change to the Alarm device, and a rule saved or
+run from the cloud whose actions write to the Alarm device, with `alarm_off`, and the app says to turn
+the switch on at the hub. A rule that only reads the Alarm device (a trigger or a condition) still saves.
 On: anyone who can control the alarm through your cloud account can disarm it, so the same care as for
 the door applies to who is a member of the hub. Either way, every change to the alarm that the cloud
 makes and the hub accepts raises a hub alert. The switch comes on top of **Cloud control**: the cloud
