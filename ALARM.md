@@ -469,12 +469,14 @@ those the way you would secure the door. Forcing past open sensors is only on th
 **The cloud is held back by a switch.** Settings → Remote has **Allow the cloud to disarm the
 alarm**, off on every hub (and after a storage reset). Off: the cloud and the app can arm the alarm
 while no other profile is armed, but not disarm it; the hub refuses a disarm, an arm that would stop
-another profile (Night in place of Away), any other change to the Alarm device, and a rule saved or
-run from the cloud whose actions write to the Alarm device, with `alarm_off`, and the app says to turn
+another profile (Night in place of Away), any other change to the Alarm device, and a rule saved,
+run or enabled from the cloud whose actions write to the Alarm device, with `alarm_off`, and the app says to turn
 the switch on at the hub. A rule that only reads the Alarm device (a trigger or a condition) still saves.
 On: anyone who can control the alarm through your cloud account can disarm it, so the same care as for
-the door applies to who is a member of the hub. Either way, every change to the alarm that the cloud
-makes and the hub accepts raises a hub alert. The switch comes on top of **Cloud control**: the cloud
+the door applies to who is a member of the hub. Either way, every change to the Alarm device that the
+cloud makes and the hub accepts raises a hub alert (to ZHAC Cloud, Telegram and the hub log, with the
+account that made it), and so does every rule the cloud saves, runs or enables whose actions write to
+the Alarm device. The switch comes on top of **Cloud control**: the cloud
 needs at least the *Devices* level to write to any device. See
 [`WS_API.md`](WS_API.md#the-alarm-switch).
 
