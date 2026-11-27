@@ -1,0 +1,434 @@
+<!doctype html>
+<!--
+SPDX-FileCopyrightText: 2025-2026 Evgenij Cjura and project contributors
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<!-- Ukrainian translation of site/index.html: change both. -->
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZHAC — власний Zigbee-хаб на одній платі ESP32</title>
+<meta name="description" content="ZHAC — Zigbee-хаб із відкритим кодом на одній невеликій платі ESP32: понад {{MODELS}} моделей пристроїв, локальні правила і скрипти Lua, власні піни плати, Home Assistant через MQTT, оновлення через мережу. Прошивається з браузера.">
+<link rel="canonical" href="https://zhac.org/uk/">
+<link rel="alternate" hreflang="en" href="https://zhac.org/">
+<link rel="alternate" hreflang="uk" href="https://zhac.org/uk/">
+<link rel="alternate" hreflang="x-default" href="https://zhac.org/">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon.ico" sizes="48x48">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://zhac.org/uk/">
+<meta property="og:title" content="ZHAC — власний Zigbee-хаб на одній платі ESP32">
+<meta property="og:description" content="Прошивка Zigbee-хаба з відкритим кодом для плати ESP32-S31 або ESP32-P4. Прошивається з браузера.">
+<meta property="og:image" content="https://zhac.org/assets/hub-devices.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0B2237">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&amp;display=block">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #FFFFFF; --fg: #0F172A; --muted: #4A4F57; --muted2: #5B5F67; --line: #E5E8F0;
+  --alt: #F4F5FA; --surface: #FFFFFF; --chip: #DCEBFB; --link: #12639A; --outline: #C9CEDA;
+  --badge-bg: #E4FAEE; --badge-fg: #116C4C;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0D1520; --fg: #E6EDF5; --muted: #A3AFBD; --muted2: #8D99A7; --line: #243244;
+    --alt: #111B28; --surface: #16212F; --chip: #14324C; --link: #7CC4F5; --outline: #3A4B60;
+    --badge-bg: #123A2C; --badge-fg: #A1F4CA;
+  }
+}
+body { margin: 0; background: var(--bg); }
+html { scroll-behavior: smooth; }
+img { max-width: 100%; }
+.repo:hover { background: rgba(255,255,255,0.06); }
+.repo:focus-visible { outline: 2px solid #A1F4CA; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div style="font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased">
+
+<header style="background: #0B2237">
+<nav aria-label="Головне меню" style="max-width: 1180px; margin: 0 auto; padding: 18px 24px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px">
+<a href="#top" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #FFFFFF; flex-grow: 1">
+<span style="width: 36px; height: 36px; border-radius: 11px; background: #A1F4CA; color: #005E40; display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 22px; line-height: 1; font-variation-settings: 'FILL' 1">hub</span></span>
+<span style="font-size: 20px; font-weight: 800; letter-spacing: 0.06em">ZHAC</span>
+</a>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px; font-size: 15px; font-weight: 600">
+<a href="#features" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Можливості</a>
+<a href="#hardware" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Плати</a>
+<a href="#start" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Як почати</a>
+<a href="https://github.com/zhac-project/zhac-docs#readme" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Документація</a>
+<a href="#code" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">Вихідний код</a>
+<a href="../" hreflang="en" lang="en" style="color: #C9D6E2; text-decoration: none; padding: 10px 0">English</a>
+</div>
+<a href="../flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #A1F4CA; color: #0B2237; font-weight: 800; font-size: 15px; text-decoration: none">Прошити плату</a>
+</nav>
+
+<section id="top" aria-labelledby="hero-h" style="max-width: 1180px; margin: 0 auto; padding: 56px 24px 96px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 56px">
+<div style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 22px">
+<a href="#code" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(161,244,202,0.14); color: #A1F4CA; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-decoration: none"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 16px; line-height: 1">code</span>Відкритий код · подивитися код</a>
+<h1 id="hero-h" style="margin: 0; color: #FFFFFF; font-size: clamp(36px, 5vw, 60px); line-height: 1.06; font-weight: 800; letter-spacing: -0.03em">Власний <span style="white-space: nowrap">Zigbee-хаб</span> на одній невеликій платі ESP32</h1>
+<p style="margin: 0; color: #C9D6E2; font-size: 19px; line-height: 1.6; max-width: 560px">ZHAC перетворює плату Espressif ESP32 на повноцінний Zigbee-хаб. Радіо, бібліотека пристроїв, ваші автоматизації та вебінтерфейс — усе працює на самій платі. Без Raspberry Pi, без Docker, без хмарного акаунта.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<a href="../flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; background: #A1F4CA; color: #0B2237; font-weight: 800; font-size: 17px; text-decoration: none"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 22px; line-height: 1">bolt</span>Прошити плату</a>
+<a href="#code" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; border: 1.5px solid rgba(255,255,255,0.45); color: #FFFFFF; font-weight: 700; font-size: 17px; text-decoration: none"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 22px; line-height: 1">code</span>Переглянути вихідний код</a>
+</div>
+<ul style="margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 20px; color: #A9BDCF; font-size: 14px; font-weight: 600">
+<li style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; color: #A1F4CA">wifi_off</span>Працює без інтернету</li>
+<li style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; color: #A1F4CA">devices</span>{{MODELS}}+ моделей пристроїв</li>
+<li style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 18px; line-height: 1; color: #A1F4CA">system_update</span>Оновлення через мережу</li>
+</ul>
+</div>
+<div style="flex: 1 1 460px; min-width: 0; position: relative; padding: 0 0 48px 0">
+<div style="border-radius: 18px; overflow: hidden; background: #FFFFFF; box-shadow: 0 24px 60px rgba(0,0,0,0.35)">
+<div style="height: 34px; background: #E9EAEF; display: flex; align-items: center; gap: 7px; padding: 0 14px"><span style="width: 11px; height: 11px; border-radius: 6px; background: #C9CEDA"></span><span style="width: 11px; height: 11px; border-radius: 6px; background: #C9CEDA"></span><span style="width: 11px; height: 11px; border-radius: 6px; background: #C9CEDA"></span><span style="margin-left: 12px; font-size: 12px; font-weight: 600; color: #5B5F67">zhac.local</span></div>
+<img src="../assets/hub-devices.webp" alt="Вебінтерфейс ZHAC на справжньому хабі: список із 18 Zigbee-пристроїв Tuya, Xiaomi, Moes, Saswell, Neo та інших брендів" style="display: block; width: 100%; height: auto">
+</div>
+<figure style="margin: 0; position: absolute; left: -24px; bottom: 0; width: 148px; border-radius: 16px; overflow: hidden; background: #FFFFFF; box-shadow: 0 16px 40px rgba(0,0,0,0.4)">
+<img src="../assets/s31-board.webp" alt="Плата Espressif ESP32-S31 Function-CoreBoard" style="display: block; width: 100%; height: auto">
+<figcaption style="padding: 8px 10px; font-size: 11px; font-weight: 700; color: #0F172A; line-height: 1.3">Espressif ESP32-S31 Function-CoreBoard</figcaption>
+</figure>
+</div>
+</section>
+</header>
+
+<main>
+<section id="features" aria-labelledby="feat-h" style="padding: 96px 0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="feat-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Усе, що потрібно Zigbee-хабу, — на самій платі</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: var(--muted)">Жодного сервера в шафі, жодних контейнерів, які треба оновлювати. Живлення, мережевий кабель — і хаб працює.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 20px">
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">memory</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Одна плата — і більше нічого</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Zigbee-радіо вбудоване в чип, а на платі є Ethernet. Під’єднайте живлення й мережевий кабель — ось і все налаштування.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">devices</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">{{MODELS}}+ моделей пристроїв від {{BRANDS}}+ брендів</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Описи пристроїв перенесено з бібліотеки конвертерів zigbee2mqtt, і вони оновлюються слідом за її релізами. Перевірте свою модель ще до покупки.</p>
+<a href="../devices/" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--link); font-weight: 700; font-size: 15px; text-decoration: none">Знайти свій пристрій<span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 20px; line-height: 1">arrow_forward</span></a>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">bolt</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Автоматизації, що не зупиняються</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Правила і скрипти Lua виконуються на самому хабі, тож світло вмикається, навіть коли зник інтернет — чи впав ваш сервер.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">settings_input_component</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Керуйте пінами самої плати</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Вмикайте реле, регулюйте яскравість світлодіода, зчитуйте кнопку чи напругу, керуйте стрічкою WS2812. Налаштуйте пін один раз — і використовуйте його в правилах, скриптах Lua та Home Assistant.</p>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/GPIO.md" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--link); font-weight: 700; font-size: 15px; text-decoration: none">Посібник з пінів<span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 20px; line-height: 1">arrow_forward</span></a>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">notifications_active</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Повідомлення на телефон</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Скрипт Lua може надіслати вам повідомлення в Telegram через вашого власного бота: двері лишилися відчинені, на підлозі вода, сідає батарейка.</p>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/LUA_API.md" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--link); font-weight: 700; font-size: 15px; text-decoration: none">Посібник з Lua<span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 20px; line-height: 1">arrow_forward</span></a>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">security</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Вбудована сигналізація</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Ставте на охорону зі сторінки хаба, кнопкою, клавіатурою чи правилом. Коли відчиняються двері або хтось рухається, вмикаються сирени, а на телефон приходить повідомлення в Telegram.</p>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/ALARM.md" style="align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--link); font-weight: 700; font-size: 15px; text-decoration: none">Посібник з охорони<span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 20px; line-height: 1">arrow_forward</span></a>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">device_hub</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Zigbee-мережа як на долоні</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Жива карта показує, через який роутер працює кожен пристрій і наскільки сильний кожен зв’язок, тож видно, де стане в пригоді ще одна розумна розетка.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">home</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Працює з Home Assistant</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">MQTT discovery сам додає ваші пристрої в Home Assistant — з правильними елементами керування й одиницями виміру.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">system_update</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Безпечні оновлення через мережу</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Встановлюйте нові релізи просто зі сторінки хаба. Пристрої та правила зберігаються, а оновлення, яке не запустилося як слід, саме відкочується назад.</p>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border: 1px solid var(--line); border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<span style="width: 48px; height: 48px; border-radius: 14px; background: var(--chip); color: var(--link); display: inline-flex; align-items: center; justify-content: center"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 26px; line-height: 1">code</span></span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 800">Відкритий код</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Прошивка, її вебсторінка та бібліотека пристроїв — у відкритому доступі на GitHub. Читайте код, змінюйте його, збирайте самі. <a href="#code" style="color: var(--link); font-weight: 700">Подивитися код</a></p>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="screens-h" style="padding: 96px 0; background: var(--alt)">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="screens-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Як це виглядає</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: var(--muted)">Вебінтерфейс живе на самому хабі. Відкрийте <strong>http://zhac.local</strong> у будь-якому браузері у вашій мережі.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 28px">
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="../assets/hub-states.webp" alt="Показники датчика якості повітря наживо: CO2, вологість, PM2.5, температура й VOC з одиницями виміру" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: var(--muted)"><strong style="color: var(--fg)">Показники наживо, з одиницями.</strong> Датчик якості повітря передає CO₂, PM2.5, VOC, формальдегід, температуру й вологість.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="../assets/valve-schedule.webp" alt="Тижневий розклад опалення радіаторного термостата, чотири періоди на день, редагується в браузері" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: var(--muted)"><strong style="color: var(--fg)">Усі налаштування пристрою.</strong> Тут — тижневий розклад опалення термоголовки радіатора, який редагують прямо в браузері.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="../assets/hub-rules.webp" alt="Список правил на справжньому хабі з кнопками Run now і часом останнього спрацювання кожного правила" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: var(--muted)"><strong style="color: var(--fg)">Правила, які працюють на хабі.</strong> Жест кубика вмикає розетку, кнопка перемикає реле. Видно, коли кожне правило спрацювало востаннє, і його можна запустити просто зараз.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="../assets/hub-lua.webp" alt="Редактор скриптів Lua на хабі з автодоповненням і кнопкою Run" style="display: block; width: 100%; height: 360px; object-fit: cover; object-position: top left"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: var(--muted)"><strong style="color: var(--fg)">Lua — коли правил замало.</strong> Пишіть скрипти в браузері з автодоповненням і запускайте їх на хабі. Скрипти вміють також перемикати піни й надсилати повідомлення в Telegram.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="../assets/hub-status.webp" alt="Сторінка стану справжнього хаба: прошивка, підключені Ethernet, MQTT і хмара, працює Zigbee-радіо, 18 пристроїв, використання пам’яті" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: var(--muted)"><strong style="color: var(--fg)">Знайте, що робить хаб.</strong> Прошивка, мережа, радіо й пам’ять — з одного погляду.</figcaption>
+</figure>
+<figure style="margin: 0; flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 16px; overflow: hidden; background: #111822; box-shadow: 0 10px 30px rgba(15,23,42,0.18)"><img src="../assets/pairing.webp" alt="Додавання пристрою: хаб відкритий для сполучення й чекає на новий Zigbee-пристрій" style="display: block; width: 100%; height: auto"></div>
+<figcaption style="font-size: 16px; line-height: 1.5; color: var(--muted)"><strong style="color: var(--fg)">Додайте пристрій за кілька кліків.</strong> Відкрийте мережу, натисніть кнопку сполучення на пристрої — готово.</figcaption>
+</figure>
+</div>
+</div>
+</section>
+
+<section id="hardware" aria-labelledby="hw-h" style="padding: 96px 0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="hw-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Виберіть плату</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: var(--muted)">Обидві плати працюють на тій самій прошивці ZHAC і під’єднуються до вашого роутера кабелем Ethernet.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 24px">
+<article style="flex: 1 1 440px; min-width: 0; box-sizing: border-box; border: 2px solid var(--link); border-radius: 24px; padding: 28px; display: flex; flex-wrap: wrap; gap: 24px">
+<img src="../assets/s31-board.webp" alt="Плата Espressif ESP32-S31 Function-CoreBoard" style="flex: 0 0 150px; width: 150px; height: auto; border-radius: 14px; align-self: flex-start">
+<div style="flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<span style="align-self: flex-start; padding: 4px 10px; border-radius: 999px; background: var(--badge-bg); color: var(--badge-fg); font-size: 12px; font-weight: 800; letter-spacing: 0.04em">РЕКОМЕНДУЄМО</span>
+<h3 style="margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25">Espressif ESP32-S31 Function-CoreBoard</h3>
+<p style="margin: 0; font-size: 15px; font-weight: 700; color: var(--muted)">Близько $25</p>
+<ul style="margin: 0; padding: 0 0 0 20px; font-size: 16px; line-height: 1.7; color: var(--muted)">
+<li>Zigbee-радіо вбудоване в чип</li>
+<li>Ethernet на платі</li>
+<li>Прошивається з браузера приблизно за дві хвилини</li>
+</ul>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px">
+<a href="../flash/#s31" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #12639A; color: #FFFFFF; font-weight: 700; font-size: 15px; text-decoration: none">Прошити цю плату</a>
+</div>
+</div>
+</article>
+<article style="flex: 1 1 440px; min-width: 0; box-sizing: border-box; border: 1px solid var(--line); border-radius: 24px; padding: 28px; display: flex; flex-wrap: wrap; gap: 24px">
+<img src="../assets/p4-devkit-board.webp" alt="Плата Guition JC-ESP32P4-M3-DEV" style="flex: 0 0 150px; width: 150px; height: 200px; box-sizing: border-box; border-radius: 14px; object-fit: contain; background: var(--alt)">
+<div style="flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25">Guition JC-ESP32P4-M3-DEV (ESP32-P4 + C6)</h3>
+<p style="margin: 0; font-size: 15px; font-weight: 700; color: var(--muted)">Близько $25</p>
+<ul style="margin: 0; padding: 0 0 0 20px; font-size: 16px; line-height: 1.7; color: var(--muted)">
+<li>На ESP32-P4 працює хаб, а чип C6 — це Zigbee-радіо</li>
+<li>Ethernet на платі</li>
+<li>Радіо C6 встановлюється один раз, з тієї ж сторінки в браузері — без адаптера</li>
+</ul>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px">
+<a href="../flash/#wired" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 22px; background: #12639A; color: #FFFFFF; font-weight: 700; font-size: 15px; text-decoration: none">Прошити цю плату</a>
+</div>
+</div>
+</article>
+</div>
+</div>
+</section>
+
+<section id="start" aria-labelledby="start-h" style="padding: 96px 0; background: var(--alt)">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="start-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Від коробки до першої автоматизації</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: var(--muted)">П’ять кроків із платою ESP32-S31. Жодних інструментів розробника встановлювати не треба.</p>
+</div>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 16px">
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: var(--surface); border-radius: 20px; border: 1px solid var(--line)">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">1</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Придбайте плату й два кабелі</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Кабель USB-C, що передає дані (кабелі лише для заряджання не підійдуть), і кабель Ethernet до вашого роутера.</p>
+</div>
+</li>
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: var(--surface); border-radius: 20px; border: 1px solid var(--line)">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">2</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Прошийте її з браузера</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Відкрийте <a href="../flash/" style="color: var(--link); font-weight: 700">zhac.org/flash</a> у Chrome або Edge, виберіть свою плату й натисніть Install. Це займає близько двох хвилин.</p>
+</div>
+</li>
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: var(--surface); border-radius: 20px; border: 1px solid var(--line)">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">3</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Під’єднайте Ethernet і відкрийте хаб</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Перейдіть на <strong style="color: var(--fg)">http://zhac.local</strong>. Протягом перших десяти хвилин після ввімкнення задайте пароль адміністратора — так ніхто сторонній у вашій мережі не зможе увійти.</p>
+</div>
+</li>
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: var(--surface); border-radius: 20px; border: 1px solid var(--line)">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">4</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Додайте перший пристрій</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Натисніть <strong style="color: var(--fg)">Add a device</strong>, а потім переведіть датчик, розетку чи лампу в режим сполучення. Пристрій з’явиться у списку разом з елементами керування.</p>
+</div>
+<img src="../assets/pairing.webp" alt="Екран Add a device" style="flex: 0 1 300px; width: 300px; max-width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line)">
+</li>
+<li style="display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; background: var(--surface); border-radius: 20px; border: 1px solid var(--line)">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 22px; background: #0B2237; color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800">5</span>
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800">Налаштуйте першу автоматизацію</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Створіть правило з готового рецепта, наприклад <em>light on with motion</em> (світло при русі). Далі хаб виконує його сам.</p>
+</div>
+<img src="../assets/rule-new.webp" alt="Вікно New Rule з вибором рецепта" style="flex: 0 1 300px; width: 300px; max-width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line)">
+</li>
+</ol>
+</div>
+</section>
+
+<section aria-labelledby="flash-h" style="padding: 96px 0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<h2 id="flash-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Прошивка крок за кроком</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: var(--muted)">Усе відбувається в браузері. Нічого не треба встановлювати, хіба що інколи USB-драйвер у Windows.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 20px">
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border-radius: 20px; background: var(--alt); display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: var(--link)">checklist</span>Перед початком</h3>
+<ul style="margin: 0; padding: 0 0 0 20px; font-size: 16px; line-height: 1.7; color: var(--muted)">
+<li>Chrome або Edge на комп’ютері — Safari і Firefox не вміють працювати з USB-пристроями.</li>
+<li>Кабель USB-C, що передає дані.</li>
+<li>У Windows, якщо плата не з’являється: встановіть USB-драйвер CP210x.</li>
+<li>Закрийте інші програми, що працюють із послідовним портом, наприклад Arduino IDE.</li>
+</ul>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border-radius: 20px; background: var(--alt); display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: var(--link)">usb</span>Прошивка</h3>
+<ol style="margin: 0; padding: 0 0 0 20px; font-size: 16px; line-height: 1.7; color: var(--muted)">
+<li>Відкрийте <a href="../flash/" style="color: var(--link); font-weight: 700">zhac.org/flash</a> і знайдіть свою плату.</li>
+<li>Натисніть <strong style="color: var(--fg)">Connect</strong> і виберіть порт плати.</li>
+<li>Натисніть <strong style="color: var(--fg)">Install</strong> і зачекайте, доки з’явиться Done.</li>
+<li>Від’єднайте USB-кабель, під’єднайте Ethernet і живлення.</li>
+</ol>
+</div>
+<div style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; padding: 28px; border-radius: 20px; background: var(--alt); display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: var(--link)">update</span>Оновлення згодом</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.7; color: var(--muted)">Відкрийте на хабі сторінку <strong style="color: var(--fg)">OTA</strong> і встановіть найновіший реліз через мережу. Пристрої, правила й налаштування зберігаються. Якщо нова версія не запуститься як слід, хаб сам повернеться до попередньої.</p>
+<p style="margin: 0; font-size: 16px; line-height: 1.7; color: var(--muted)">Перепрошиваєте через USB? Не ставте позначку <em>Erase the whole flash first</em>, щоб зберегти дані.</p>
+</div>
+</div>
+<p style="margin: 0; font-size: 16px; color: var(--muted)">Щось не виходить? Зазирніть у розділ <a href="https://github.com/zhac-project/zhac-docs/blob/master/TROUBLESHOOTING.md" style="color: var(--link); font-weight: 700">Усунення проблем</a> або запитайте в <a href="https://github.com/zhac-project/zhac-docs/discussions" style="color: var(--link); font-weight: 700">обговореннях</a>.</p>
+</div>
+</section>
+
+<section id="code" aria-labelledby="code-h" style="padding: 88px 0; background: #0B2237">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 36px">
+<div style="display: flex; flex-direction: column; gap: 14px; max-width: 760px">
+<h2 id="code-h" style="margin: 0; color: #FFFFFF; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Так, код відкритий</h2>
+<p style="margin: 0; color: #C9D6E2; font-size: 18px; line-height: 1.65">Прошивка, її вебсторінка та бібліотека пристроїв — у відкритому доступі на GitHub під ліцензіями відкритого коду. Будь-хто може прочитати код, перевірити, що він робить, змінити його й зібрати з нього власну прошивку. Код поділено на п’ять репозиторіїв (папок проєкту) на GitHub, по одному на кожну частину:</p>
+</div>
+<ul style="margin: 0; padding: 0; list-style: none; border-top: 1px solid rgba(255,255,255,0.14)">
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/zhac-wired-core" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">memory</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">Прошивка</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">zhac-wired-core</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">AGPL-3.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">Програма, яка працює на платі. Почніть звідси, якщо хочете зібрати ZHAC самі.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/www-spa" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">web</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">Вебінтерфейс</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">www-spa</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">AGPL-3.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">Власна сторінка хаба — та, яку ви відкриваєте в браузері. Вона вбудована в прошивку.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/embedded-zhc" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">devices</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">Бібліотека пристроїв</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">embedded-zhc</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">Apache-2.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">Звідки хаб знає понад {{MODELS}} моделей Zigbee-пристроїв: що вміє кожна і як із нею спілкуватися.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/zhac-components" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">widgets</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">Спільні складові</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">zhac-components</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">AGPL-3.0, Apache-2.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">Частини, з яких складається прошивка: сховище пристроїв, правила, скрипти Lua, MQTT для Home Assistant та інше.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+<li style="border-bottom: 1px solid rgba(255,255,255,0.14)"><a class="repo" href="https://github.com/zhac-project/zhac-docs" style="display: flex; align-items: flex-start; gap: 16px; margin: 6px 0; padding: 14px 12px; border-radius: 14px; color: #FFFFFF; text-decoration: none">
+<span aria-hidden="true" style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: rgba(161,244,202,0.14); color: #A1F4CA; display: inline-flex; align-items: center; justify-content: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1">menu_book</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px"><strong style="font-size: 18px; font-weight: 800">Посібники й цей сайт</strong><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; color: #A1F4CA">zhac-docs</code><span style="padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.28); color: #C9D6E2; font-size: 12px; font-weight: 700">AGPL-3.0</span></span>
+<span style="color: #C9D6E2; font-size: 16px; line-height: 1.6">Посібники (англійською), цей сайт, прошивальник у браузері та список підтримуваних пристроїв.</span>
+</span>
+<span aria-hidden="true" style="flex: none; align-self: center; font-family: 'Material Symbols Rounded'; font-size: 24px; line-height: 1; color: #A1F4CA">arrow_outward</span>
+</a></li>
+</ul>
+<div style="display: flex; flex-wrap: wrap; gap: 24px 56px">
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 800">Усе працює локально</h3>
+<p style="margin: 0; color: #C9D6E2; font-size: 17px; line-height: 1.7">Хаб на 100% працює у вашій власній мережі. Жодні дані про ваш дім не залишають її, якщо ви самі так не вирішите.</p>
+</div>
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; color: #FFFFFF; font-size: 20px; font-weight: 800">Хмара — за бажанням</h3>
+<p style="margin: 0; color: #C9D6E2; font-size: 17px; line-height: 1.7">Єдина закрита частина — окремий сервіс ZHAC Cloud (вебконсоль, застосунок для телефона й віддалений доступ), зараз у закритому тестуванні. Хабу він ніколи не потрібен.</p>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="cta-h" style="padding: 88px 0">
+<div style="max-width: 1180px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px">
+<h2 id="cta-h" style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; font-weight: 800; letter-spacing: -0.02em">Готові спробувати?</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: var(--muted)">Прошийте плату приблизно за дві хвилини, а потім додайте перший пристрій.</p>
+<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px">
+<a href="../flash/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; background: #12639A; color: #FFFFFF; font-weight: 800; font-size: 17px; text-decoration: none">Прошити плату</a>
+<a href="../devices/" style="display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 26px; border: 1.5px solid var(--outline); color: var(--fg); font-weight: 700; font-size: 17px; text-decoration: none">Перевірити свої пристрої</a>
+</div>
+<p style="margin: 6px 0 0; font-size: 16px; line-height: 1.6; color: var(--muted)">Новини й нові релізи — у <a href="https://t.me/zhac_project" style="color: var(--link); font-weight: 700">Telegram-каналі ZHAC</a>.</p>
+</div>
+</section>
+</main>
+
+<footer style="background: var(--alt); border-top: 1px solid var(--line)">
+<div style="max-width: 1180px; margin: 0 auto; padding: 56px 24px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 32px">
+<div style="display: flex; flex-wrap: wrap; gap: 32px 64px">
+<div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 20px; font-weight: 800; letter-spacing: 0.06em">ZHAC</span>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: var(--muted)">Zigbee-хаб із відкритим кодом для плат ESP32.</p>
+</div>
+<nav aria-label="Проєкт" style="flex: 0 1 180px; display: flex; flex-direction: column; gap: 6px; font-size: 15px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2)">Проєкт</span>
+<a href="#code" style="color: var(--fg); text-decoration: none; padding: 4px 0">Вихідний код</a>
+<a href="https://github.com/zhac-project/zhac-wired-core/releases/latest" style="color: var(--fg); text-decoration: none; padding: 4px 0">Останній реліз</a>
+<a href="https://github.com/zhac-project/zhac-docs/discussions" style="color: var(--fg); text-decoration: none; padding: 4px 0">Обговорення</a>
+<a href="https://t.me/zhac_project" style="color: var(--fg); text-decoration: none; padding: 4px 0">Telegram-канал</a>
+<a href="https://github.com/zhac-project/zhac-docs/issues/new/choose" style="color: var(--fg); text-decoration: none; padding: 4px 0">Повідомити про помилку</a>
+</nav>
+<nav aria-label="Документація" style="flex: 0 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 15px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2)">Документація</span>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/FIRST_20_MINUTES.md" style="color: var(--fg); text-decoration: none; padding: 4px 0">Перші кроки</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/RULES_DSL.md" style="color: var(--fg); text-decoration: none; padding: 4px 0">Правила</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/LUA_API.md" style="color: var(--fg); text-decoration: none; padding: 4px 0">Скрипти Lua</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/GPIO.md" style="color: var(--fg); text-decoration: none; padding: 4px 0">Піни хаба</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/ALARM.md" style="color: var(--fg); text-decoration: none; padding: 4px 0">Режим охорони</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/HOME_ASSISTANT.md" style="color: var(--fg); text-decoration: none; padding: 4px 0">Home Assistant</a>
+<a href="https://github.com/zhac-project/zhac-docs/blob/master/TROUBLESHOOTING.md" style="color: var(--fg); text-decoration: none; padding: 4px 0">Усунення проблем</a>
+</nav>
+<nav aria-label="Інструменти" style="flex: 0 1 180px; display: flex; flex-direction: column; gap: 6px; font-size: 15px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2)">Інструменти</span>
+<a href="../flash/" style="color: var(--fg); text-decoration: none; padding: 4px 0">Прошивальник у браузері</a>
+<a href="../devices/" style="color: var(--fg); text-decoration: none; padding: 4px 0">Підтримувані пристрої</a>
+</nav>
+</div>
+<p style="margin: 0; padding-top: 24px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.7; color: var(--muted2)">Описи пристроїв створено на основі zigbee-herdsman-converters (MIT) від Koen Kanters та співавторів. ZHAC не пов’язаний з Espressif, zigbee2mqtt чи Connectivity Standards Alliance. Zigbee — торговельна марка Connectivity Standards Alliance.</p>
+</div>
+</footer>
+</div>
+</body>
+</html>

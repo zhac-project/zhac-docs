@@ -27,18 +27,25 @@ curl -fsSL "https://unpkg.com/esptool-js@${ESPTOOL_JS_VERSION}/bundle.js" -o "$O
 grep -q "ESPLoader" "$OUT/flash/esptool-js.bundle.js" || { echo "esptool-js bundle looks wrong" >&2; exit 1; }
 touch "$OUT/.nojekyll"
 
-# Landing page (site/index.html). The device numbers come from the generated
-# devices.json at build time, so the page never states a stale count.
+# Landing pages (site/index.html and its Ukrainian translation site/uk/index.html).
+# The device numbers come from the generated devices.json at build time, so the
+# pages never state a stale count. The Ukrainian page says "over N" (понад N):
+# rounded down, so the noun after the number never changes form, and the
+# thousands grouped with a no-break space, not a comma (a decimal point there).
 mkdir -p "$OUT/assets"
 cp "$HERE/../site/assets/"*.webp "$HERE/../images/s31-board.webp" "$HERE/../images/p4-devkit-board.webp" "$OUT/assets/"
 # At the root: browsers ask for /favicon.ico on pages without an icon link (flash/, devices/).
 cp "$HERE/../site/favicon.svg" "$HERE/../site/favicon.ico" "$OUT/"
-read -r MODELS BRANDS < <(python3 -c '
+read -r MODELS BRANDS MODELS_UK BRANDS_UK < <(python3 -c '
 import json, sys
 d = json.load(open(sys.argv[1]))["devices"]
-print(f"{len(d):,}", len({x["vendor"] for x in d}))' "$HERE/../supported-devices/devices.json")
+n, b = len(d), len({x["vendor"] for x in d})
+uk = lambda v, step: f"{(v - 1) // step * step:,}".replace(",", " ")
+print(f"{n:,}", b, uk(n, 100), uk(b, 10))' "$HERE/../supported-devices/devices.json")
 sed -e "s/{{MODELS}}/$MODELS/g" -e "s/{{BRANDS}}/$BRANDS/g" "$HERE/../site/index.html" > "$OUT/index.html"
-if grep -q '{{' "$OUT/index.html"; then echo "landing page has an unfilled {{placeholder}}" >&2; exit 1; fi
+mkdir -p "$OUT/uk"
+sed -e "s/{{MODELS}}/$MODELS_UK/g" -e "s/{{BRANDS}}/$BRANDS_UK/g" "$HERE/../site/uk/index.html" > "$OUT/uk/index.html"
+if grep -q '{{' "$OUT/index.html" "$OUT/uk/index.html"; then echo "landing page has an unfilled {{placeholder}}" >&2; exit 1; fi
 
 # Device search page (supported-devices/index.html over the generated devices.json).
 mkdir -p "$OUT/devices"
